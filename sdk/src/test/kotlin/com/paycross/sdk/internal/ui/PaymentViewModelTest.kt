@@ -1,0 +1,244 @@
+package com.paycross.sdk.internal.ui
+
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
+import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.Recovery
+import com.paycross.sdk.internal.api.models.BrowserInfo
+import com.paycross.sdk.internal.api.models.SessionResponse
+import com.paycross.sdk.internal.api.models.StatusResponse
+import com.paycross.sdk.internal.api.models.SubmitCardRequest
+import com.paycross.sdk.internal.api.models.SubmitCardResponse
+import com.paycross.sdk.internal.api.models.ThreeDsAction
+import com.paycross.sdk.internal.repository.PaymentRepository
+import io.mockk.coEvery
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class PaymentViewModelTest {
+
+    // Payload: {"sub":"session-123","merchant":"merchant-456","amount":9999,"currency":"EUR","exp":4102444800}
+    private val token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzZXNzaW9uLTEyMyIsIm1lcmNoYW50IjoibWVyY2hhbnQtNDU2IiwiYW1vdW50Ijo5OTk5LCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6NDEwMjQ0NDgwMH0.sig" // gitleaks:allow
+
+    private val dispatcher = StandardTestDispatcher()
+    private val repository = mockk<PaymentRepository>()
+    private val context = mockk<Context>(relaxed = true)
+
+    private fun viewModel() = PaymentViewModel(
+        savedStateHandle = SavedStateHandle(),
+        repository = repository,
+        dispatcher = dispatcher,
+        browserInfoProvider = { _, ip -> browserInfo(ip) },
+        ipAddressProvider = { "203.0.113.10" }
+    )
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `open session with latest transaction resumes polling`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession("session-123", token) } returns
+            sessionResponse(status = "open", latestTransactionId = "tx-1")
+        coEvery { repository.getStatus("tx-1") } returns
+            StatusResponse("tx-1", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Success
+        assertEquals("tx-1", result.transactionId)
+        assertEquals(9999, result.amount)
+    }
+
+    @Test
+    fun `expired session fails with restart`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "expired", latestTransactionId = null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.RESTART, result.recovery)
+    }
+
+    @Test
+    fun `poll tolerates early 404 and completes on success`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-2", null, null, null)
+        coEvery { repository.getStatus("tx-2") } throws httpException(404) andThenThrows
+            httpException(404) andThen StatusResponse("tx-2", "success", null, null, null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Success
+        assertEquals("tx-2", result.transactionId)
+        assertEquals(9999, result.amount)
+        assertEquals("EUR", result.currency)
+    }
+
+    @Test
+    fun `unknown recovery on failed status fails closed`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-3", null, null, null)
+        coEvery { repository.getStatus("tx-3") } returns
+            StatusResponse("tx-3", "failed", null, null, null, "brand_new_value")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.DO_NOT_RETRY, result.recovery)
+    }
+
+    @Test
+    fun `retry_after resubmits the same request with the same idempotency key`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+
+        val keys = mutableListOf<String>()
+        val requests = mutableListOf<SubmitCardRequest>()
+        coEvery { repository.submitCard(capture(keys), capture(requests)) } returns
+            SubmitCardResponse(null, null, null, "Request already processing", 1) andThen
+            SubmitCardResponse(true, "tx-4", true, null, null)
+        coEvery { repository.getStatus("tx-4") } returns
+            StatusResponse("tx-4", "success", null, null, null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(
+            context,
+            newCard(),
+            mapOf("billing_address" to mapOf("country" to "DE"))
+        )
+        advanceUntilIdle()
+
+        assertEquals(2, keys.size)
+        assertEquals(keys[0], keys[1])
+
+        val request = requests.first()
+        assertEquals(token, request.session)
+        assertEquals("card", request.paymentMethod)
+        assertEquals("4111111111111111", request.card?.pan)
+        assertEquals("203.0.113.10", request.browserInfo.ipAddress)
+        assertEquals(mapOf("billing_address" to mapOf("country" to "DE")), request.fieldGroups)
+        assertTrue(vm.uiState.value.result is PayCrossResult.Success)
+    }
+
+    @Test
+    fun `retryable failure re-arms the form instead of finishing`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-6", null, null, null)
+        coEvery { repository.getStatus("tx-6") } returns
+            StatusResponse("tx-6", "failed", null, null, null, "change_method")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.result)
+        assertNotNull(vm.uiState.value.error)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `fingerprint action surfaces once as hidden step`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-5", null, null, null)
+
+        val action = ThreeDsAction("https://acs.bank.com/3ds/method", "POST", mapOf("threeDSMethodData" to "abc"))
+        coEvery { repository.getStatus("tx-5") } returns
+            StatusResponse("tx-5", "threeds_fingerprint", null, null, action, null) andThen
+            StatusResponse("tx-5", "threeds_fingerprint", null, null, action, null) andThen
+            StatusResponse("tx-5", "success", null, null, null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+
+        dispatcher.scheduler.advanceTimeBy(1500)
+        dispatcher.scheduler.runCurrent()
+        val threeDs = vm.uiState.value.threeDs
+        assertNotNull(threeDs)
+        assertFalse(threeDs!!.isChallenge)
+
+        vm.clearThreeDs()
+        dispatcher.scheduler.advanceTimeBy(2500)
+        dispatcher.scheduler.runCurrent()
+        assertNull(vm.uiState.value.threeDs)
+
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.result is PayCrossResult.Success)
+    }
+
+    private fun sessionResponse(status: String, latestTransactionId: String?) =
+        SessionResponse("session-123", status, latestTransactionId, null)
+
+    private fun newCard() = CardFormData(
+        cardholderName = "JOHN DOE",
+        pan = "4111111111111111",
+        expireMonth = "12",
+        expireYear = "2030",
+        cvv = "123",
+        savedUuid = null,
+        saveCard = false
+    )
+
+    private fun browserInfo(ip: String) = BrowserInfo(
+        userAgent = "ua",
+        ipAddress = ip,
+        screenWidth = 1,
+        screenHeight = 1,
+        colorDepth = 24,
+        timezoneOffset = 0,
+        language = "en",
+        acceptHeader = "*/*",
+        javaEnabled = false,
+        javascriptEnabled = true
+    )
+
+    private fun httpException(code: Int) =
+        HttpException(Response.error<Any>(code, "".toResponseBody()))
+}

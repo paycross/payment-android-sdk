@@ -9,10 +9,10 @@ enum class PayCrossEnvironment(val baseUrl: String) {
     /**
      * Staging environment for testing and development.
      */
-    STAGING("https://checkout.test-pay-cross.com"),
+    STAGING("https://checkout.test-pay-cross.com/api"),
 
     /**
      * Production environment for live transactions.
      */
-    PRODUCTION("https://checkout.pay-cross.com")
+    PRODUCTION("https://checkout.pay-cross.com/api")
 }

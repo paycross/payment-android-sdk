@@ -3,7 +3,6 @@ package com.paycross.sdk.internal.api
 import androidx.annotation.VisibleForTesting
 import com.paycross.sdk.PayCross
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -17,6 +16,9 @@ private const val WRITE_TIMEOUT_SECONDS = 30L
  *
  * The API instance is lazily created on first access and cached for reuse.
  * Call [reset] when SDK configuration changes to force recreation.
+ *
+ * No logging interceptor is installed: request bodies carry PAN/CVV and
+ * must never reach logcat.
  */
 internal object ApiClient {
     @Volatile
@@ -34,15 +36,10 @@ internal object ApiClient {
     private fun createApi(): PayCrossApi {
         val config = PayCross.requireConfig()
 
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-
         val client = OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(loggingInterceptor)
             .build()
 
         val retrofit = Retrofit.Builder()

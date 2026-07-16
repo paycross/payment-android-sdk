@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCrossResult
@@ -50,9 +52,7 @@ internal class PaymentActivity : ComponentActivity() {
             return
         }
 
-        if (savedInstanceState == null) {
-            viewModel.initialize(sessionToken)
-        }
+        viewModel.initialize(sessionToken)
 
         setContent {
             MaterialTheme {
@@ -103,15 +103,18 @@ private fun PaymentScreen(
         uiState.result?.let { onResult(it) }
     }
 
+    val challenge = uiState.threeDs?.takeIf { it.isChallenge }
+    val fingerprint = uiState.threeDs?.takeIf { !it.isChallenge }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             uiState.isLoading && uiState.claims == null -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
-            uiState.threeDsAction != null -> {
+            challenge != null -> {
                 ThreeDsWebView(
-                    action = uiState.threeDsAction!!,
-                    onComplete = { viewModel.clearThreeDsAction() },
+                    action = challenge.action,
+                    onComplete = { viewModel.clearThreeDs() },
                     onError = { /* Continue polling, will fail eventually */ },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -122,23 +125,29 @@ private fun PaymentScreen(
                     sessionData = uiState.sessionData,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
-                    onSubmit = { formData ->
-                        viewModel.submitCard(
-                            context = context,
-                            cardholderName = formData.cardholderName,
-                            pan = formData.pan,
-                            expireMonth = formData.expireMonth,
-                            expireYear = formData.expireYear,
-                            cvv = formData.cvv,
-                            savedUuid = formData.savedUuid,
-                            saveCard = formData.saveCard
-                        )
+                    onSubmit = { card, fieldValues ->
+                        viewModel.submitCard(context, card, fieldValues)
                     }
                 )
             }
         }
 
-        if (uiState.isLoading && uiState.claims != null && uiState.threeDsAction == null) {
+        // Fingerprint runs in a hidden WebView; the ACS method endpoint is
+        // never meant to be shown to the user.
+        fingerprint?.let {
+            ThreeDsWebView(
+                action = it.action,
+                onComplete = { viewModel.clearThreeDs() },
+                onError = { viewModel.clearThreeDs() },
+                modifier = Modifier
+                    .size(1.dp)
+                    .alpha(0f)
+            )
+        }
+
+        val showOverlay = uiState.claims != null && challenge == null &&
+            (uiState.isLoading || fingerprint != null)
+        if (showOverlay) {
             LoadingOverlay()
         }
     }

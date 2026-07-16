@@ -8,21 +8,27 @@ import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.JwtParser
+import com.paycross.sdk.internal.api.models.BrowserInfo
 import com.paycross.sdk.internal.api.models.CardData
 import com.paycross.sdk.internal.api.models.SessionData
+import com.paycross.sdk.internal.api.models.SessionStatus
+import com.paycross.sdk.internal.api.models.StatusResponse
 import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import com.paycross.sdk.internal.repository.PaymentRepository
 import com.paycross.sdk.internal.util.BrowserInfoProvider
 import com.paycross.sdk.internal.util.IdempotencyKey
+import com.paycross.sdk.internal.util.IpAddressProvider
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import java.io.IOException
 
 /**
@@ -32,7 +38,7 @@ import java.io.IOException
  * @property error User-facing error message, if any
  * @property sessionData Session data from the server
  * @property claims Parsed JWT claims from the session token
- * @property threeDsAction 3DS action requiring user interaction
+ * @property threeDs 3DS step requiring a WebView, if any
  * @property result Final payment result, signals flow completion
  */
 internal data class PaymentUiState(
@@ -40,8 +46,17 @@ internal data class PaymentUiState(
     val error: String? = null,
     val sessionData: SessionData? = null,
     val claims: JwtClaims? = null,
-    val threeDsAction: ThreeDsAction? = null,
+    val threeDs: ThreeDsUi? = null,
     val result: PayCrossResult? = null
+)
+
+/**
+ * A 3DS step to render. Fingerprint runs in an invisible WebView;
+ * only the challenge is shown to the user.
+ */
+internal data class ThreeDsUi(
+    val action: ThreeDsAction,
+    val isChallenge: Boolean
 )
 
 /**
@@ -49,19 +64,21 @@ internal data class PaymentUiState(
  *
  * Handles session initialization, card submission, and status polling with
  * support for process death recovery via [SavedStateHandle].
- *
- * @property savedStateHandle Persists critical state across process death
- * @property repository Repository for payment API operations
- * @property dispatcher Coroutine dispatcher for background work
  */
 internal class PaymentViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val repository: PaymentRepository = PaymentRepository(),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val browserInfoProvider: (Context, String) -> BrowserInfo = BrowserInfoProvider::collect,
+    private val ipAddressProvider: () -> String = IpAddressProvider::get,
+    private val clock: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PaymentUiState())
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
+
+    private var pollJob: Job? = null
+    private val handledThreeDsActions = mutableSetOf<String>()
 
     private var sessionToken: String
         get() = savedStateHandle[KEY_SESSION_TOKEN] ?: ""
@@ -71,48 +88,75 @@ internal class PaymentViewModel(
         get() = savedStateHandle[KEY_TRANSACTION_ID]
         set(value) { savedStateHandle[KEY_TRANSACTION_ID] = value }
 
-    private var idempotencyKey: String
-        get() = savedStateHandle[KEY_IDEMPOTENCY] ?: IdempotencyKey.generate().also {
-            savedStateHandle[KEY_IDEMPOTENCY] = it
-        }
-        set(value) { savedStateHandle[KEY_IDEMPOTENCY] = value }
-
     /**
      * Initializes the payment flow with the given session token.
      *
-     * Parses the JWT to extract claims and fetches session data from the server.
-     * If a transaction ID exists in saved state (process death recovery),
-     * resumes status polling automatically.
+     * Parses the JWT, fetches session data, and resolves already-terminal
+     * sessions (completed/expired) without showing the form. If a transaction
+     * is already in flight (process death recovery or a completed submit on a
+     * reloaded session), resumes status polling.
      *
      * @param token JWT session token from the merchant backend
      */
     fun initialize(token: String) {
+        // Idempotent: the activity calls this on every onCreate so that a
+        // fresh ViewModel after process death still initializes and resumes.
+        if (_uiState.value.claims != null) return
+
         sessionToken = token
 
-        viewModelScope.launch(dispatcher) {
-            try {
-                val claims = JwtParser.parse(token)
-                val session = repository.getSession(claims.sessionId)
+        viewModelScope.launch(dispatcher) { ipAddressProvider() }
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        sessionData = session.data,
-                        claims = claims
-                    )
-                }
+        viewModelScope.launch(dispatcher) {
+            val claims = try {
+                JwtParser.parse(token)
             } catch (e: IllegalArgumentException) {
-                handleInitializationError("Invalid session token")
+                failInitialization("Invalid session token")
+                return@launch
+            }
+
+            if (claims.isExpired()) {
+                failInitialization("Session expired")
+                return@launch
+            }
+
+            val session = try {
+                repository.getSession(claims.sessionId, token)
             } catch (e: IOException) {
-                handleInitializationError("Network error. Please check your connection.")
+                null
+            } catch (e: HttpException) {
+                null
+            }
+
+            _uiState.update {
+                it.copy(isLoading = false, sessionData = session?.data, claims = claims)
+            }
+
+            val resumeTransactionId = transactionId ?: session?.latestTransactionId
+
+            when (session?.status) {
+                SessionStatus.EXPIRED -> _uiState.update {
+                    it.copy(result = PayCrossResult.Failure(resumeTransactionId, Recovery.RESTART))
+                }
+                SessionStatus.COMPLETED -> when (resumeTransactionId) {
+                    null -> _uiState.update {
+                        it.copy(
+                            result = PayCrossResult.Success(
+                                transactionId = "",
+                                status = "success",
+                                amount = claims.amount,
+                                currency = claims.currency
+                            )
+                        )
+                    }
+                    else -> pollStatus(resumeTransactionId)
+                }
+                else -> resumeTransactionId?.let { pollStatus(it) }
             }
         }
-
-        // Resume polling if we have a transaction ID (process death recovery)
-        transactionId?.let { pollStatus(it) }
     }
 
-    private fun handleInitializationError(message: String) {
+    private fun failInitialization(message: String) {
         _uiState.update {
             it.copy(
                 isLoading = false,
@@ -126,134 +170,113 @@ internal class PaymentViewModel(
      * Submits card details to initiate payment processing.
      *
      * For new cards, provide all card details. For saved cards, provide only
-     * the savedUuid and CVV. The idempotency key ensures safe retries.
+     * the savedUuid and CVV. A fresh idempotency key is generated per submit;
+     * `retry_after` responses are retried with the same key.
      *
      * @param context Android context for collecting browser info
-     * @param cardholderName Cardholder name (new cards only)
-     * @param pan Card number without spaces (new cards only)
-     * @param expireMonth Expiration month MM format (new cards only)
-     * @param expireYear Expiration year YY format (new cards only)
-     * @param cvv Card verification value (required)
-     * @param savedUuid UUID of a saved card (use instead of card details)
-     * @param saveCard Whether to save the card for future use
+     * @param card Card details from the form
+     * @param fieldValues Field-group values keyed by group then field name
      */
     fun submitCard(
         context: Context,
-        cardholderName: String?,
-        pan: String?,
-        expireMonth: String?,
-        expireYear: String?,
-        cvv: String,
-        savedUuid: String?,
-        saveCard: Boolean
+        card: CardFormData,
+        fieldValues: Map<String, Map<String, String>>
     ) {
         viewModelScope.launch(dispatcher) {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            try {
-                val browserInfo = BrowserInfoProvider.collect(context)
-
-                val cardData = if (savedUuid != null) {
-                    CardData(savedUuid = savedUuid, cvv = cvv)
-                } else {
-                    CardData(
-                        cardholderName = cardholderName,
-                        pan = pan?.replace("\\s".toRegex(), ""),
-                        expireMonth = expireMonth,
-                        expireYear = expireYear,
-                        cvv = cvv,
-                        save = if (saveCard) true else null
-                    )
-                }
-
-                val request = SubmitCardRequest(
-                    session = sessionToken,
-                    card = cardData,
-                    browserInfo = browserInfo
+            val cardData = if (card.savedUuid != null) {
+                CardData(savedUuid = card.savedUuid, cvv = card.cvv)
+            } else {
+                CardData(
+                    cardholderName = card.cardholderName,
+                    pan = card.pan?.replace("\\s".toRegex(), ""),
+                    expireMonth = card.expireMonth,
+                    expireYear = card.expireYear,
+                    cvv = card.cvv,
+                    save = if (card.saveCard) true else null
                 )
+            }
 
-                val response = repository.submitCard(idempotencyKey, request)
+            val request = SubmitCardRequest(
+                session = sessionToken,
+                paymentMethod = "card",
+                card = cardData,
+                browserInfo = browserInfoProvider(context, ipAddressProvider()),
+                fieldGroups = fieldValues.takeIf { it.isNotEmpty() }
+            )
 
-                if (response.success && response.transactionId != null) {
+            submitWithRetry(request)
+        }
+    }
+
+    private suspend fun submitWithRetry(request: SubmitCardRequest) {
+        val idempotencyKey = IdempotencyKey.generate()
+
+        repeat(MAX_SUBMIT_ATTEMPTS) {
+            val response = try {
+                repository.submitCard(idempotencyKey, request)
+            } catch (e: IOException) {
+                _uiState.update {
+                    it.copy(isLoading = false, error = "Network error. Please try again.")
+                }
+                return
+            } catch (e: HttpException) {
+                _uiState.update {
+                    it.copy(isLoading = false, error = "Payment submission failed")
+                }
+                return
+            }
+
+            when {
+                response.success == true && response.transactionId != null -> {
                     transactionId = response.transactionId
                     pollStatus(response.transactionId)
-                } else {
+                    return
+                }
+                response.retryAfter != null -> delay(response.retryAfter * 1000L)
+                else -> {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             error = response.error ?: "Payment submission failed"
                         )
                     }
-                }
-            } catch (e: IOException) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Network error. Please try again."
-                    )
+                    return
                 }
             }
+        }
+
+        _uiState.update {
+            it.copy(isLoading = false, error = "Payment submission failed")
         }
     }
 
     /**
-     * Polls transaction status until a terminal state is reached.
+     * Polls transaction status until a terminal state or the deadline.
      *
-     * Uses exponential backoff starting at 1 second, capped at 5 seconds.
-     * Handles 3DS intermediate states by updating the UI for user action.
-     *
-     * @param transactionId Transaction ID to poll
+     * Network errors and non-2xx responses (the status item may not exist yet,
+     * or polling may be throttled) are treated as transient and polling
+     * continues until the deadline.
      */
     private fun pollStatus(transactionId: String) {
-        viewModelScope.launch(dispatcher) {
-            var attempts = 0
+        if (pollJob?.isActive == true) return
+
+        pollJob = viewModelScope.launch(dispatcher) {
+            val deadline = clock() + POLL_DEADLINE_MS
             var delayMs = INITIAL_POLL_DELAY_MS
 
-            while (attempts < MAX_POLL_ATTEMPTS) {
+            while (clock() < deadline) {
                 try {
-                    val status = repository.getStatus(transactionId)
-
-                    when (status.status) {
-                        STATUS_SUCCESS, STATUS_AUTHORIZED -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    result = PayCrossResult.Success(
-                                        transactionId = status.transactionId,
-                                        status = status.status,
-                                        amount = status.amount,
-                                        currency = status.currency
-                                    )
-                                )
-                            }
-                            return@launch
-                        }
-                        STATUS_FAILED -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    result = PayCrossResult.Failure(
-                                        transactionId = status.transactionId,
-                                        recovery = Recovery.fromString(status.recovery ?: "retry")
-                                    )
-                                )
-                            }
-                            return@launch
-                        }
-                        STATUS_THREEDS_FINGERPRINT, STATUS_THREEDS_CHALLENGE -> {
-                            _uiState.update { it.copy(threeDsAction = status.action) }
-                        }
-                    }
+                    if (handleStatus(repository.getStatus(transactionId))) return@launch
                 } catch (e: IOException) {
-                    // Continue polling on network errors
+                } catch (e: HttpException) {
                 }
 
                 delay(delayMs)
                 delayMs = (delayMs * BACKOFF_MULTIPLIER).toLong().coerceAtMost(MAX_POLL_DELAY_MS)
-                attempts++
             }
 
-            // Timeout - polling exceeded max attempts
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -264,21 +287,85 @@ internal class PaymentViewModel(
     }
 
     /**
-     * Clears the current 3DS action after it has been handled.
-     *
-     * Call this after the WebView completes 3DS fingerprint or challenge flow
-     * to resume status polling without displaying the action again.
+     * Applies a status response to UI state. Returns true when terminal.
      */
-    fun clearThreeDsAction() {
-        _uiState.update { it.copy(threeDsAction = null) }
+    private fun handleStatus(status: StatusResponse): Boolean {
+        val claims = _uiState.value.claims
+
+        when (status.status) {
+            STATUS_SUCCESS, STATUS_AUTHORIZED -> _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    threeDs = null,
+                    result = PayCrossResult.Success(
+                        transactionId = status.transactionId,
+                        status = status.status,
+                        amount = status.amount ?: claims?.amount ?: 0L,
+                        currency = status.currency ?: claims?.currency ?: ""
+                    )
+                )
+            }
+            STATUS_FAILED -> {
+                val recovery = Recovery.fromString(status.recovery)
+                if (recovery.isRetryable) {
+                    // Re-arm the form like the checkout page does; only
+                    // non-retryable declines end the payment sheet.
+                    transactionId = null
+                    handledThreeDsActions.clear()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            threeDs = null,
+                            error = "Payment failed. Please try again."
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            threeDs = null,
+                            result = PayCrossResult.Failure(
+                                transactionId = status.transactionId,
+                                recovery = recovery
+                            )
+                        )
+                    }
+                }
+            }
+            STATUS_THREEDS_FINGERPRINT, STATUS_THREEDS_CHALLENGE -> {
+                val action = status.action ?: return false
+                val key = "${status.status}|${action.url}|${action.data}"
+                if (handledThreeDsActions.add(key)) {
+                    _uiState.update {
+                        it.copy(
+                            threeDs = ThreeDsUi(
+                                action = action,
+                                isChallenge = status.status == STATUS_THREEDS_CHALLENGE
+                            )
+                        )
+                    }
+                }
+                return false
+            }
+            else -> return false
+        }
+        return true
+    }
+
+    /**
+     * Clears the current 3DS step after the WebView reports completion.
+     * The action stays in the handled set, so polling won't re-show it.
+     */
+    fun clearThreeDs() {
+        _uiState.update { it.copy(threeDs = null) }
     }
 
     companion object {
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_TRANSACTION_ID = "transaction_id"
-        private const val KEY_IDEMPOTENCY = "idempotency_key"
 
-        private const val MAX_POLL_ATTEMPTS = 60
+        private const val MAX_SUBMIT_ATTEMPTS = 5
+        private const val POLL_DEADLINE_MS = 8 * 60 * 1000L
         private const val INITIAL_POLL_DELAY_MS = 1000L
         private const val MAX_POLL_DELAY_MS = 5000L
         private const val BACKOFF_MULTIPLIER = 1.5

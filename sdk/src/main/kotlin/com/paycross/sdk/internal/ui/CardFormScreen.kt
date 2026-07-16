@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -36,11 +38,13 @@ import com.paycross.sdk.internal.ui.components.CardNumberField
 import com.paycross.sdk.internal.ui.components.CardholderNameField
 import com.paycross.sdk.internal.ui.components.CvvField
 import com.paycross.sdk.internal.ui.components.ExpiryField
+import com.paycross.sdk.internal.ui.components.FieldGroupsSection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
+import com.paycross.sdk.internal.util.Amounts
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
-import java.text.NumberFormat
-import java.util.Currency
+import com.paycross.sdk.internal.validation.FieldGroupLogic
+import java.util.Locale
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
@@ -66,12 +70,13 @@ internal fun CardFormScreen(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     error: String? = null,
-    onSubmit: (CardFormData) -> Unit
+    onSubmit: (CardFormData, Map<String, Map<String, String>>) -> Unit
 ) {
     val brandColor = PayCross.requireConfig().brandColor?.let { Color(it) }
         ?: MaterialTheme.colorScheme.primary
     val savedCards = sessionData?.savedCards ?: emptyList()
-    val canSaveCard = sessionData?.storedCredentials?.save != null
+    val canSaveCard = sessionData?.saveCardConfig != null
+    val fieldGroups = sessionData?.fieldGroups ?: emptyList()
 
     var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }
     var cardNumber by rememberSaveable { mutableStateOf("") }
@@ -80,13 +85,17 @@ internal fun CardFormScreen(
     var cardholderName by rememberSaveable { mutableStateOf("") }
     var saveCard by rememberSaveable { mutableStateOf(false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
+    var fieldValuesFlat by rememberSaveable {
+        mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))
+    }
 
+    val fieldValues = remember(fieldValuesFlat) { unflattenValues(fieldValuesFlat) }
     val selectedSavedCard by remember(selectedCardUuid, savedCards) {
         derivedStateOf { savedCards.find { it.uuid == selectedCardUuid } }
     }
     val isNewCard = selectedCardUuid == null
     val cardType = CardType.detect(cardNumber)
-    val formattedAmount = formatAmount(claims.amount, claims.currency)
+    val formattedAmount = formatAmount(claims, sessionData?.locale)
 
     val validation = validateForm(
         isNewCard = isNewCard,
@@ -96,53 +105,74 @@ internal fun CardFormScreen(
         cardholderName = cardholderName,
         cardType = cardType
     )
+    val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat) {
+        FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat))
+            .associate { "${it.groupKey}|${it.fieldName}" to it.message }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(16.dp)
     ) {
-        AmountHeader(amount = formattedAmount)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AmountHeader(amount = formattedAmount)
 
-        if (savedCards.isNotEmpty()) {
-            SavedCardSelector(
-                savedCards = savedCards,
-                selectedCard = selectedSavedCard,
-                onCardSelected = { selectedCardUuid = it?.uuid }
-            )
-        }
+            if (savedCards.isNotEmpty()) {
+                SavedCardSelector(
+                    savedCards = savedCards,
+                    selectedCard = selectedSavedCard,
+                    onCardSelected = { selectedCardUuid = it?.uuid }
+                )
+            }
 
-        if (isNewCard) {
-            NewCardForm(
-                cardNumber = cardNumber,
-                expiry = expiry,
-                cvv = cvv,
-                cardholderName = cardholderName,
-                cardType = cardType,
-                saveCard = saveCard,
-                canSaveCard = canSaveCard,
-                showErrors = showErrors,
-                validation = validation,
-                onCardNumberChange = { cardNumber = it },
-                onExpiryChange = { expiry = it },
-                onCvvChange = { cvv = it },
-                onCardholderNameChange = { cardholderName = it },
-                onSaveCardChange = { saveCard = it }
-            )
-        } else {
-            SavedCardCvvInput(
-                savedCard = selectedSavedCard,
-                cvv = cvv,
-                showErrors = showErrors,
-                isCvvValid = validation.isCvvValid,
-                onCvvChange = { cvv = it }
-            )
+            if (isNewCard) {
+                NewCardForm(
+                    cardNumber = cardNumber,
+                    expiry = expiry,
+                    cvv = cvv,
+                    cardholderName = cardholderName,
+                    cardType = cardType,
+                    saveCard = saveCard,
+                    canSaveCard = canSaveCard,
+                    showErrors = showErrors,
+                    validation = validation,
+                    onCardNumberChange = { cardNumber = it },
+                    onExpiryChange = { expiry = it },
+                    onCvvChange = { cvv = it },
+                    onCardholderNameChange = { cardholderName = it },
+                    onSaveCardChange = { saveCard = it }
+                )
+            } else {
+                SavedCardCvvInput(
+                    savedCard = selectedSavedCard,
+                    cvv = cvv,
+                    showErrors = showErrors,
+                    isCvvValid = validation.isCvvValid,
+                    onCvvChange = { cvv = it }
+                )
+            }
+
+            if (fieldGroups.isNotEmpty()) {
+                FieldGroupsSection(
+                    groups = fieldGroups,
+                    values = fieldValues,
+                    errors = if (showErrors) fieldGroupErrors else emptyMap(),
+                    onValueChange = { group, field, value ->
+                        fieldValuesFlat = HashMap(fieldValuesFlat).apply { put("$group|$field", value) }
+                    }
+                )
+            }
         }
 
         error?.let { ErrorMessage(message = it) }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(16.dp))
 
         PayButton(
             amount = formattedAmount,
@@ -150,8 +180,11 @@ internal fun CardFormScreen(
             brandColor = brandColor,
             onClick = {
                 showErrors = true
-                if (validation.isValid) {
-                    onSubmit(buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard))
+                if (validation.isValid && fieldGroupErrors.isEmpty()) {
+                    onSubmit(
+                        buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard),
+                        FieldGroupLogic.submissionValues(fieldGroups, fieldValues)
+                    )
                 }
             }
         )
@@ -345,9 +378,25 @@ private fun buildFormData(
     }
 }
 
-private fun formatAmount(amount: Double, currency: String): String {
-    val format = NumberFormat.getCurrencyInstance().apply {
-        this.currency = Currency.getInstance(currency)
+private fun formatAmount(claims: JwtClaims, locale: String?): String {
+    val displayLocale = locale?.let { Locale.forLanguageTag(it) } ?: Locale.getDefault()
+    return Amounts.formatMinor(claims.amount, claims.currency, displayLocale)
+}
+
+private fun flattenValues(values: Map<String, Map<String, String>>): HashMap<String, String> {
+    val flat = HashMap<String, String>()
+    values.forEach { (group, fields) ->
+        fields.forEach { (field, value) -> flat["$group|$field"] = value }
     }
-    return format.format(amount)
+    return flat
+}
+
+private fun unflattenValues(flat: Map<String, String>): Map<String, Map<String, String>> {
+    val nested = mutableMapOf<String, MutableMap<String, String>>()
+    flat.forEach { (key, value) ->
+        val group = key.substringBefore('|')
+        val field = key.substringAfter('|')
+        nested.getOrPut(group) { mutableMapOf() }[field] = value
+    }
+    return nested
 }

@@ -8,8 +8,8 @@ class CardValidatorTest {
 
     @Test
     fun `valid card number passes Luhn check`() {
-        assertTrue(CardValidator.isValidCardNumber("4532010000000366"))
-        assertTrue(CardValidator.isValidCardNumber("4111111111111111"))
+        assertTrue(CardValidator.isValidCardNumber("4111111111111111")) // Visa test
+        assertTrue(CardValidator.isValidCardNumber("5500000000000004")) // Mastercard test
     }
 
     @Test
@@ -20,7 +20,7 @@ class CardValidatorTest {
 
     @Test
     fun `card number with spaces is validated`() {
-        assertTrue(CardValidator.isValidCardNumber("4532 0100 0000 0366"))
+        assertTrue(CardValidator.isValidCardNumber("4111 1111 1111 1111"))
     }
 
     @Test

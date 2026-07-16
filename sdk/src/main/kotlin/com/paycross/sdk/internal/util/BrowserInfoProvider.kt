@@ -23,17 +23,22 @@ internal object BrowserInfoProvider {
      * Collects browser and device information from the current context.
      *
      * @param context Android context used to access display metrics and WebView settings
+     * @param ipAddress Public IP address of the device
      * @return BrowserInfo containing device characteristics for 3DS
      */
-    fun collect(context: Context): BrowserInfo {
+    fun collect(context: Context, ipAddress: String): BrowserInfo {
         val displayMetrics = context.resources.displayMetrics
 
         return BrowserInfo(
             userAgent = WebSettings.getDefaultUserAgent(context),
+            ipAddress = ipAddress,
             screenWidth = displayMetrics.widthPixels,
             screenHeight = displayMetrics.heightPixels,
             colorDepth = COLOR_DEPTH_ANDROID_STANDARD,
-            timezoneOffset = TimeZone.getDefault().rawOffset / MILLIS_PER_MINUTE,
+            // Minutes west of UTC with DST applied, matching the JS
+            // Date.getTimezoneOffset() convention 3DS expects.
+            timezoneOffset = -TimeZone.getDefault()
+                .getOffset(System.currentTimeMillis()) / MILLIS_PER_MINUTE,
             language = Locale.getDefault().toLanguageTag(),
             acceptHeader = DEFAULT_ACCEPT_HEADER,
             javaEnabled = false,

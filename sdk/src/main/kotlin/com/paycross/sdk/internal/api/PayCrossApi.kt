@@ -11,26 +11,29 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * Retrofit interface for PayCross API endpoints.
- *
- * All methods are suspend functions for coroutine-based async execution.
+ * Retrofit interface for the PayCross public checkout API
+ * (`https://checkout.{env}/api`).
  */
 internal interface PayCrossApi {
     /**
      * Retrieves session details by session ID.
      *
      * @param sessionId The unique session identifier.
-     * @return Session data including customer info and saved cards.
+     * @param authorization Bearer session JWT.
+     * @return Session status, latest transaction, and checkout data blob.
      */
     @GET("session/{sessionId}")
-    suspend fun getSession(@Path("sessionId") sessionId: String): SessionResponse
+    suspend fun getSession(
+        @Path("sessionId") sessionId: String,
+        @Header("Authorization") authorization: String?
+    ): SessionResponse
 
     /**
-     * Submits card details for payment processing.
+     * Submits a payment for processing.
      *
      * @param idempotencyKey Unique key to prevent duplicate submissions.
-     * @param request Card and billing information.
-     * @return Response containing transaction ID or error.
+     * @param request Payment method, card or wallet data, browser info, and field groups.
+     * @return Response containing transaction ID, error, or retry-after hint.
      */
     @POST("submit-card")
     suspend fun submitCard(

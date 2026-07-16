@@ -4,9 +4,11 @@ import com.google.gson.annotations.SerializedName
 
 data class SubmitCardRequest(
     val session: String,
-    val card: CardData,
+    @SerializedName("payment_method") val paymentMethod: String,
+    val card: CardData? = null,
+    @SerializedName("wallet_token") val walletToken: WalletToken? = null,
     @SerializedName("browser_info") val browserInfo: BrowserInfo,
-    @SerializedName("billing_address") val billingAddress: Address? = null
+    @SerializedName("field_groups") val fieldGroups: Map<String, Map<String, String>>? = null
 )
 
 data class CardData(
@@ -17,4 +19,9 @@ data class CardData(
     @SerializedName("expire_month") val expireMonth: String? = null,
     val cvv: String,
     val save: Boolean? = null
+)
+
+data class WalletToken(
+    val type: String,
+    val data: Any
 )

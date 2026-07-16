@@ -1,6 +1,7 @@
 package com.paycross.sdk.internal.api
 
-import org.json.JSONObject
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.util.Base64
 
 /**
@@ -10,17 +11,22 @@ import java.util.Base64
  * @property merchantId Merchant identifier
  * @property customerId Customer identifier
  * @property brandingId Optional branding configuration ID
- * @property amount Payment amount as a decimal
+ * @property amount Payment amount in minor units (e.g. cents)
  * @property currency ISO 4217 currency code
+ * @property expiresAt Token expiry as epoch seconds (from "exp" claim)
  */
 data class JwtClaims(
     val sessionId: String,
     val merchantId: String,
     val customerId: String,
     val brandingId: String?,
-    val amount: Double,
-    val currency: String
-)
+    val amount: Long,
+    val currency: String,
+    val expiresAt: Long?
+) {
+    fun isExpired(nowEpochSeconds: Long = System.currentTimeMillis() / 1000): Boolean =
+        expiresAt != null && nowEpochSeconds >= expiresAt
+}
 
 /**
  * Parses PayCross session JWT tokens to extract payment claims.
@@ -48,11 +54,13 @@ internal object JwtParser {
 
         return JwtClaims(
             sessionId = json.getString("sub"),
-            merchantId = json.optString("merchant", ""),
-            customerId = json.optString("customer", ""),
-            brandingId = json.optString("branding").takeIf { it.isNotEmpty() },
-            amount = json.getDouble("amount"),
-            currency = json.getString("currency")
+            merchantId = json.getStringOrDefault("merchant", ""),
+            customerId = json.getStringOrDefault("customer", ""),
+            brandingId = json.getStringOrNull("branding"),
+            amount = json.get("amount")?.takeIf { !it.isJsonNull }?.asLong
+                ?: throw IllegalArgumentException("Missing required field: amount"),
+            currency = json.getString("currency"),
+            expiresAt = json.get("exp")?.takeIf { !it.isJsonNull }?.asLong
         )
     }
 
@@ -66,11 +74,24 @@ internal object JwtParser {
         }
     }
 
-    private fun parseJson(payload: String): JSONObject {
+    private fun parseJson(payload: String): JsonObject {
         return try {
-            JSONObject(payload)
+            JsonParser.parseString(payload).asJsonObject
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid JWT payload JSON", e)
         }
+    }
+
+    private fun JsonObject.getString(key: String): String {
+        return get(key)?.takeIf { !it.isJsonNull }?.asString
+            ?: throw IllegalArgumentException("Missing required field: $key")
+    }
+
+    private fun JsonObject.getStringOrDefault(key: String, default: String): String {
+        return get(key)?.takeIf { !it.isJsonNull }?.asString ?: default
+    }
+
+    private fun JsonObject.getStringOrNull(key: String): String? {
+        return get(key)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotEmpty() }
     }
 }

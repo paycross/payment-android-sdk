@@ -5,8 +5,8 @@ import com.google.gson.annotations.SerializedName
 data class StatusResponse(
     @SerializedName("transaction_id") val transactionId: String,
     val status: String,
-    val amount: Long,
-    val currency: String,
+    val amount: Long?,
+    val currency: String?,
     val action: ThreeDsAction?,
     val recovery: String?
 )

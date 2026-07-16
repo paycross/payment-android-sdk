@@ -1,5 +1,14 @@
 # Payment API Documentation
 
+## Base URLs
+
+| Environment | Base URL |
+|-------------|----------|
+| Test | `https://checkout.test-pay-cross.com/api` |
+| Production | `https://checkout.pay-cross.com/api` |
+
+All endpoints below are relative to the base URL.
+
 ## Authentication
 
 ### Payment Session Token (JWT)
@@ -19,7 +28,7 @@ The checkout URL contains a JWT token that authenticates public API requests dur
 | `merchant` | string | Merchant UUID |
 | `customer` | string | Customer UUID |
 | `branding` | string\|null | Merchant branding UUID |
-| `amount` | float | Payment amount |
+| `amount` | int | Payment amount in minor units (e.g. cents) |
 | `currency` | string | Currency code (e.g., EUR) |
 | `iat` | int | Issued at (unix timestamp) |
 | `exp` | int | Expiration (iat + TTL) |
@@ -39,7 +48,7 @@ The checkout URL contains a JWT token that authenticates public API requests dur
   "merchant": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "customer": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "branding": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "amount": 99.99,
+  "amount": 9999,
   "currency": "EUR",
   "iat": 1704067200,
   "exp": 1704068100,
@@ -64,7 +73,7 @@ Submit card details to initiate a payment transaction.
 
 ### Request Body
 
-Three modes are supported: **new card**, **saved card**, or **wallet** (Apple Pay).
+Three modes are supported: **new card**, **saved card**, or **wallet** (Apple Pay / Google Pay).
 
 #### New Card (with optional save)
 
@@ -92,22 +101,24 @@ Three modes are supported: **new card**, **saved card**, or **wallet** (Apple Pa
     "java_enabled": false,
     "javascript_enabled": true
   },
-  "billing_address": {
-    "line1": "123 Main St",
-    "line2": "Apt 4B",
-    "city": "New York",
-    "state": "NY",
-    "postal_code": "10001",
-    "country": "US"
-  },
-  "customer_info": {
-    "email": "john@example.com",
-    "phone": "+12025551234"
+  "field_groups": {
+    "billing_address": {
+      "line1": "123 Main St",
+      "line2": "Apt 4B",
+      "city": "New York",
+      "state": "NY",
+      "postal_code": "10001",
+      "country": "US"
+    },
+    "customer_info": {
+      "email": "john@example.com",
+      "phone": "+12025551234"
+    }
   }
 }
 ```
 
-Field group values (`billing_address`, `shipping_address`, `customer_info`, `aft_sender`, `aft_recipient`) are included as top-level keys when the merchant has configured those field groups. Only non-empty groups are sent.
+Field group values are nested under a single `field_groups` object keyed by group name (`billing_address`, `shipping_address`, `customer_info`, `aft_sender`, `aft_recipient`). Only groups the merchant has configured with non-empty user-provided values are included; the `field_groups` object itself is omitted when empty.
 
 #### Saved Card (CVV only)
 
@@ -131,16 +142,18 @@ Field group values (`billing_address`, `shipping_address`, `customer_info`, `aft
     "java_enabled": false,
     "javascript_enabled": true
   },
-  "billing_address": {
-    "line1": "123 Main St",
-    "country": "US"
+  "field_groups": {
+    "billing_address": {
+      "line1": "123 Main St",
+      "country": "US"
+    }
   }
 }
 ```
 
-Saved card submissions also include field group values when configured.
+Saved card submissions use the same nested `field_groups` object when configured.
 
-#### Wallet Payment (Apple Pay)
+#### Wallet Payment (Apple Pay / Google Pay)
 
 ```json
 {
@@ -176,15 +189,11 @@ Saved card submissions also include field group values when configured.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `session` | string | Yes | JWT token from checkout URL |
-| `payment_method` | string | Yes | Payment type: `card` or `apple_pay` |
+| `payment_method` | string | Yes | Payment type: `card`, `apple_pay`, or `google_pay` |
 | `card` | object | If payment_method=card | Card details (new or saved) |
-| `wallet_token` | object | If payment_method=apple_pay | Wallet token data |
+| `wallet_token` | object | If payment_method=apple_pay or google_pay | Wallet token data |
 | `browser_info` | object | Yes | Browser/device fingerprint for 3DS |
-| `billing_address` | object | No | Billing address fields (from field group) |
-| `shipping_address` | object | No | Shipping address fields (from field group) |
-| `customer_info` | object | No | Customer info fields (from field group) |
-| `aft_sender` | object | No | AFT sender fields (from field group) |
-| `aft_recipient` | object | No | AFT recipient fields (from field group) |
+| `field_groups` | object | No | Nested object of configured field group values (see below) |
 
 #### Card Object (new card)
 
@@ -204,12 +213,12 @@ Saved card submissions also include field group values when configured.
 | `saved_uuid` | string | Yes | UUID of previously saved card |
 | `cvv` | string | Yes | 3 or 4 digit security code |
 
-#### Wallet Token Object (payment_method=apple_pay)
+#### Wallet Token Object (payment_method=apple_pay or google_pay)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Wallet type (e.g., `apple_pay`) |
-| `data` | object | Yes | Token data from wallet provider (Apple Pay token object)
+| `type` | string | Yes | Wallet type; must match `payment_method` (`apple_pay` or `google_pay`) |
+| `data` | object | Yes | Token data from wallet provider |
 
 #### Browser Info Object (Required for 3DS v2)
 
@@ -226,18 +235,20 @@ Saved card submissions also include field group values when configured.
 | `java_enabled` | bool | Yes | Java enabled (usually false) |
 | `javascript_enabled` | bool | Yes | JavaScript enabled (usually true) |
 
-#### Field Group Objects (Dynamic)
+#### Field Groups Object (Dynamic)
 
-Field group values are sent as top-level keys matching the `field_groups[].key` from session data. Only non-empty groups with user-provided values are included. Fields within each group match the `field_groups[].fields[].name` values.
+Field group values are sent under a single top-level `field_groups` object, keyed by group name matching `field_groups[].key` from session data. Only non-empty groups with user-provided values are included. Field names within each group match the `field_groups[].fields[].name` values. The entire `field_groups` object is omitted when there are no values to send.
 
 Example: if the session data includes a `billing_address` field group with fields `line1`, `city`, `country`, the submission sends:
 
 ```json
 {
-  "billing_address": {
-    "line1": "123 Main St",
-    "city": "New York",
-    "country": "US"
+  "field_groups": {
+    "billing_address": {
+      "line1": "123 Main St",
+      "city": "New York",
+      "country": "US"
+    }
   }
 }
 ```
@@ -398,7 +409,10 @@ Poll for transaction status updates during payment processing.
 | `retry` | Try the same card again |
 | `change_method` | Use a different card |
 | `restart` | Start a new payment session |
-| `contact_us` | Contact merchant support |
+| `contact_support` | Contact merchant support |
+| `do_not_retry` | Terminal decline — never offer a retry |
+
+Unrecognized values must be treated as non-retryable (fail closed). `amount` and `currency` are omitted from status responses when not yet recorded.
 
 ### Polling Strategy
 
@@ -427,13 +441,17 @@ Fetch session data for checkout form prefill, field requirements, and saved card
 
 ### Response
 
-#### With Field Groups, Saved Cards, and Stored Credentials
+#### With Field Groups, Saved Cards, and Save-Card Config
 
 ```json
 {
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "open",
   "data": {
     "locale": "en",
+    "return_url": "https://merchant.example.com/cart",
+    "success_url": "https://merchant.example.com/thank-you",
+    "merchant_country": "GB",
     "field_groups": [
       {
         "key": "customer_info",
@@ -515,11 +533,8 @@ Fetch session data for checkout form prefill, field requirements, and saved card
         "cardholder_name": "John Doe"
       }
     ],
-    "stored_credentials": {
-      "show_saved": true,
-      "save": {
-        "usage": "recurring"
-      }
+    "save_card_config": {
+      "usage": "card_on_file"
     }
   }
 }
@@ -530,13 +545,29 @@ Fetch session data for checkout form prefill, field requirements, and saved card
 ```json
 {
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "open",
   "data": {
     "locale": "en",
+    "return_url": "https://merchant.example.com/cart",
+    "success_url": "https://merchant.example.com/thank-you",
     "field_groups": [],
     "saved_cards": []
   }
 }
 ```
+
+### Top-Level Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session_id` | string | Session UUID |
+| `status` | string | Session status: `open`, `completed`, `expired` |
+| `latest_transaction_id` | string | Most recent transaction on the session (omitted until one exists) |
+| `data` | object | Checkout data blob (below) |
+
+A `completed` or `expired` session must not show the payment form; when
+`latest_transaction_id` is present with an `open` session, resume status
+polling for that transaction instead of re-arming the form.
 
 #### Not Found (404)
 
@@ -546,14 +577,17 @@ Fetch session data for checkout form prefill, field requirements, and saved card
 }
 ```
 
-### Top-Level Data Fields
+### Data Blob Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `locale` | string | Locale code (e.g., `en`), controls label/message language |
+| `return_url` | string | URL the checkout returns to on cancel/failure |
+| `success_url` | string | URL the checkout redirects to on success |
+| `merchant_country` | string | Merchant's country code (omitted when unset) |
 | `field_groups` | array | Ordered list of field groups to render (may be empty) |
 | `saved_cards` | array | Customer's saved cards (empty array if none) |
-| `stored_credentials` | object | Card saving options (only present if configured on session) |
+| `save_card_config` | object | Card saving options (only present if configured on session) |
 
 ### Field Group Object
 
@@ -577,8 +611,20 @@ Each entry in `field_groups` represents a section of the checkout form.
 | `required` | bool | Whether the field is required |
 | `readonly` | bool | Whether the field is read-only (prefilled, not editable) |
 | `value` | mixed | Prefilled value from session/customer data, or `null` |
+| `condition` | object\|null | Conditional display rule (see below) |
 | `options` | array\|null | For `select` type: list of `{ value, label }` objects |
 | `validation` | object\|null | Validation rules (only present if rules exist) |
+
+### Condition Object
+
+Evaluated against sibling values in the same group.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `when` | string | Sibling field name whose value controls this field |
+| `in` | array | Values of `when` that activate the condition |
+| `display` | string | Display when active: `required`, `show`, `readonly`, `hidden` |
+| `default` | string | Display when not active |
 
 ### Validation Object
 
@@ -611,15 +657,13 @@ Fields with `display: hidden` in merchant configuration are omitted from the res
 | `expire_year` | string | Expiration year (YYYY) |
 | `cardholder_name` | string | Name on card |
 
-Expired cards are automatically excluded. Only returned when `stored_credentials` is present on the session and the customer has saved cards.
+Expired cards are automatically excluded. `saved_cards` is always present and is `[]` when the customer has none.
 
-### Stored Credentials Object
+### Save Card Config Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `show_saved` | bool | Show all customer's saved cards |
-| `tokens` | array | Specific card tokens to show (if not `show_saved`) |
-| `save.usage` | string | Card save usage type: `single`, `recurring` |
+| `usage` | string | Card save usage type (e.g. `card_on_file`) |
 
 ### Usage Flow
 
@@ -636,6 +680,6 @@ Expired cards are automatically excluded. Only returned when `stored_credentials
    - Show card selector UI with card_brand, masked_pan, cardholder_name
    - User selects saved card → submit with card.saved_uuid + cvv + field group values
    - Or user enters new card details + field group values
-5. If stored_credentials.save present:
+5. If save_card_config present:
    - Show "Save card" checkbox with usage context
 ```

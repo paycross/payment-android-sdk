@@ -15,7 +15,9 @@ sealed class PayCrossResult : Parcelable {
     /**
      * Payment completed successfully.
      *
-     * @property transactionId Unique identifier for the transaction
+     * @property transactionId Unique identifier for the transaction. Empty in
+     * the edge case where the session was already completed and no transaction
+     * reference was available from the server.
      * @property status Final status of the transaction (e.g., "success", "authorized")
      * @property amount Transaction amount in minor units (e.g., cents)
      * @property currency ISO 4217 currency code (e.g., "EUR", "USD")

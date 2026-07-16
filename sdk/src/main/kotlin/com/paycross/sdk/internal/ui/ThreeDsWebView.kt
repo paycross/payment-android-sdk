@@ -8,22 +8,32 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.paycross.sdk.internal.api.models.ThreeDsAction
+import java.net.URI
 import java.net.URLEncoder
 
-private const val PAYCROSS_DOMAIN = "paycross"
-private const val PAYCROSS_DOMAIN_ALT = "pay-cross"
+private val RETURN_HOSTS_SUFFIXES = listOf("pay-cross.com", "test-pay-cross.com")
 private const val URL_ENCODING = "UTF-8"
+
+// EMV 3DS requires exact form field names; providers emit variants (e.g.
+// Nuvei's cReq), so normalize like the checkout page does before posting.
+private val FORM_FIELD_NORMALIZATION = mapOf(
+    "cReq" to "creq",
+    "CReq" to "creq",
+    "threeds_method_data" to "threeDSMethodData"
+)
 
 /**
  * WebView composable for handling 3DS fingerprint and challenge flows.
  *
- * Displays the 3DS authentication page in a secure WebView and notifies
- * the caller when the flow completes or fails.
+ * POSTs the action data to the ACS exactly once per action and notifies the
+ * caller when the flow returns to a PayCross domain. The caller controls
+ * visibility: fingerprint runs hidden, the challenge is shown fullscreen.
  *
  * @param action 3DS action containing the URL and POST data
  * @param onComplete Called when 3DS flow completes (returns to our domain)
@@ -44,6 +54,10 @@ internal fun ThreeDsWebView(
         createSecureWebView(context, onComplete, onError)
     }
 
+    LaunchedEffect(action) {
+        webView.postUrl(action.url, encodeFormData(action.data).toByteArray())
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             webView.stopLoading()
@@ -54,11 +68,7 @@ internal fun ThreeDsWebView(
 
     AndroidView(
         factory = { webView },
-        modifier = modifier,
-        update = { view ->
-            val postData = encodeFormData(action.data)
-            view.postUrl(action.url, postData.toByteArray())
-        }
+        modifier = modifier
     )
 }
 
@@ -117,14 +127,22 @@ private fun createWebViewClient(
     }
 }
 
-private fun isReturnUrl(url: String): Boolean {
-    return url.contains(PAYCROSS_DOMAIN) || url.contains(PAYCROSS_DOMAIN_ALT)
+internal fun isReturnUrl(url: String): Boolean {
+    val host = try {
+        URI(url).host
+    } catch (e: java.net.URISyntaxException) {
+        null
+    } ?: return false
+    return RETURN_HOSTS_SUFFIXES.any { host == it || host.endsWith(".$it") }
 }
 
-private fun encodeFormData(data: Map<String, String>?): String {
+internal fun encodeFormData(data: Map<String, String>?): String {
     if (data.isNullOrEmpty()) return ""
 
-    return data.entries.joinToString("&") { (key, value) ->
-        "${URLEncoder.encode(key, URL_ENCODING)}=${URLEncoder.encode(value, URL_ENCODING)}"
-    }
+    return data.entries
+        .filter { it.value.isNotEmpty() }
+        .joinToString("&") { (key, value) ->
+            val normalizedKey = FORM_FIELD_NORMALIZATION[key] ?: key
+            "${URLEncoder.encode(normalizedKey, URL_ENCODING)}=${URLEncoder.encode(value, URL_ENCODING)}"
+        }
 }

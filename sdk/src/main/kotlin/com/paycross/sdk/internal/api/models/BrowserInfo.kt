@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class BrowserInfo(
     @SerializedName("user_agent") val userAgent: String,
+    @SerializedName("ip_address") val ipAddress: String,
     @SerializedName("screen_width") val screenWidth: Int,
     @SerializedName("screen_height") val screenHeight: Int,
     @SerializedName("color_depth") val colorDepth: Int,
