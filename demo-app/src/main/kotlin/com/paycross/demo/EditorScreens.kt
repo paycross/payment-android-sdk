@@ -205,15 +205,28 @@ internal fun MerchantEditScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            // Switching environment also swaps the URL fields between the
+            // known defaults — but never overwrites a hand-edited URL.
+            fun switchEnvironment(env: String) {
+                environment = env
+                val staging = env == Merchant.ENV_STAGING
+                if (tokenUrl == DEFAULT_TOKEN_URL || tokenUrl == PROD_TOKEN_URL) {
+                    tokenUrl = if (staging) DEFAULT_TOKEN_URL else PROD_TOKEN_URL
+                }
+                if (paymentApiUrl == DEFAULT_PAYMENT_API_URL || paymentApiUrl == PROD_PAYMENT_API_URL) {
+                    paymentApiUrl = if (staging) DEFAULT_PAYMENT_API_URL else PROD_PAYMENT_API_URL
+                }
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = environment == Merchant.ENV_STAGING,
-                    onClick = { environment = Merchant.ENV_STAGING },
+                    onClick = { switchEnvironment(Merchant.ENV_STAGING) },
                     label = { Text("Staging") }
                 )
                 FilterChip(
                     selected = environment == Merchant.ENV_PRODUCTION,
-                    onClick = { environment = Merchant.ENV_PRODUCTION },
+                    onClick = { switchEnvironment(Merchant.ENV_PRODUCTION) },
                     label = { Text("Production") }
                 )
             }
@@ -518,4 +531,8 @@ private const val DEFAULT_TOKEN_URL =
     "https://api.test-pay-cross.com/oauth2/token?scope=paycross/payments"
 private const val DEFAULT_PAYMENT_API_URL =
     "https://api.test-pay-cross.com/payment-sessions"
+private const val PROD_TOKEN_URL =
+    "https://api.pay-cross.com/oauth2/token?scope=paycross/payments"
+private const val PROD_PAYMENT_API_URL =
+    "https://api.pay-cross.com/payment-sessions"
 private const val DEFAULT_VERSION = "2026-06-16"
