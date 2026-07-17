@@ -9,7 +9,7 @@ build/
 
 # Local config
 local.properties
-demo-app/creds.properties
+demo-app/src/main/assets/merchants.json
 
 # OS
 .DS_Store

@@ -1,18 +1,7 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
-
-// Staging M2M credentials for the demo's session minting. Gitignored;
-// copy creds.properties.example and fill in real values.
-val creds = Properties().apply {
-    val file = rootProject.file("demo-app/creds.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}
-
-fun cred(key: String): String = "\"${creds.getProperty(key, "")}\""
 
 android {
     namespace = "com.paycross.demo"
@@ -24,12 +13,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
-        buildConfigField("String", "TOKEN_URL", cred("TOKEN_URL"))
-        buildConfigField("String", "CLIENT_ID", cred("CLIENT_ID"))
-        buildConfigField("String", "CLIENT_SECRET", cred("CLIENT_SECRET"))
-        buildConfigField("String", "PAYMENT_API_URL", cred("PAYMENT_API_URL"))
-        buildConfigField("String", "PAYCROSS_VERSION", cred("PAYCROSS_VERSION"))
     }
 
     buildTypes {
@@ -49,7 +32,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 
     composeOptions {
@@ -66,6 +48,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
