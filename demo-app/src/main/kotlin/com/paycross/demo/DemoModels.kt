@@ -32,13 +32,14 @@ data class CardPrefill(
     val pan: String = "",
     val expireMonth: String = "",
     val expireYear: String = "",
-    val cvv: String = ""
+    val cvv: String = "",
+    val saveCard: Boolean = false
 ) {
     fun toTestCardPrefillOrNull(): TestCardPrefill? =
         if (pan.isBlank()) {
             null
         } else {
-            TestCardPrefill(cardholderName, pan, expireMonth, expireYear, cvv)
+            TestCardPrefill(cardholderName, pan, expireMonth, expireYear, cvv, saveCard)
         }
 }
 
@@ -87,31 +88,35 @@ object DemoSeeds {
         }
     """.trimIndent()
 
-    // Sandbox provider test PANs — see payment-sandbox/docs/README.md.
+    private data class SandboxSeed(val name: String, val pan: String, val save: Boolean = false)
+
+    // Sandbox provider test PANs — see payment-sandbox/docs/README.md and
+    // payment_testing_go/templates/paycross/.
     private val SANDBOX_SCENARIOS = listOf(
-        "3DS challenge → approve" to "4111111111153220",
-        "Frictionless 3DS" to "4111111111153063",
-        "Instant approve (no 3DS)" to "4111111111170000",
-        "Decline: do_not_honor" to "4111111111150002",
-        "Decline: insufficient_funds" to "4111111111159995",
-        "Provider timeout" to "4111111111150051"
+        SandboxSeed("Instant approve (no 3DS)", "4111111111170000"),
+        SandboxSeed("Frictionless 3DS", "4111111111153063"),
+        SandboxSeed("3DS challenge → approve", "4111111111153220"),
+        SandboxSeed("3DS challenge → approve + save card", "4111111111153220", save = true),
+        SandboxSeed("3DS challenge → decline", "4111111111153055"),
+        SandboxSeed("Decline: do_not_honor", "4111111111150002"),
+        SandboxSeed("Decline: insufficient_funds", "4111111111159995"),
+        SandboxSeed("Decline: fraud_suspected", "4111111111150119"),
+        SandboxSeed("Decline: card_expired", "4111111111150069"),
+        SandboxSeed("Decline: invalid_cvv", "4111111111150127"),
+        SandboxSeed("Provider timeout", "4111111111150051")
     )
 
-    fun scenariosFor(merchant: Merchant, sandbox: Boolean): List<Scenario> {
-        if (!sandbox) {
-            return listOf(
-                Scenario(
-                    merchantId = merchant.id,
-                    name = "Basic sale €10.00",
-                    requestBody = DEFAULT_BODY
-                )
-            )
-        }
-        return SANDBOX_SCENARIOS.map { (name, pan) ->
+    fun scenariosFor(merchant: Merchant): List<Scenario> {
+        val basic = Scenario(
+            merchantId = merchant.id,
+            name = "Basic sale (no card prefill)",
+            requestBody = DEFAULT_BODY
+        )
+        return listOf(basic) + SANDBOX_SCENARIOS.map { seed ->
             Scenario(
                 merchantId = merchant.id,
-                name = name,
-                card = CardPrefill("John Doe", pan, "12", "2028", "123"),
+                name = seed.name,
+                card = CardPrefill("John Doe", seed.pan, "12", "2028", "123", saveCard = seed.save),
                 requestBody = DEFAULT_BODY
             )
         }

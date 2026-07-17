@@ -54,8 +54,15 @@ class DemoViewModel(
         } else {
             data.merchants + merchant
         }
+        // New merchants start with the full scenario set.
+        val scenarios = if (exists) {
+            data.scenarios
+        } else {
+            data.scenarios + DemoSeeds.scenariosFor(merchant)
+        }
         data.copy(
             merchants = merchants,
+            scenarios = scenarios,
             selectedMerchantId = data.selectedMerchantId ?: merchant.id
         )
     }

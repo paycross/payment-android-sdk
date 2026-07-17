@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -284,6 +285,7 @@ internal fun ScenarioEditScreen(
     var month by rememberSaveable { mutableStateOf(scenario?.card?.expireMonth ?: "12") }
     var year by rememberSaveable { mutableStateOf(scenario?.card?.expireYear ?: "2028") }
     var cvv by rememberSaveable { mutableStateOf(scenario?.card?.cvv ?: "123") }
+    var saveCard by rememberSaveable { mutableStateOf(scenario?.card?.saveCard ?: false) }
     var body by rememberSaveable {
         mutableStateOf(scenario?.requestBody ?: DemoSeeds.DEFAULT_BODY)
     }
@@ -365,6 +367,11 @@ internal fun ScenarioEditScreen(
                 )
             }
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = saveCard, onCheckedChange = { saveCard = it })
+                Text("Pre-tick \"save card\"", style = MaterialTheme.typography.bodyMedium)
+            }
+
             Text("Session request body", style = MaterialTheme.typography.titleSmall)
             OutlinedTextField(
                 value = body,
@@ -416,7 +423,8 @@ internal fun ScenarioEditScreen(
                                     pan = pan.trim(),
                                     expireMonth = month.trim(),
                                     expireYear = year.trim(),
-                                    cvv = cvv.trim()
+                                    cvv = cvv.trim(),
+                                    saveCard = saveCard
                                 ),
                                 requestBody = body
                             )

@@ -24,13 +24,15 @@ data class PayCrossConfig(
  * require retyping them. Ignored in [PayCrossEnvironment.PRODUCTION].
  *
  * @property expireYear Four-digit year (e.g. "2028").
+ * @property saveCard Pre-ticks the "save card" checkbox when the session allows saving.
  */
 data class TestCardPrefill(
     val cardholderName: String = "",
     val pan: String = "",
     val expireMonth: String = "",
     val expireYear: String = "",
-    val cvv: String = ""
+    val cvv: String = "",
+    val saveCard: Boolean = false
 )
 
 /**

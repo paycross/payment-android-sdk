@@ -77,66 +77,71 @@ internal fun HomeScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            val merchant = uiState.selectedMerchant
-            if (merchant == null) {
+        val merchant = uiState.selectedMerchant
+        if (merchant == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
                 EmptyState(
                     message = "No merchants configured",
                     actionLabel = "Add merchant",
                     onAction = onManageMerchants
                 )
-                return@Column
             }
-
-            MerchantSelector(
-                merchants = uiState.data.merchants,
-                selected = merchant,
-                onSelect = onSelectMerchant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
             ) {
-                items(uiState.selectedScenarios, key = { it.id }) { scenario ->
-                    ScenarioRow(
-                        scenario = scenario,
-                        isRunning = uiState.isRunning,
-                        onRun = { onRunScenario(scenario) },
-                        onEdit = { onEditScenario(scenario.id) },
-                        onDuplicate = { onDuplicateScenario(scenario.id) },
-                        onDelete = { onDeleteScenario(scenario.id) }
-                    )
-                }
-                if (uiState.selectedScenarios.isEmpty()) {
-                    item {
-                        Text(
-                            "No scenarios for this merchant yet — add one with +",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 24.dp)
+                MerchantSelector(
+                    merchants = uiState.data.merchants,
+                    selected = merchant,
+                    onSelect = onSelectMerchant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.selectedScenarios, key = { it.id }) { scenario ->
+                        ScenarioRow(
+                            scenario = scenario,
+                            isRunning = uiState.isRunning,
+                            onRun = { onRunScenario(scenario) },
+                            onEdit = { onEditScenario(scenario.id) },
+                            onDuplicate = { onDuplicateScenario(scenario.id) },
+                            onDelete = { onDeleteScenario(scenario.id) }
                         )
                     }
+                    if (uiState.selectedScenarios.isEmpty()) {
+                        item {
+                            Text(
+                                "No scenarios for this merchant yet — add one with +",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(vertical = 24.dp)
+                            )
+                        }
+                    }
                 }
-            }
 
-            uiState.runError?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
+                uiState.runError?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
 
-            uiState.lastResult?.let { result ->
-                ResultCard(result = result, onClear = onClearResult)
+                uiState.lastResult?.let { result ->
+                    ResultCard(result = result, onClear = onClearResult)
+                }
             }
         }
     }

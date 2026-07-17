@@ -86,7 +86,7 @@ internal fun CardFormScreen(
     }
     var cvv by rememberSaveable { mutableStateOf(prefill?.cvv.orEmpty()) }
     var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
-    var saveCard by rememberSaveable { mutableStateOf(false) }
+    var saveCard by rememberSaveable { mutableStateOf(prefill?.saveCard ?: false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
     var fieldValuesFlat by rememberSaveable {
         mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))

@@ -7,6 +7,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.initializer
@@ -81,7 +82,9 @@ private fun DemoApp(
         is Screen.ScenarioEdit -> {
             val merchantId = uiState.data.selectedMerchantId
             if (merchantId == null) {
-                viewModel.navigate(Screen.Home)
+                // Mutating navigation state during composition corrupts the
+                // slot table; defer it to a side effect.
+                LaunchedEffect(Unit) { viewModel.navigate(Screen.Home) }
             } else {
                 ScenarioEditScreen(
                     scenario = uiState.data.scenarios.find { it.id == screen.scenarioId },
