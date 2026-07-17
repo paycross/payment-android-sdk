@@ -78,11 +78,14 @@ internal fun CardFormScreen(
     val canSaveCard = sessionData?.saveCardConfig != null
     val fieldGroups = sessionData?.fieldGroups ?: emptyList()
 
+    val prefill = PayCross.requireConfig().effectiveTestPrefill()
     var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }
-    var cardNumber by rememberSaveable { mutableStateOf("") }
-    var expiry by rememberSaveable { mutableStateOf("") }
-    var cvv by rememberSaveable { mutableStateOf("") }
-    var cardholderName by rememberSaveable { mutableStateOf("") }
+    var cardNumber by rememberSaveable { mutableStateOf(prefill?.pan.orEmpty()) }
+    var expiry by rememberSaveable {
+        mutableStateOf(prefill?.let { it.expireMonth + it.expireYear.takeLast(2) }.orEmpty())
+    }
+    var cvv by rememberSaveable { mutableStateOf(prefill?.cvv.orEmpty()) }
+    var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
     var saveCard by rememberSaveable { mutableStateOf(false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
     var fieldValuesFlat by rememberSaveable {

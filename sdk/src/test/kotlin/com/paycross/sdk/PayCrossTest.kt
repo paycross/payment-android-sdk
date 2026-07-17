@@ -40,4 +40,20 @@ class PayCrossTest {
         val config = PayCross.requireConfig()
         assertEquals(PayCrossEnvironment.STAGING, config.environment)
     }
+
+    @Test
+    fun `test prefill is applied outside production`() {
+        val prefill = TestCardPrefill(pan = "4111111111153220")
+        PayCross.init(environment = PayCrossEnvironment.STAGING, testCardPrefill = prefill)
+        assertEquals(prefill, PayCross.requireConfig().effectiveTestPrefill())
+    }
+
+    @Test
+    fun `test prefill is ignored in production`() {
+        PayCross.init(
+            environment = PayCrossEnvironment.PRODUCTION,
+            testCardPrefill = TestCardPrefill(pan = "4111111111153220")
+        )
+        assertEquals(null, PayCross.requireConfig().effectiveTestPrefill())
+    }
 }

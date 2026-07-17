@@ -8,10 +8,29 @@ import androidx.annotation.VisibleForTesting
  *
  * @property environment The target environment for API requests.
  * @property brandColor Optional brand color for UI customization (ARGB format).
+ * @property testCardPrefill Optional card-form prefill for test runs.
  */
 data class PayCrossConfig(
     val environment: PayCrossEnvironment,
-    @ColorInt val brandColor: Int?
+    @ColorInt val brandColor: Int?,
+    val testCardPrefill: TestCardPrefill? = null
+) {
+    internal fun effectiveTestPrefill(): TestCardPrefill? =
+        testCardPrefill.takeIf { environment != PayCrossEnvironment.PRODUCTION }
+}
+
+/**
+ * Prefills the card form with test card details so manual test runs don't
+ * require retyping them. Ignored in [PayCrossEnvironment.PRODUCTION].
+ *
+ * @property expireYear Four-digit year (e.g. "2028").
+ */
+data class TestCardPrefill(
+    val cardholderName: String = "",
+    val pan: String = "",
+    val expireMonth: String = "",
+    val expireYear: String = "",
+    val cvv: String = ""
 )
 
 /**
@@ -31,12 +50,14 @@ object PayCross {
      *
      * @param environment The target environment for API requests.
      * @param brandColor Optional brand color for UI customization (ARGB format).
+     * @param testCardPrefill Optional card-form prefill for test runs; ignored in production.
      */
     fun init(
         environment: PayCrossEnvironment,
-        @ColorInt brandColor: Int? = null
+        @ColorInt brandColor: Int? = null,
+        testCardPrefill: TestCardPrefill? = null
     ) {
-        config = PayCrossConfig(environment, brandColor)
+        config = PayCrossConfig(environment, brandColor, testCardPrefill)
     }
 
     /**

@@ -31,6 +31,7 @@ import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossContract
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.TestCardPrefill
 
 class MainActivity : ComponentActivity() {
 
@@ -43,7 +44,14 @@ class MainActivity : ComponentActivity() {
         // Initialize SDK
         PayCross.init(
             environment = PayCrossEnvironment.STAGING,
-            brandColor = 0xFF1E88E5.toInt()
+            brandColor = 0xFF1E88E5.toInt(),
+            testCardPrefill = TestCardPrefill(
+                cardholderName = "John Doe",
+                pan = "4111111111153220",
+                expireMonth = "12",
+                expireYear = "2028",
+                cvv = "123"
+            )
         )
 
         // Register for payment results
