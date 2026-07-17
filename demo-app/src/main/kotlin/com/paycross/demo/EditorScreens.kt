@@ -36,6 +36,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -338,6 +340,7 @@ internal fun ScenarioEditScreen(
         mutableStateOf(scenario?.requestBody ?: DemoSeeds.DEFAULT_BODY)
     }
     var bodyError by remember { mutableStateOf<String?>(null) }
+    var bodyTab by rememberSaveable { mutableStateOf(0) }
 
     BackHandler(onBack = onBack)
 
@@ -421,36 +424,61 @@ internal fun ScenarioEditScreen(
             }
 
             Text("Session request body", style = MaterialTheme.typography.titleSmall)
-            OutlinedTextField(
-                value = body,
-                onValueChange = {
-                    body = it
-                    bodyError = null
-                },
-                textStyle = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = FontFamily.Monospace
-                ),
-                isError = bodyError != null,
-                supportingText = {
-                    Text(bodyError ?: "Placeholders: {{timestamp}}, {{uuid}}")
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(320.dp)
-            )
+            TabRow(selectedTabIndex = bodyTab) {
+                Tab(
+                    selected = bodyTab == 0,
+                    onClick = { bodyTab = 0 },
+                    text = { Text("Builder") }
+                )
+                Tab(
+                    selected = bodyTab == 1,
+                    onClick = { bodyTab = 1 },
+                    text = { Text("JSON") }
+                )
+            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = {
-                    runCatching {
-                        GsonBuilder().setPrettyPrinting().create()
-                            .toJson(JsonParser.parseString(body))
-                    }.onSuccess {
+            if (bodyTab == 0) {
+                BodyBuilder(
+                    body = body,
+                    onBodyChange = {
                         body = it
                         bodyError = null
-                    }.onFailure {
-                        bodyError = "Invalid JSON"
                     }
-                }) { Text("Format") }
+                )
+            } else {
+                OutlinedTextField(
+                    value = body,
+                    onValueChange = {
+                        body = it
+                        bodyError = null
+                    },
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    isError = bodyError != null,
+                    supportingText = {
+                        Text(bodyError ?: "Placeholders: {{timestamp}}, {{uuid}}")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (bodyTab == 1) {
+                    OutlinedButton(onClick = {
+                        runCatching {
+                            GsonBuilder().setPrettyPrinting().create()
+                                .toJson(JsonParser.parseString(body))
+                        }.onSuccess {
+                            body = it
+                            bodyError = null
+                        }.onFailure {
+                            bodyError = "Invalid JSON"
+                        }
+                    }) { Text("Format") }
+                }
 
                 Spacer(modifier = Modifier.weight(1f))
 
