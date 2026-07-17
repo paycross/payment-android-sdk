@@ -135,10 +135,9 @@ class PaymentViewModel(
         this.transactionId = transactionId
 
         viewModelScope.launch {
-            var attempts = 0
-            var delay = 1000L  // Start at 1s
+            val deadline = clock() + POLL_DEADLINE_MS
 
-            while (attempts < MAX_ATTEMPTS) {
+            while (clock() < deadline) {
                 val status = api.getStatus(transactionId)
 
                 when (status.status) {
@@ -151,9 +150,8 @@ class PaymentViewModel(
                     }
                 }
 
-                delay(delay)
-                delay = (delay * 1.5).toLong().coerceAtMost(5000L)  // Exponential backoff, max 5s
-                attempts++
+                // Fixed 2s cadence, same as the checkout page
+                delay(POLL_INTERVAL_MS)
             }
 
             _result.value = PayCrossResult.Failure(transactionId, Recovery.RETRY)

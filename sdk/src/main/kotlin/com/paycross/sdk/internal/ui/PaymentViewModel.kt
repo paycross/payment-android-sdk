@@ -264,7 +264,6 @@ internal class PaymentViewModel(
 
         pollJob = viewModelScope.launch(dispatcher) {
             val deadline = clock() + POLL_DEADLINE_MS
-            var delayMs = INITIAL_POLL_DELAY_MS
 
             while (clock() < deadline) {
                 try {
@@ -273,8 +272,7 @@ internal class PaymentViewModel(
                 } catch (e: HttpException) {
                 }
 
-                delay(delayMs)
-                delayMs = (delayMs * BACKOFF_MULTIPLIER).toLong().coerceAtMost(MAX_POLL_DELAY_MS)
+                delay(POLL_INTERVAL_MS)
             }
 
             _uiState.update {
@@ -366,9 +364,10 @@ internal class PaymentViewModel(
 
         private const val MAX_SUBMIT_ATTEMPTS = 5
         private const val POLL_DEADLINE_MS = 8 * 60 * 1000L
-        private const val INITIAL_POLL_DELAY_MS = 1000L
-        private const val MAX_POLL_DELAY_MS = 5000L
-        private const val BACKOFF_MULTIPLIER = 1.5
+
+        // Fixed cadence matching the checkout page (SETTLEMENT_POLL_INTERVAL /
+        // PAYMENT_CHALLENGE_POLL_INTERVAL in paymentConfig.js).
+        private const val POLL_INTERVAL_MS = 2000L
 
         private const val STATUS_SUCCESS = "success"
         private const val STATUS_AUTHORIZED = "authorized"
