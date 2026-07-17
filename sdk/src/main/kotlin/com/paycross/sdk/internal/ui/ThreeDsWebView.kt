@@ -9,6 +9,7 @@ import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,37 +51,44 @@ internal fun ThreeDsWebView(
 ) {
     val context = LocalContext.current
 
-    val webView = remember {
-        createSecureWebView(context, onComplete, onError)
-    }
-
-    LaunchedEffect(action) {
-        webView.postUrl(action.url, encodeFormData(action.data).toByteArray())
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            webView.stopLoading()
-            webView.clearHistory()
-            webView.destroy()
+    key(action) {
+        val webView = remember {
+            createSecureWebView(context, action.url, onComplete, onError)
         }
-    }
 
-    AndroidView(
-        factory = { webView },
-        modifier = modifier
-    )
+        LaunchedEffect(webView) {
+            if (action.method.equals("GET", ignoreCase = true)) {
+                webView.loadUrl(action.url)
+            } else {
+                webView.postUrl(action.url, encodeFormData(action.data).toByteArray())
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                webView.stopLoading()
+                webView.clearHistory()
+                webView.destroy()
+            }
+        }
+
+        AndroidView(
+            factory = { webView },
+            modifier = modifier
+        )
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 private fun createSecureWebView(
     context: android.content.Context,
+    actionUrl: String,
     onComplete: () -> Unit,
     onError: (String) -> Unit
 ): WebView {
     return WebView(context).apply {
         configureSecureSettings()
-        webViewClient = createWebViewClient(onComplete, onError)
+        webViewClient = createWebViewClient(actionUrl, onComplete, onError)
     }
 }
 
@@ -97,6 +105,7 @@ private fun WebView.configureSecureSettings() {
 }
 
 private fun createWebViewClient(
+    actionUrl: String,
     onComplete: () -> Unit,
     onError: (String) -> Unit
 ): WebViewClient {
@@ -111,7 +120,7 @@ private fun createWebViewClient(
         }
 
         override fun onPageFinished(view: WebView, url: String) {
-            if (isReturnUrl(url)) {
+            if (isCompletionUrl(url, actionUrl)) {
                 onComplete()
             }
         }
@@ -126,6 +135,14 @@ private fun createWebViewClient(
         }
     }
 }
+
+/**
+ * A navigation back to a PayCross host signals 3DS completion — except the
+ * action URL itself, which is on our host for the sandbox provider's
+ * simulated ACS and must not complete the step on initial load.
+ */
+internal fun isCompletionUrl(url: String, actionUrl: String): Boolean =
+    url.trimEnd('/') != actionUrl.trimEnd('/') && isReturnUrl(url)
 
 internal fun isReturnUrl(url: String): Boolean {
     val host = try {
