@@ -72,8 +72,8 @@ private fun DemoApp(
 
         is Screen.MerchantEdit -> MerchantEditScreen(
             merchant = uiState.data.merchants.find { it.id == screen.merchantId },
-            onSave = {
-                viewModel.saveMerchant(it)
+            onSave = { merchant, preset ->
+                viewModel.saveMerchant(merchant, preset)
                 viewModel.navigate(Screen.Merchants)
             },
             onBack = { viewModel.navigate(Screen.Merchants) }

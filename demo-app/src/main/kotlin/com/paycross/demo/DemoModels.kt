@@ -57,6 +57,13 @@ data class DemoData(
     val selectedMerchantId: String? = null
 )
 
+enum class ScenarioPreset(val label: String) {
+    SANDBOX("Sandbox"),
+    NUVEI("Nuvei"),
+    SHIFT4("Shift4"),
+    EMPTY("Empty")
+}
+
 object DemoSeeds {
 
     val DEFAULT_BODY = """
@@ -88,31 +95,50 @@ object DemoSeeds {
         }
     """.trimIndent()
 
-    private data class SandboxSeed(val name: String, val pan: String, val save: Boolean = false)
+    private data class Seed(val name: String, val pan: String, val save: Boolean = false)
 
     // Sandbox provider test PANs — see payment-sandbox/docs/README.md and
     // payment_testing_go/templates/paycross/.
     private val SANDBOX_SCENARIOS = listOf(
-        SandboxSeed("Instant approve (no 3DS)", "4111111111170000"),
-        SandboxSeed("Frictionless 3DS", "4111111111153063"),
-        SandboxSeed("3DS challenge → approve", "4111111111153220"),
-        SandboxSeed("3DS challenge → approve + save card", "4111111111153220", save = true),
-        SandboxSeed("3DS challenge → decline", "4111111111153055"),
-        SandboxSeed("Decline: do_not_honor", "4111111111150002"),
-        SandboxSeed("Decline: insufficient_funds", "4111111111159995"),
-        SandboxSeed("Decline: fraud_suspected", "4111111111150119"),
-        SandboxSeed("Decline: card_expired", "4111111111150069"),
-        SandboxSeed("Decline: invalid_cvv", "4111111111150127"),
-        SandboxSeed("Provider timeout", "4111111111150051")
+        Seed("Instant approve (no 3DS)", "4111111111170000"),
+        Seed("Frictionless 3DS", "4111111111153063"),
+        Seed("3DS challenge → approve", "4111111111153220"),
+        Seed("3DS challenge → approve + save card", "4111111111153220", save = true),
+        Seed("3DS challenge → decline", "4111111111153055"),
+        Seed("Decline: do_not_honor", "4111111111150002"),
+        Seed("Decline: insufficient_funds", "4111111111159995"),
+        Seed("Decline: fraud_suspected", "4111111111150119"),
+        Seed("Decline: card_expired", "4111111111150069"),
+        Seed("Decline: invalid_cvv", "4111111111150127"),
+        Seed("Provider timeout", "4111111111150051")
     )
 
-    fun scenariosFor(merchant: Merchant): List<Scenario> {
+    // Nuvei gateway test cards — see payment-nuvei/docs/nuvei-3ds-payment-complete.md.
+    private val NUVEI_SCENARIOS = listOf(
+        Seed("3DS challenge", "4000027891380961"),
+        Seed("Frictionless 3DS", "4000020000000000"),
+        Seed("Non-3DS Mastercard", "5200000000000007")
+    )
+
+    // Shift4 gateway test cards — see payment-shift4/docs/project-state.md.
+    private val SHIFT4_SCENARIOS = listOf(
+        Seed("3DS challenge (password 0101)", "4176660000000118"),
+        Seed("Basic Visa test card", "4545454545454545")
+    )
+
+    fun scenariosFor(merchant: Merchant, preset: ScenarioPreset): List<Scenario> {
+        val seeds = when (preset) {
+            ScenarioPreset.SANDBOX -> SANDBOX_SCENARIOS
+            ScenarioPreset.NUVEI -> NUVEI_SCENARIOS
+            ScenarioPreset.SHIFT4 -> SHIFT4_SCENARIOS
+            ScenarioPreset.EMPTY -> return emptyList()
+        }
         val basic = Scenario(
             merchantId = merchant.id,
             name = "Basic sale (no card prefill)",
             requestBody = DEFAULT_BODY
         )
-        return listOf(basic) + SANDBOX_SCENARIOS.map { seed ->
+        return listOf(basic) + seeds.map { seed ->
             Scenario(
                 merchantId = merchant.id,
                 name = seed.name,

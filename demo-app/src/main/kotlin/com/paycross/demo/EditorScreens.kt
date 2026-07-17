@@ -23,7 +23,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -151,10 +154,11 @@ internal fun MerchantsScreen(
 @Composable
 internal fun MerchantEditScreen(
     merchant: Merchant?,
-    onSave: (Merchant) -> Unit,
+    onSave: (Merchant, ScenarioPreset) -> Unit,
     onBack: () -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf(merchant?.name ?: "") }
+    var preset by rememberSaveable { mutableStateOf(ScenarioPreset.SANDBOX) }
     var environment by rememberSaveable {
         mutableStateOf(merchant?.environment ?: Merchant.ENV_STAGING)
     }
@@ -246,6 +250,9 @@ internal fun MerchantEditScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            if (merchant == null) {
+                PresetSelector(preset = preset, onSelect = { preset = it })
+            }
             Button(
                 enabled = name.isNotBlank() && clientId.isNotBlank() &&
                     tokenUrl.isNotBlank() && paymentApiUrl.isNotBlank(),
@@ -260,11 +267,52 @@ internal fun MerchantEditScreen(
                             clientSecret = clientSecret.trim(),
                             paymentApiUrl = paymentApiUrl.trim(),
                             paycrossVersion = version.trim()
-                        )
+                        ),
+                        preset
                     )
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PresetSelector(
+    preset: ScenarioPreset,
+    onSelect: (ScenarioPreset) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = preset.label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Scenario preset") },
+            supportingText = { Text("Test scenarios seeded for this merchant") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            ScenarioPreset.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

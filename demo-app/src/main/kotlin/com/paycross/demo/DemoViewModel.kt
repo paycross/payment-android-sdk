@@ -47,18 +47,18 @@ class DemoViewModel(
 
     fun selectMerchant(id: String) = updateData { it.copy(selectedMerchantId = id) }
 
-    fun saveMerchant(merchant: Merchant) = updateData { data ->
+    fun saveMerchant(merchant: Merchant, preset: ScenarioPreset) = updateData { data ->
         val exists = data.merchants.any { it.id == merchant.id }
         val merchants = if (exists) {
             data.merchants.map { if (it.id == merchant.id) merchant else it }
         } else {
             data.merchants + merchant
         }
-        // New merchants start with the full scenario set.
+        // New merchants start with their preset's scenario set.
         val scenarios = if (exists) {
             data.scenarios
         } else {
-            data.scenarios + DemoSeeds.scenariosFor(merchant)
+            data.scenarios + DemoSeeds.scenariosFor(merchant, preset)
         }
         data.copy(
             merchants = merchants,
