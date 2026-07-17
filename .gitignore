@@ -9,6 +9,7 @@ build/
 
 # Local config
 local.properties
+demo-app/creds.properties
 
 # OS
 .DS_Store

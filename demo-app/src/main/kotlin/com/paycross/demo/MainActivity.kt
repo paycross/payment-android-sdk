@@ -27,16 +27,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossContract
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.TestCardPrefill
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var paymentLauncher: ActivityResultLauncher<String>
     private var lastResult: PayCrossResult? by mutableStateOf(null)
+    private var isCreatingSession by mutableStateOf(false)
+    private var sessionError: String? by mutableStateOf(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +69,8 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 DemoScreen(
                     lastResult = lastResult,
+                    isCreatingSession = isCreatingSession,
+                    sessionError = sessionError,
                     onPayClick = { launchPayment() },
                     onClearResult = { lastResult = null }
                 )
@@ -71,16 +79,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchPayment() {
-        // In production, this token comes from your backend
-        // For demo, use a test session token
-        val testSessionToken = "YOUR_TEST_SESSION_TOKEN_HERE"
-        paymentLauncher.launch(testSessionToken)
+        isCreatingSession = true
+        sessionError = null
+        lastResult = null
+
+        lifecycleScope.launch {
+            val token = withContext(Dispatchers.IO) { runCatching { StagingSession.create() } }
+            isCreatingSession = false
+            token
+                .onSuccess { paymentLauncher.launch(it) }
+                .onFailure { sessionError = it.message ?: "Could not create session" }
+        }
     }
 }
 
 @Composable
 private fun DemoScreen(
     lastResult: PayCrossResult?,
+    isCreatingSession: Boolean,
+    sessionError: String?,
     onPayClick: () -> Unit,
     onClearResult: () -> Unit
 ) {
@@ -99,11 +116,21 @@ private fun DemoScreen(
 
             Button(
                 onClick = onPayClick,
+                enabled = !isCreatingSession,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text("Pay \u20AC99.99")
+                Text(if (isCreatingSession) "Creating session\u2026" else "Pay \u20AC10.00")
+            }
+
+            sessionError?.let {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))

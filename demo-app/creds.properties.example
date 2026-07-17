@@ -1,0 +1,5 @@
+TOKEN_URL=https://api.example.com/oauth2/token?scope=paycross/payments
+CLIENT_ID=your-m2m-client-id
+CLIENT_SECRET=your-m2m-client-secret
+PAYMENT_API_URL=https://api.example.com/payment-sessions
+PAYCROSS_VERSION=2026-06-16
