@@ -31,6 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.paycross.sdk.PayCrossResult
 
 /**
@@ -41,7 +44,11 @@ import com.paycross.sdk.PayCrossResult
  */
 internal class PaymentActivity : ComponentActivity() {
 
-    private val viewModel: PaymentViewModel by viewModels()
+    // The default factory can't see the (SavedStateHandle)-only constructor:
+    // Kotlin default arguments don't generate telescoping overloads.
+    private val viewModel: PaymentViewModel by viewModels {
+        viewModelFactory { initializer { PaymentViewModel(createSavedStateHandle()) } }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

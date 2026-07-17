@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.core.content.IntentCompat
 import com.paycross.sdk.internal.ui.PaymentActivity
 
 /**
@@ -35,7 +36,10 @@ class PayCrossContract : ActivityResultContract<String, PayCrossResult>() {
         if (resultCode != Activity.RESULT_OK || intent == null) {
             return PayCrossResult.Cancelled
         }
-        return intent.getParcelableExtra(PaymentActivity.EXTRA_RESULT, PayCrossResult::class.java)
-            ?: PayCrossResult.Cancelled
+        return IntentCompat.getParcelableExtra(
+            intent,
+            PaymentActivity.EXTRA_RESULT,
+            PayCrossResult::class.java
+        ) ?: PayCrossResult.Cancelled
     }
 }
