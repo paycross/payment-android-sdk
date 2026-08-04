@@ -313,6 +313,42 @@ class DemoViewModel(
         }
     }
 
+    /** Starts a scenario from a `paycross-demo://run` deep link (adb runner entry). */
+    fun runFromDeepLink(
+        merchantName: String?,
+        scenarioName: String?,
+        surface: String,
+        onSessionToken: (String) -> Unit,
+        onUrl: (String) -> Unit
+    ) {
+        val data = _uiState.value.data
+        val merchant = data.merchants.find {
+            it.name.equals(merchantName, ignoreCase = true) || it.id == merchantName
+        }
+        if (merchant == null) {
+            deepLinkError("merchant not found: $merchantName")
+            return
+        }
+        val scenario = data.scenarios.find {
+            it.merchantId == merchant.id && it.name.equals(scenarioName, ignoreCase = true)
+        }
+        if (scenario == null) {
+            deepLinkError("scenario not found: $scenarioName")
+            return
+        }
+
+        selectMerchant(merchant.id)
+        when (surface.lowercase()) {
+            "browser" -> runScenarioExternally(scenario, true, "Browser", onUrl)
+            else -> runScenario(scenario, onSessionToken)
+        }
+    }
+
+    private fun deepLinkError(reason: String) {
+        Log.i(TAG, "run_error reason=\"$reason\"")
+        _uiState.update { it.copy(runError = "Deep link: $reason") }
+    }
+
     private fun recordRun(scenario: Scenario, surface: String, minted: MintedSession): String {
         val record = RunRecord(
             timestamp = System.currentTimeMillis(),
@@ -324,6 +360,10 @@ class DemoViewModel(
             checkoutUrl = minted.checkoutUrl,
             requestBody = minted.sentBody
         )
+        Log.i(
+            TAG,
+            "run_start scenario=\"${record.scenarioName}\" surface=${record.surface} session_id=${record.sessionId}"
+        )
         updateData { data ->
             data.copy(runs = (listOf(record) + data.runHistory).take(MAX_RUNS))
         }
@@ -331,7 +371,21 @@ class DemoViewModel(
     }
 
     private fun updateRun(runId: String, transform: (RunRecord) -> RunRecord) = updateData { data ->
-        data.copy(runs = data.runHistory.map { if (it.id == runId) transform(it) else it })
+        data.copy(
+            runs = data.runHistory.map { run ->
+                if (run.id != runId) return@map run
+                transform(run).also { closed ->
+                    if (closed.outcome != "pending") {
+                        Log.i(
+                            TAG,
+                            "run_result scenario=\"${closed.scenarioName}\" surface=${closed.surface} " +
+                                "outcome=\"${closed.outcome}\" session_id=${closed.sessionId} " +
+                                "transaction_id=${closed.transactionId ?: "-"}"
+                        )
+                    }
+                }
+            }
+        )
     }
 
     fun clearHistory() = updateData { it.copy(runs = emptyList()) }
