@@ -1,5 +1,8 @@
 package com.paycross.demo
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +19,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCrossResult
 import java.util.Currency
@@ -56,8 +65,14 @@ internal fun HomeScreen(
     onDuplicateScenario: (String) -> Unit,
     onDeleteScenario: (String) -> Unit,
     onRunScenario: (Scenario) -> Unit,
+    onRunExternally: (Scenario, Boolean, (String) -> Unit) -> Unit,
+    onDismissExternalRun: () -> Unit,
     onClearResult: () -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    var qrUrl by remember { mutableStateOf<String?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -114,6 +129,19 @@ internal fun HomeScreen(
                             scenario = scenario,
                             isRunning = uiState.isRunning,
                             onRun = { onRunScenario(scenario) },
+                            onOpenInBrowser = {
+                                onRunExternally(scenario, true) { url ->
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                }
+                            },
+                            onCopyLink = {
+                                onRunExternally(scenario, false) { url ->
+                                    clipboard.setText(AnnotatedString(url))
+                                }
+                            },
+                            onShowQr = {
+                                onRunExternally(scenario, false) { url -> qrUrl = url }
+                            },
                             onEdit = { onEditScenario(scenario.id) },
                             onDuplicate = { onDuplicateScenario(scenario.id) },
                             onDelete = { onDeleteScenario(scenario.id) }
@@ -139,11 +167,40 @@ internal fun HomeScreen(
                     )
                 }
 
+                uiState.externalRun?.let { run ->
+                    ExternalRunCard(
+                        run = run,
+                        onCopyLink = { clipboard.setText(AnnotatedString(run.checkoutUrl)) },
+                        onDismiss = onDismissExternalRun
+                    )
+                }
+
                 uiState.lastResult?.let { result ->
                     ResultCard(result = result, onClear = onClearResult)
                 }
             }
         }
+    }
+
+    qrUrl?.let { url ->
+        AlertDialog(
+            onDismissRequest = { qrUrl = null },
+            confirmButton = {
+                TextButton(onClick = { qrUrl = null }) { Text("Close") }
+            },
+            title = { Text("Scan to open checkout") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        bitmap = remember(url) { qrBitmap(url).asImageBitmap() },
+                        contentDescription = "Checkout URL QR code",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(url, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        )
     }
 }
 
@@ -192,6 +249,9 @@ private fun ScenarioRow(
     scenario: Scenario,
     isRunning: Boolean,
     onRun: () -> Unit,
+    onOpenInBrowser: () -> Unit,
+    onCopyLink: () -> Unit,
+    onShowQr: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit
@@ -219,6 +279,21 @@ private fun ScenarioRow(
                     Icon(Icons.Default.MoreVert, contentDescription = "More")
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Open in browser") },
+                        enabled = !isRunning,
+                        onClick = { menuOpen = false; onOpenInBrowser() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copy checkout link") },
+                        enabled = !isRunning,
+                        onClick = { menuOpen = false; onCopyLink() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Show QR code") },
+                        enabled = !isRunning,
+                        onClick = { menuOpen = false; onShowQr() }
+                    )
                     DropdownMenuItem(
                         text = { Text("Edit") },
                         onClick = { menuOpen = false; onEdit() }
@@ -251,6 +326,60 @@ internal fun EmptyState(
         Text(message, style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onAction) { Text(actionLabel) }
+    }
+}
+
+@Composable
+private fun ExternalRunCard(
+    run: ExternalRun,
+    onCopyLink: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when (run.phase) {
+                ExternalRun.Phase.WAITING -> Color(0xFF1E88E5)
+                ExternalRun.Phase.SUCCESS -> Color(0xFF4CAF50)
+                ExternalRun.Phase.FAILED -> Color(0xFFF44336)
+                ExternalRun.Phase.TIMEOUT -> Color(0xFF9E9E9E)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (run.phase == ExternalRun.Phase.WAITING) {
+                CircularProgressIndicator(
+                    modifier = Modifier.width(20.dp).height(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = run.scenarioName,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "${run.detail}\n${run.sessionId}",
+                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            TextButton(onClick = onCopyLink) {
+                Text("Copy link", color = Color.White)
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss", color = Color.White)
+            }
+        }
     }
 }
 

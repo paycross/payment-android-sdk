@@ -57,6 +57,8 @@ private fun DemoApp(
             onDuplicateScenario = viewModel::duplicateScenario,
             onDeleteScenario = viewModel::deleteScenario,
             onRunScenario = { viewModel.runScenario(it, onLaunchPayment) },
+            onRunExternally = viewModel::runScenarioExternally,
+            onDismissExternalRun = viewModel::dismissExternalRun,
             onClearResult = viewModel::clearResult
         )
 
