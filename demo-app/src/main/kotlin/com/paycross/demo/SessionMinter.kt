@@ -15,7 +15,8 @@ data class MintedSession(
     val sessionId: String,
     val checkoutUrl: String,
     val accessToken: String,
-    val sessionUrl: String
+    val sessionUrl: String,
+    val sentBody: String
 )
 
 /**
@@ -47,10 +48,17 @@ object SessionMinter {
         return postSession(merchant, token, body)
     }
 
-    fun fetchSession(minted: MintedSession, paycrossVersion: String): JSONObject {
+    fun fetchSession(minted: MintedSession, paycrossVersion: String): JSONObject =
+        JSONObject(fetchSessionText(minted.sessionUrl, minted.accessToken, paycrossVersion))
+
+    /** Fetches a session with a fresh token — for inspecting past runs. */
+    fun fetchSessionAsMerchant(merchant: Merchant, sessionUrl: String): String =
+        fetchSessionText(sessionUrl, fetchAccessToken(merchant), merchant.paycrossVersion)
+
+    private fun fetchSessionText(sessionUrl: String, accessToken: String, paycrossVersion: String): String {
         val request = Request.Builder()
-            .url(minted.sessionUrl)
-            .header("Authorization", "Bearer ${minted.accessToken}")
+            .url(sessionUrl)
+            .header("Authorization", "Bearer $accessToken")
             .header("PayCross-Version", paycrossVersion)
             .get()
             .build()
@@ -58,7 +66,7 @@ object SessionMinter {
         client.newCall(request).execute().use { response ->
             val text = response.body!!.string()
             check(response.isSuccessful) { "Get session failed: HTTP ${response.code} $text" }
-            return JSONObject(text)
+            return text
         }
     }
 
@@ -81,7 +89,8 @@ object SessionMinter {
                 sessionId = sessionId,
                 checkoutUrl = json.getString("checkout_url"),
                 accessToken = token,
-                sessionUrl = "${merchant.paymentApiUrl.trimEnd('/')}/$sessionId"
+                sessionUrl = "${merchant.paymentApiUrl.trimEnd('/')}/$sessionId",
+                sentBody = body
             )
         }
     }

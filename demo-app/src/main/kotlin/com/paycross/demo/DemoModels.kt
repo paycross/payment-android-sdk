@@ -48,14 +48,39 @@ data class Scenario(
     val merchantId: String,
     val name: String,
     val card: CardPrefill = CardPrefill(),
-    val requestBody: String
+    val requestBody: String,
+    val hint: String? = null
+)
+
+/**
+ * One minted session, on any checkout surface. Fields are nullable where
+ * Gson may hydrate old persisted data written before they existed.
+ */
+data class RunRecord(
+    val id: String = UUID.randomUUID().toString(),
+    val timestamp: Long = 0L,
+    val merchantId: String = "",
+    val scenarioName: String = "",
+    val surface: String = "",
+    val sessionId: String = "",
+    val sessionUrl: String = "",
+    val checkoutUrl: String = "",
+    val requestBody: String = "",
+    val outcome: String = "pending",
+    val transactionId: String? = null,
+    val amount: Long? = null,
+    val currency: String? = null
 )
 
 data class DemoData(
     val merchants: List<Merchant> = emptyList(),
     val scenarios: List<Scenario> = emptyList(),
-    val selectedMerchantId: String? = null
-)
+    val selectedMerchantId: String? = null,
+    val runs: List<RunRecord>? = null
+) {
+    val runHistory: List<RunRecord>
+        get() = runs ?: emptyList()
+}
 
 enum class ScenarioPreset(val label: String) {
     SANDBOX("Sandbox"),
@@ -96,13 +121,50 @@ object DemoSeeds {
 
     val DEFAULT_BODY = bodyWithAmount(1000)
 
+    /** Stable customer for the COF pair, so saved cards survive across runs. */
+    const val COF_CUSTOMER_REF = "harness_cof_customer"
+
+    private fun cofBody(extraTopLevel: String) = """
+        {
+          "amount": 1000,
+          "currency": "EUR",
+          "transaction_type": "sale",
+          "merchant_reference": "ANDROID-{{timestamp}}",
+          "return_url": "https://merchant.example.com/payment/return",
+          "success_url": "https://merchant.example.com/payment/success",
+          $extraTopLevel,
+          "customer": {
+            "email": "john.doe@example.com",
+            "first_name": "John",
+            "last_name": "Doe",
+            "phone": "+12025551234",
+            "merchant_reference": "$COF_CUSTOMER_REF",
+            "address": {
+              "billing": {
+                "line1": "123 Main Street",
+                "line2": "Apt 4B",
+                "city": "New York",
+                "state": "NY",
+                "postal_code": "10001",
+                "country": "US"
+              }
+            }
+          }
+        }
+    """.trimIndent()
+
+    val COF_STORE_BODY = cofBody("\"save_card_config\": { \"usage\": \"card_on_file\" }")
+    val COF_PAY_SAVED_BODY = cofBody("\"saved_cards\": { \"show\": \"all\" }")
+
     private data class Seed(
         val name: String,
         val pan: String,
         val cardholder: String = "John Doe",
         val expireYear: String = "30",
         val amount: Int = 1000,
-        val save: Boolean = false
+        val save: Boolean = false,
+        val body: String? = null,
+        val hint: String? = null
     )
 
     // Mirrors payx-tkg android-demo/scripts/lib/stock-sandbox-scenarios.mjs — names, PANs, and
@@ -119,7 +181,16 @@ object DemoSeeds {
         Seed("Decline: fraud_suspected", "4111111111150119"),
         Seed("Decline: card_expired", "4111111111150069"),
         Seed("Decline: invalid_cvv", "4111111111150127"),
-        Seed("Provider timeout", "4111111111150051")
+        Seed("Provider timeout", "4111111111150051"),
+        // Harness extras beyond the stock list (adb runner matches by name and ignores them).
+        Seed(
+            "Store card (COF)", "4111111111170000", save = true,
+            body = COF_STORE_BODY, hint = "Saves to customer $COF_CUSTOMER_REF"
+        ),
+        Seed(
+            "Pay with saved card (COF)", "",
+            body = COF_PAY_SAVED_BODY, hint = "Run 'Store card (COF)' first"
+        )
     )
 
     // Mirrors payx-tkg android-demo/scripts/lib/demo-data.mjs nuveiScenarios — same cards,
@@ -137,9 +208,9 @@ object DemoSeeds {
         Seed("Flow A frictionless Visa", "4176660000000027", cardholder = "Test Frictionless Visa", expireYear = "26", amount = 15100),
         Seed("Flow A frictionless Mastercard", "5299990270000368", cardholder = "Test Frictionless Mastercard", expireYear = "26", amount = 15100),
         Seed("Flow B DFP frictionless Visa", "4176660000000068", cardholder = "Test DFP Frictionless Visa", expireYear = "26", amount = 15100),
-        Seed("Flow C challenge success Visa", "4176660000000092", cardholder = "Test Challenge Success Visa", expireYear = "26", amount = 15100),
-        Seed("Flow D DFP challenge success MC", "5204730000001011", cardholder = "Test DFP Challenge Success MC", expireYear = "26", amount = 15100),
-        Seed("Flow C challenge failed MC", "5299910010000015", cardholder = "Test Challenge Failed MC", expireYear = "26", amount = 15100)
+        Seed("Flow C challenge success Visa", "4176660000000092", cardholder = "Test Challenge Success Visa", expireYear = "26", amount = 15100, hint = "3DS password 0101"),
+        Seed("Flow D DFP challenge success MC", "5204730000001011", cardholder = "Test DFP Challenge Success MC", expireYear = "26", amount = 15100, hint = "3DS password 4445"),
+        Seed("Flow C challenge failed MC", "5299910010000015", cardholder = "Test Challenge Failed MC", expireYear = "26", amount = 15100, hint = "3DS password 9999")
     )
 
     fun scenariosFor(merchant: Merchant, preset: ScenarioPreset): List<Scenario> {
@@ -165,7 +236,8 @@ object DemoSeeds {
                 merchantId = merchant.id,
                 name = seed.name,
                 card = CardPrefill(seed.cardholder, seed.pan, "12", seed.expireYear, "123", saveCard = seed.save),
-                requestBody = bodyWithAmount(seed.amount)
+                requestBody = seed.body ?: bodyWithAmount(seed.amount),
+                hint = seed.hint
             )
         }
     }

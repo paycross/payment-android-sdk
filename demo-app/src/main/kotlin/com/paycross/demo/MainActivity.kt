@@ -59,6 +59,7 @@ private fun DemoApp(
             onRunScenario = { viewModel.runScenario(it, onLaunchPayment) },
             onRunExternally = viewModel::runScenarioExternally,
             onDismissExternalRun = viewModel::dismissExternalRun,
+            onOpenHistory = { viewModel.navigate(Screen.History) },
             onClearResult = viewModel::clearResult
         )
 
@@ -80,6 +81,31 @@ private fun DemoApp(
             },
             onBack = { viewModel.navigate(Screen.Merchants) }
         )
+
+        Screen.History -> HistoryScreen(
+            runs = uiState.data.runHistory,
+            onOpenRun = { viewModel.navigate(Screen.RunDetail(it)) },
+            onClearHistory = viewModel::clearHistory,
+            onBack = { viewModel.navigate(Screen.Home) }
+        )
+
+        is Screen.RunDetail -> {
+            val run = uiState.data.runHistory.find { it.id == screen.runId }
+            if (run == null) {
+                LaunchedEffect(Unit) { viewModel.navigate(Screen.History) }
+            } else {
+                RunDetailScreen(
+                    run = run,
+                    merchantName = uiState.data.merchants.find { it.id == run.merchantId }?.name,
+                    inspectedJson = uiState.inspectedJson,
+                    inspectLoading = uiState.inspectLoading,
+                    curl = viewModel.curlFor(run),
+                    onInspectSession = { viewModel.inspectSession(run) },
+                    onDismissInspected = viewModel::dismissInspectedSession,
+                    onBack = { viewModel.navigate(Screen.History) }
+                )
+            }
+        }
 
         is Screen.ScenarioEdit -> {
             val merchantId = uiState.data.selectedMerchantId
