@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
@@ -65,8 +66,9 @@ internal fun HomeScreen(
     onDuplicateScenario: (String) -> Unit,
     onDeleteScenario: (String) -> Unit,
     onRunScenario: (Scenario) -> Unit,
-    onRunExternally: (Scenario, Boolean, (String) -> Unit) -> Unit,
+    onRunExternally: (Scenario, Boolean, String, (String) -> Unit) -> Unit,
     onDismissExternalRun: () -> Unit,
+    onOpenHistory: () -> Unit,
     onClearResult: () -> Unit
 ) {
     val context = LocalContext.current
@@ -78,6 +80,9 @@ internal fun HomeScreen(
             TopAppBar(
                 title = { Text("PayCross Harness") },
                 actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Run history")
+                    }
                     IconButton(onClick = onManageMerchants) {
                         Icon(Icons.Default.Settings, contentDescription = "Merchants")
                     }
@@ -130,17 +135,17 @@ internal fun HomeScreen(
                             isRunning = uiState.isRunning,
                             onRun = { onRunScenario(scenario) },
                             onOpenInBrowser = {
-                                onRunExternally(scenario, true) { url ->
+                                onRunExternally(scenario, true, "Browser") { url ->
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                 }
                             },
                             onCopyLink = {
-                                onRunExternally(scenario, false) { url ->
+                                onRunExternally(scenario, false, "Link") { url ->
                                     clipboard.setText(AnnotatedString(url))
                                 }
                             },
                             onShowQr = {
-                                onRunExternally(scenario, false) { url -> qrUrl = url }
+                                onRunExternally(scenario, false, "QR") { url -> qrUrl = url }
                             },
                             onEdit = { onEditScenario(scenario.id) },
                             onDuplicate = { onDuplicateScenario(scenario.id) },
@@ -270,6 +275,13 @@ private fun ScenarioRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                scenario.hint?.let { hint ->
+                    Text(
+                        hint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Button(onClick = onRun, enabled = !isRunning) {
                 Text("Run")
