@@ -3,6 +3,7 @@ package com.paycross.sdk.internal.ui
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -52,6 +53,13 @@ internal class PaymentActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Without this the platform writes a recents snapshot of the filled card
+        // form to /data/system_ce/<user>/snapshots, and screen recorders capture it.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
         val sessionToken = intent.getStringExtra(EXTRA_SESSION_TOKEN)
         if (sessionToken.isNullOrEmpty()) {
