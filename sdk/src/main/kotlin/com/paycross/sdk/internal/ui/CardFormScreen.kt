@@ -84,7 +84,11 @@ internal fun CardFormScreen(
     var expiry by rememberSaveable {
         mutableStateOf(prefill?.let { it.expireMonth + it.expireYear.takeLast(2) }.orEmpty())
     }
-    var cvv by rememberSaveable { mutableStateOf(prefill?.cvv.orEmpty()) }
+    // Deliberately not rememberSaveable: saved instance state is copied into
+    // system_server, where the SDK cannot clear it, and survives process death —
+    // the CVV would outlive authorization, which PCI DSS 3.3.1 forbids. The cost
+    // is that rotation clears the CVV field and the shopper retypes it.
+    var cvv by remember { mutableStateOf(prefill?.cvv.orEmpty()) }
     var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
     var saveCard by rememberSaveable { mutableStateOf(prefill?.saveCard ?: false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
@@ -188,6 +192,9 @@ internal fun CardFormScreen(
                         buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard),
                         FieldGroupLogic.submissionValues(fieldGroups, fieldValues)
                     )
+                    // Drop the form's reference once it is handed over; the CVV
+                    // has no further use in the UI after submission.
+                    cvv = ""
                 }
             }
         )
