@@ -114,6 +114,7 @@ private fun DemoApp(
                 viewModel.saveMerchant(merchant, preset)
                 viewModel.navigate(Screen.Merchants)
             },
+            onReseed = viewModel::reseedScenarios,
             onBack = { viewModel.navigate(Screen.Merchants) }
         )
 

@@ -95,6 +95,16 @@ class DemoViewModel(
         )
     }
 
+    /** Replaces a merchant's scenarios with fresh preset seeds — the upgrade path
+     * for installs seeded before the current seed data. */
+    fun reseedScenarios(merchantId: String, preset: ScenarioPreset) = updateData { data ->
+        val merchant = data.merchants.find { it.id == merchantId } ?: return@updateData data
+        data.copy(
+            scenarios = data.scenarios.filterNot { it.merchantId == merchantId } +
+                DemoSeeds.scenariosFor(merchant, preset)
+        )
+    }
+
     fun deleteMerchant(id: String) = updateData { data ->
         val merchants = data.merchants.filterNot { it.id == id }
         data.copy(
