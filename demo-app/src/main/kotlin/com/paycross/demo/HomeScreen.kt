@@ -69,12 +69,13 @@ internal fun HomeScreen(
     onRunExternally: (Scenario, Boolean, String, (String) -> Unit) -> Unit,
     onDismissExternalRun: () -> Unit,
     onOpenHistory: () -> Unit,
+    onConfirmPendingRun: () -> Unit,
+    onCancelPendingRun: () -> Unit,
     onClearResult: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var qrUrl by remember { mutableStateOf<String?>(null) }
-    var pendingProdRun by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
 
     Scaffold(
         topBar = {
@@ -125,10 +126,6 @@ internal fun HomeScreen(
                 )
 
                 val isProduction = merchant.environment == Merchant.ENV_PRODUCTION
-                // Every run action funnels through this gate on production merchants.
-                val guard: (String, () -> Unit) -> Unit = { label, action ->
-                    if (isProduction) pendingProdRun = label to action else action()
-                }
 
                 if (isProduction) {
                     Card(
@@ -156,25 +153,19 @@ internal fun HomeScreen(
                         ScenarioRow(
                             scenario = scenario,
                             isRunning = uiState.isRunning,
-                            onRun = { guard(scenario.name) { onRunScenario(scenario) } },
+                            onRun = { onRunScenario(scenario) },
                             onOpenInBrowser = {
-                                guard(scenario.name) {
-                                    onRunExternally(scenario, true, "Browser") { url ->
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                    }
+                                onRunExternally(scenario, true, "Browser") { url ->
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                 }
                             },
                             onCopyLink = {
-                                guard(scenario.name) {
-                                    onRunExternally(scenario, false, "Link") { url ->
-                                        clipboard.setText(AnnotatedString(url))
-                                    }
+                                onRunExternally(scenario, false, "Link") { url ->
+                                    clipboard.setText(AnnotatedString(url))
                                 }
                             },
                             onShowQr = {
-                                guard(scenario.name) {
-                                    onRunExternally(scenario, false, "QR") { url -> qrUrl = url }
-                                }
+                                onRunExternally(scenario, false, "QR") { url -> qrUrl = url }
                             },
                             onEdit = { onEditScenario(scenario.id) },
                             onDuplicate = { onDuplicateScenario(scenario.id) },
@@ -216,17 +207,15 @@ internal fun HomeScreen(
         }
     }
 
-    pendingProdRun?.let { (label, action) ->
+    uiState.pendingRun?.let { pending ->
         AlertDialog(
-            onDismissRequest = { pendingProdRun = null },
-            confirmButton = {
-                TextButton(onClick = { pendingProdRun = null; action() }) { Text("Run") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingProdRun = null }) { Text("Cancel") }
-            },
+            onDismissRequest = onCancelPendingRun,
+            confirmButton = { TextButton(onClick = onConfirmPendingRun) { Text("Run") } },
+            dismissButton = { TextButton(onClick = onCancelPendingRun) { Text("Cancel") } },
             title = { Text("Run against PRODUCTION?") },
-            text = { Text("“$label” creates a real payment session on ${uiState.selectedMerchant?.name}.") }
+            text = {
+                Text("“${pending.scenarioName}” creates a real payment session on ${pending.merchantName}.")
+            }
         )
     }
 

@@ -515,7 +515,8 @@ internal fun ScenarioEditScreen(
                                     cvv = cvv.trim(),
                                     saveCard = saveCard
                                 ),
-                                requestBody = body
+                                requestBody = body,
+                                hint = scenario?.hint
                             )
                         )
                     }

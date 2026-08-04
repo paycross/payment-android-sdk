@@ -34,15 +34,21 @@ object SessionMinter {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
+    /** Thrown when the API refuses the request; only these are safe to retry. */
+    class ApiRejection(message: String) : Exception(message)
+
     fun create(merchant: Merchant, requestBody: String, deepLinkReturn: Boolean = false): MintedSession {
         check(merchant.clientId.isNotBlank()) { "Merchant has no client ID" }
         val token = fetchAccessToken(merchant)
         val body = substitutePlaceholders(requestBody)
 
         if (deepLinkReturn) {
-            // The API may reject a custom-scheme URL; fall back to the body as written.
-            runCatching {
+            // The API may reject a custom-scheme URL; retry with the body as written.
+            // Only on rejection — retrying a timeout would mint a second session.
+            try {
                 return postSession(merchant, token, withDeepLinkReturn(body))
+            } catch (rejection: ApiRejection) {
+                return postSession(merchant, token, body)
             }
         }
         return postSession(merchant, token, body)
@@ -70,9 +76,13 @@ object SessionMinter {
         }
     }
 
+    /** The merchant API routes the hyphenated path only, as payx-tkg also normalizes. */
+    private fun sessionsUrl(merchant: Merchant) =
+        merchant.paymentApiUrl.replace("payment_sessions", "payment-sessions")
+
     private fun postSession(merchant: Merchant, token: String, body: String): MintedSession {
         val request = Request.Builder()
-            .url(merchant.paymentApiUrl)
+            .url(sessionsUrl(merchant))
             .header("Authorization", "Bearer $token")
             .header("PayCross-Version", merchant.paycrossVersion)
             .header("Idempotency-Key", UUID.randomUUID().toString())
@@ -81,7 +91,9 @@ object SessionMinter {
 
         client.newCall(request).execute().use { response ->
             val text = response.body!!.string()
-            check(response.isSuccessful) { "Create session failed: HTTP ${response.code} $text" }
+            if (!response.isSuccessful) {
+                throw ApiRejection("Create session failed: HTTP ${response.code} $text")
+            }
             val json = JSONObject(text)
             val sessionId = json.getString("id")
             return MintedSession(
@@ -89,7 +101,7 @@ object SessionMinter {
                 sessionId = sessionId,
                 checkoutUrl = json.getString("checkout_url"),
                 accessToken = token,
-                sessionUrl = "${merchant.paymentApiUrl.trimEnd('/')}/$sessionId",
+                sessionUrl = "${sessionsUrl(merchant).trimEnd('/')}/$sessionId",
                 sentBody = body
             )
         }

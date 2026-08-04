@@ -1,5 +1,6 @@
 package com.paycross.demo
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,8 @@ internal fun HistoryScreen(
     onClearHistory: () -> Unit,
     onBack: () -> Unit
 ) {
+    BackHandler(onBack = onBack)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -141,13 +144,16 @@ internal fun RunDetailScreen(
     onBack: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
+    // Inspect state is global, so leaving must clear it — otherwise another run's
+    // JSON arrives under this screen's title.
+    BackHandler { onDismissInspected(); onBack() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(run.scenarioName) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { onDismissInspected(); onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }

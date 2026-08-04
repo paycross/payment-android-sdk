@@ -38,6 +38,13 @@ data class ExternalRun(
     enum class Phase { WAITING, SUCCESS, FAILED, TIMEOUT }
 }
 
+/** A run held back by the production gate until the tester confirms it. */
+data class PendingRun(
+    val scenarioName: String,
+    val merchantName: String,
+    val start: () -> Unit
+)
+
 data class DemoUiState(
     val data: DemoData,
     val screen: Screen = Screen.Home,
@@ -46,7 +53,8 @@ data class DemoUiState(
     val lastResult: PayCrossResult? = null,
     val externalRun: ExternalRun? = null,
     val inspectedJson: String? = null,
-    val inspectLoading: Boolean = false
+    val inspectLoading: Boolean = false,
+    val pendingRun: PendingRun? = null
 ) {
     val selectedMerchant: Merchant?
         get() = data.merchants.find { it.id == data.selectedMerchantId }
@@ -125,7 +133,13 @@ class DemoViewModel(
 
     fun onPaymentResult(result: PayCrossResult) {
         _uiState.update { it.copy(lastResult = result) }
-        val runId = activeSdkRunId ?: return
+        // A result can arrive on a fresh ViewModel (process death mid-payment),
+        // so fall back to the newest still-open SDK record.
+        val runId = activeSdkRunId
+            ?: _uiState.value.data.runHistory
+                .firstOrNull { it.surface == "SDK" && it.outcome == "pending" }
+                ?.id
+            ?: return
         activeSdkRunId = null
         updateRun(runId) { run ->
             when (result) {
@@ -146,8 +160,39 @@ class DemoViewModel(
 
     fun clearResult() = _uiState.update { it.copy(lastResult = null, runError = null) }
 
+    /**
+     * Production merchants create real payment sessions, so every entry point —
+     * UI actions and the exported `paycross-demo://run` deep link alike — routes
+     * through here rather than through a screen-local check.
+     */
+    private fun gateProduction(merchant: Merchant, scenario: Scenario, start: () -> Unit) {
+        if (merchant.environment != Merchant.ENV_PRODUCTION) {
+            start()
+            return
+        }
+        _uiState.update {
+            it.copy(pendingRun = PendingRun(scenario.name, merchant.name, start))
+        }
+    }
+
+    fun confirmPendingRun() {
+        val pending = _uiState.value.pendingRun ?: return
+        _uiState.update { it.copy(pendingRun = null) }
+        pending.start()
+    }
+
+    fun cancelPendingRun() = _uiState.update { it.copy(pendingRun = null) }
+
     fun runScenario(scenario: Scenario, onSessionToken: (String) -> Unit) {
         val merchant = _uiState.value.data.merchants.find { it.id == scenario.merchantId } ?: return
+        gateProduction(merchant, scenario) { startScenario(scenario, merchant, onSessionToken) }
+    }
+
+    private fun startScenario(
+        scenario: Scenario,
+        merchant: Merchant,
+        onSessionToken: (String) -> Unit
+    ) {
         _uiState.update { it.copy(isRunning = true, runError = null, lastResult = null) }
 
         viewModelScope.launch(ioDispatcher) {
@@ -160,8 +205,10 @@ class DemoViewModel(
                 SessionMinter.create(merchant, scenario.requestBody)
             }
             withContext(Dispatchers.Main) {
-                _uiState.update {
-                    it.copy(isRunning = false, runError = result.exceptionOrNull()?.message)
+                val error = result.exceptionOrNull()
+                _uiState.update { it.copy(isRunning = false, runError = error?.message) }
+                if (error != null) {
+                    logMintFailure(scenario, "SDK", error)
                 }
                 result.onSuccess { minted ->
                     activeSdkRunId = recordRun(scenario, "SDK", minted)
@@ -184,7 +231,19 @@ class DemoViewModel(
         onUrl: (String) -> Unit
     ) {
         val merchant = _uiState.value.data.merchants.find { it.id == scenario.merchantId } ?: return
-        externalPollJob?.cancel()
+        gateProduction(merchant, scenario) {
+            startScenarioExternally(scenario, merchant, deepLinkReturn, surface, onUrl)
+        }
+    }
+
+    private fun startScenarioExternally(
+        scenario: Scenario,
+        merchant: Merchant,
+        deepLinkReturn: Boolean,
+        surface: String,
+        onUrl: (String) -> Unit
+    ) {
+        stopPolling("superseded by a new run")
         _uiState.update {
             it.copy(isRunning = true, runError = null, lastResult = null, externalRun = null)
         }
@@ -195,6 +254,7 @@ class DemoViewModel(
             }.getOrElse { error ->
                 withContext(Dispatchers.Main) {
                     _uiState.update { it.copy(isRunning = false, runError = error.message) }
+                    logMintFailure(scenario, surface, error)
                 }
                 return@launch
             }
@@ -218,14 +278,31 @@ class DemoViewModel(
                 id
             }
 
+            pollingRunId = runId
             pollExternalRun(minted, merchant.paycrossVersion, runId)
+            pollingRunId = null
         }
     }
 
     fun dismissExternalRun() {
+        stopPolling("dismissed while waiting")
+        _uiState.update { it.copy(externalRun = null) }
+    }
+
+    /**
+     * Cancels the poll job and closes its record — the poll is the only writer of
+     * an external run's outcome, so without this the record stays "pending"
+     * forever and no run_result line is ever logged for that session.
+     */
+    private fun stopPolling(reason: String) {
         externalPollJob?.cancel()
         externalPollJob = null
-        _uiState.update { it.copy(externalRun = null) }
+        pollingRunId?.let { runId ->
+            pollingRunId = null
+            updateRun(runId) { run ->
+                if (run.outcome == "pending") run.copy(outcome = "unresolved · $reason") else run
+            }
+        }
     }
 
     private suspend fun pollExternalRun(minted: MintedSession, paycrossVersion: String, runId: String) {
@@ -272,6 +349,7 @@ class DemoViewModel(
         return phase to "$status · $amount $currency"
     }
 
+    /** Mirrors payx-tkg getPrimaryPaymentTransaction (src/lib/session-actions.mjs). */
     private fun primaryPaymentTransaction(session: JSONObject): JSONObject? {
         val transactions = session.optJSONArray("transactions") ?: return null
         var latest: JSONObject? = null
@@ -279,12 +357,20 @@ class DemoViewModel(
             val txn = transactions.optJSONObject(i) ?: continue
             if (txn.optString("type") != "payment") continue
             if (!txn.isNull("parent_transaction_id") && txn.optString("parent_transaction_id").isNotEmpty()) continue
-            val sortKey = txn.optString("updated_at").ifEmpty { txn.optString("created_at") }
-            val latestKey = latest?.let { it.optString("updated_at").ifEmpty { it.optString("created_at") } } ?: ""
-            if (latest == null || sortKey >= latestKey) latest = txn
+            if (latest == null || sortKey(txn) >= sortKey(latest!!)) latest = txn
         }
         return latest
     }
+
+    // optString returns the literal "null" for a JSON null, which would sort above
+    // every ISO timestamp, so read the fields through isNull first.
+    private fun sortKey(txn: JSONObject): String {
+        val updated = if (txn.isNull("updated_at")) "" else txn.optString("updated_at")
+        return updated.ifEmpty { if (txn.isNull("created_at")) "" else txn.optString("created_at") }
+    }
+
+    private fun JSONObject.stringOrNull(key: String): String? =
+        if (isNull(key)) null else optString(key).ifEmpty { null }
 
     private suspend fun updateExternalPhase(
         outcome: Pair<ExternalRun.Phase, String>,
@@ -305,9 +391,9 @@ class DemoViewModel(
                         ExternalRun.Phase.TIMEOUT -> "timeout"
                         else -> outcome.second
                     },
-                    transactionId = payment?.optString("id")?.ifEmpty { null } ?: run.transactionId,
+                    transactionId = payment?.stringOrNull("id") ?: run.transactionId,
                     amount = payment?.optLong("amount") ?: run.amount,
-                    currency = payment?.optString("currency")?.ifEmpty { null } ?: run.currency
+                    currency = payment?.stringOrNull("currency") ?: run.currency
                 )
             }
         }
@@ -347,6 +433,15 @@ class DemoViewModel(
     private fun deepLinkError(reason: String) {
         Log.i(TAG, "run_error reason=\"$reason\"")
         _uiState.update { it.copy(runError = "Deep link: $reason") }
+    }
+
+    /** Mint failures must still produce a terminal line for log-scraping runners. */
+    private fun logMintFailure(scenario: Scenario, surface: String, error: Throwable) {
+        Log.i(
+            TAG,
+            "run_error scenario=\"${scenario.name}\" surface=$surface " +
+                "reason=\"mint failed: ${error.message?.take(200)}\""
+        )
     }
 
     private fun recordRun(scenario: Scenario, surface: String, minted: MintedSession): String {
@@ -417,7 +512,7 @@ class DemoViewModel(
         val apiUrl = merchant?.paymentApiUrl ?: run.sessionUrl.substringBeforeLast('/')
         val version = merchant?.paycrossVersion ?: "<version>"
         return """
-            AUTH=$(printf '%s:%s' "${'$'}CLIENT_ID" "${'$'}CLIENT_SECRET" | base64 -w0)
+            AUTH=$(printf '%s:%s' "${'$'}CLIENT_ID" "${'$'}CLIENT_SECRET" | openssl base64 -A)
 
             TOKEN=$(curl -s -X POST '$tokenUrl' \
               -H "Authorization: Basic ${'$'}AUTH" \
@@ -433,6 +528,7 @@ class DemoViewModel(
     }
 
     private var externalPollJob: Job? = null
+    private var pollingRunId: String? = null
     private var activeSdkRunId: String? = null
 
     private fun updateData(transform: (DemoData) -> DemoData) {
