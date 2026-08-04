@@ -1,5 +1,7 @@
 package com.paycross.demo
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,6 +39,33 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+
+        handleDeepLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    /**
+     * `paycross-demo://run?merchant=<name>&scenario=<name>&surface=sdk|browser`
+     * lets the adb runner start a scenario without UI navigation:
+     * `adb shell am start -a android.intent.action.VIEW -d "<uri>"`.
+     * `paycross-demo://result` is the hosted-checkout return bounce — the
+     * foreground switch alone is the point; polling supplies the outcome.
+     */
+    private fun handleDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "paycross-demo" || uri.host != "run") return
+        viewModel.runFromDeepLink(
+            merchantName = uri.getQueryParameter("merchant"),
+            scenarioName = uri.getQueryParameter("scenario"),
+            surface = uri.getQueryParameter("surface") ?: "sdk",
+            onSessionToken = { paymentLauncher.launch(it) },
+            onUrl = { url -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        )
     }
 }
 

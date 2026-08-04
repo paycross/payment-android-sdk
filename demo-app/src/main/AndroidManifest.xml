@@ -21,6 +21,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="paycross-demo" android:host="result" />
+                <data android:scheme="paycross-demo" android:host="run" />
             </intent-filter>
         </activity>
     </application>

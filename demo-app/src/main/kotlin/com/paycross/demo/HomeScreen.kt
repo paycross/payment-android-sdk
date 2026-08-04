@@ -74,6 +74,7 @@ internal fun HomeScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var qrUrl by remember { mutableStateOf<String?>(null) }
+    var pendingProdRun by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
 
     Scaffold(
         topBar = {
@@ -123,6 +124,28 @@ internal fun HomeScreen(
                     onSelect = onSelectMerchant
                 )
 
+                val isProduction = merchant.environment == Merchant.ENV_PRODUCTION
+                // Every run action funnels through this gate on production merchants.
+                val guard: (String, () -> Unit) -> Unit = { label, action ->
+                    if (isProduction) pendingProdRun = label to action else action()
+                }
+
+                if (isProduction) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFB71C1C))
+                    ) {
+                        Text(
+                            "PRODUCTION merchant — sessions create real payments",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyColumn(
@@ -133,19 +156,25 @@ internal fun HomeScreen(
                         ScenarioRow(
                             scenario = scenario,
                             isRunning = uiState.isRunning,
-                            onRun = { onRunScenario(scenario) },
+                            onRun = { guard(scenario.name) { onRunScenario(scenario) } },
                             onOpenInBrowser = {
-                                onRunExternally(scenario, true, "Browser") { url ->
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                guard(scenario.name) {
+                                    onRunExternally(scenario, true, "Browser") { url ->
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                    }
                                 }
                             },
                             onCopyLink = {
-                                onRunExternally(scenario, false, "Link") { url ->
-                                    clipboard.setText(AnnotatedString(url))
+                                guard(scenario.name) {
+                                    onRunExternally(scenario, false, "Link") { url ->
+                                        clipboard.setText(AnnotatedString(url))
+                                    }
                                 }
                             },
                             onShowQr = {
-                                onRunExternally(scenario, false, "QR") { url -> qrUrl = url }
+                                guard(scenario.name) {
+                                    onRunExternally(scenario, false, "QR") { url -> qrUrl = url }
+                                }
                             },
                             onEdit = { onEditScenario(scenario.id) },
                             onDuplicate = { onDuplicateScenario(scenario.id) },
@@ -185,6 +214,20 @@ internal fun HomeScreen(
                 }
             }
         }
+    }
+
+    pendingProdRun?.let { (label, action) ->
+        AlertDialog(
+            onDismissRequest = { pendingProdRun = null },
+            confirmButton = {
+                TextButton(onClick = { pendingProdRun = null; action() }) { Text("Run") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingProdRun = null }) { Text("Cancel") }
+            },
+            title = { Text("Run against PRODUCTION?") },
+            text = { Text("“$label” creates a real payment session on ${uiState.selectedMerchant?.name}.") }
+        )
     }
 
     qrUrl?.let { url ->
