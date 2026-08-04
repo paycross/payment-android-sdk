@@ -66,15 +66,14 @@ enum class ScenarioPreset(val label: String) {
 
 object DemoSeeds {
 
-    val DEFAULT_BODY = """
+    fun bodyWithAmount(amount: Int) = """
         {
-          "amount": 1000,
+          "amount": $amount,
           "currency": "EUR",
           "transaction_type": "sale",
           "merchant_reference": "ANDROID-{{timestamp}}",
           "return_url": "https://merchant.example.com/payment/return",
           "success_url": "https://merchant.example.com/payment/success",
-          "save_card_config": { "usage": "card_on_file" },
           "customer": {
             "email": "john.doe@example.com",
             "first_name": "John",
@@ -95,10 +94,20 @@ object DemoSeeds {
         }
     """.trimIndent()
 
-    private data class Seed(val name: String, val pan: String, val save: Boolean = false)
+    val DEFAULT_BODY = bodyWithAmount(1000)
 
-    // Sandbox provider test PANs — see payment-sandbox/docs/README.md and
-    // payment_testing_go/templates/paycross/.
+    private data class Seed(
+        val name: String,
+        val pan: String,
+        val cardholder: String = "John Doe",
+        val expireYear: String = "30",
+        val amount: Int = 1000,
+        val save: Boolean = false
+    )
+
+    // Mirrors payx-tkg android-demo/scripts/lib/stock-sandbox-scenarios.mjs — names, PANs, and
+    // order must stay in sync with the adb scenario runner. Rows …3055/…0069/…0127 are known
+    // sandbox gaps (unrouted PANs default to approve) and are kept for runner parity.
     private val SANDBOX_SCENARIOS = listOf(
         Seed("Instant approve (no 3DS)", "4111111111170000"),
         Seed("Frictionless 3DS", "4111111111153063"),
@@ -113,17 +122,24 @@ object DemoSeeds {
         Seed("Provider timeout", "4111111111150051")
     )
 
-    // Nuvei gateway test cards — see payment-nuvei/docs/nuvei-3ds-payment-complete.md.
+    // Mirrors payx-tkg android-demo/scripts/lib/demo-data.mjs nuveiScenarios — same cards,
+    // labels, and amounts as the E2E threeDsScenarios.
     private val NUVEI_SCENARIOS = listOf(
-        Seed("3DS challenge", "4000027891380961"),
-        Seed("Frictionless 3DS", "4000020000000000"),
-        Seed("Non-3DS Mastercard", "5200000000000007")
+        Seed("non-3DS approve", "4000027891380961", cardholder = "FL-BRW1"),
+        Seed("frictionless 3DS approve", "4761344136141390", cardholder = "FL-BRW2", amount = 15000),
+        Seed("hosted 3DS challenge approve", "2221008123677736", cardholder = "CL-BRW2", amount = 15100),
+        Seed("decline", "5333463046218753", cardholder = "Jane Smith")
     )
 
-    // Shift4 gateway test cards — see payment-shift4/docs/project-state.md.
+    // Mirrors payx-tkg android-demo/scripts/lib/demo-data.mjs shift4Scenarios — the E2E
+    // SHIFT4_FLOW_SCENARIOS labels; challenge passwords are 0101 / 4445 / 9999.
     private val SHIFT4_SCENARIOS = listOf(
-        Seed("3DS challenge (password 0101)", "4176660000000118"),
-        Seed("Basic Visa test card", "4545454545454545")
+        Seed("Flow A frictionless Visa", "4176660000000027", cardholder = "Test Frictionless Visa", expireYear = "26", amount = 15100),
+        Seed("Flow A frictionless Mastercard", "5299990270000368", cardholder = "Test Frictionless Mastercard", expireYear = "26", amount = 15100),
+        Seed("Flow B DFP frictionless Visa", "4176660000000068", cardholder = "Test DFP Frictionless Visa", expireYear = "26", amount = 15100),
+        Seed("Flow C challenge success Visa", "4176660000000092", cardholder = "Test Challenge Success Visa", expireYear = "26", amount = 15100),
+        Seed("Flow D DFP challenge success MC", "5204730000001011", cardholder = "Test DFP Challenge Success MC", expireYear = "26", amount = 15100),
+        Seed("Flow C challenge failed MC", "5299910010000015", cardholder = "Test Challenge Failed MC", expireYear = "26", amount = 15100)
     )
 
     fun scenariosFor(merchant: Merchant, preset: ScenarioPreset): List<Scenario> {
@@ -133,17 +149,23 @@ object DemoSeeds {
             ScenarioPreset.SHIFT4 -> SHIFT4_SCENARIOS
             ScenarioPreset.EMPTY -> return emptyList()
         }
-        val basic = Scenario(
-            merchantId = merchant.id,
-            name = "Basic sale (no card prefill)",
-            requestBody = DEFAULT_BODY
-        )
-        return listOf(basic) + seeds.map { seed ->
+        val basic = if (preset == ScenarioPreset.SANDBOX) {
+            listOf(
+                Scenario(
+                    merchantId = merchant.id,
+                    name = "Basic sale (no card prefill)",
+                    requestBody = DEFAULT_BODY
+                )
+            )
+        } else {
+            emptyList()
+        }
+        return basic + seeds.map { seed ->
             Scenario(
                 merchantId = merchant.id,
                 name = seed.name,
-                card = CardPrefill("John Doe", seed.pan, "12", "2028", "123", saveCard = seed.save),
-                requestBody = DEFAULT_BODY
+                card = CardPrefill(seed.cardholder, seed.pan, "12", seed.expireYear, "123", saveCard = seed.save),
+                requestBody = bodyWithAmount(seed.amount)
             )
         }
     }
