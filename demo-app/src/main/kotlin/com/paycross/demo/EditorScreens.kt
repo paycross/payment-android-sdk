@@ -157,10 +157,12 @@ internal fun MerchantsScreen(
 internal fun MerchantEditScreen(
     merchant: Merchant?,
     onSave: (Merchant, ScenarioPreset) -> Unit,
+    onReseed: (String, ScenarioPreset) -> Unit,
     onBack: () -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf(merchant?.name ?: "") }
     var preset by rememberSaveable { mutableStateOf(ScenarioPreset.SANDBOX) }
+    var confirmReseed by rememberSaveable { mutableStateOf(false) }
     var environment by rememberSaveable {
         mutableStateOf(merchant?.environment ?: Merchant.ENV_STAGING)
     }
@@ -265,8 +267,12 @@ internal fun MerchantEditScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (merchant == null) {
-                PresetSelector(preset = preset, onSelect = { preset = it })
+            PresetSelector(preset = preset, onSelect = { preset = it })
+            if (merchant != null) {
+                TextButton(
+                    onClick = { confirmReseed = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Replace scenarios with ${preset.label} preset") }
             }
             Button(
                 enabled = name.isNotBlank() && clientId.isNotBlank() &&
@@ -289,6 +295,29 @@ internal fun MerchantEditScreen(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
         }
+    }
+
+    if (confirmReseed && merchant != null) {
+        AlertDialog(
+            onDismissRequest = { confirmReseed = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmReseed = false
+                    onReseed(merchant.id, preset)
+                    onBack()
+                }) { Text("Replace") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReseed = false }) { Text("Cancel") }
+            },
+            title = { Text("Replace scenarios?") },
+            text = {
+                Text(
+                    "${merchant.name}'s scenarios are deleted and reseeded from the " +
+                        "${preset.label} preset. Custom scenarios and edits are lost."
+                )
+            }
+        )
     }
 }
 

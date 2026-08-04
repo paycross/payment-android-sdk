@@ -2,6 +2,7 @@ package com.paycross.sdk
 
 import androidx.annotation.ColorInt
 import androidx.annotation.VisibleForTesting
+import com.paycross.sdk.internal.api.ApiClient
 
 /**
  * Configuration for the PayCross SDK.
@@ -59,7 +60,13 @@ object PayCross {
         @ColorInt brandColor: Int? = null,
         testCardPrefill: TestCardPrefill? = null
     ) {
+        // The API client caches its base URL from the config it was built with,
+        // so a changed environment has to invalidate it.
+        val environmentChanged = config?.environment != null && config?.environment != environment
         config = PayCrossConfig(environment, brandColor, testCardPrefill)
+        if (environmentChanged) {
+            ApiClient.reset()
+        }
     }
 
     /**
@@ -85,5 +92,6 @@ object PayCross {
     @VisibleForTesting
     internal fun reset() {
         config = null
+        ApiClient.reset()
     }
 }
