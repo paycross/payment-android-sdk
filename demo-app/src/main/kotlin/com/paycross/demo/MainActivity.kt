@@ -40,7 +40,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        handleDeepLink(intent)
+        // The VIEW intent stays the task's intent, so onCreate would re-run the
+        // scenario on every recreation (rotation, process death) without this.
+        if (savedInstanceState == null) {
+            handleDeepLink(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -89,6 +93,8 @@ private fun DemoApp(
             onRunExternally = viewModel::runScenarioExternally,
             onDismissExternalRun = viewModel::dismissExternalRun,
             onOpenHistory = { viewModel.navigate(Screen.History) },
+            onConfirmPendingRun = viewModel::confirmPendingRun,
+            onCancelPendingRun = viewModel::cancelPendingRun,
             onClearResult = viewModel::clearResult
         )
 
