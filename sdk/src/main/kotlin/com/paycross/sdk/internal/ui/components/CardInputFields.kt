@@ -34,7 +34,11 @@ internal fun CardNumberField(
         },
         label = { Text("Card Number") },
         isError = isError,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        // NumberPassword, not Number: the framework treats the password variation
+        // as a password input type, and EditorInfo then refuses to hand the field's
+        // existing contents to the IME process as initial surrounding text.
+        // Masking stays off — that is visualTransformation's job, not the keyboard's.
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
@@ -84,7 +88,7 @@ internal fun CvvField(
         label = { Text("CVV") },
         isError = isError,
         visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
         modifier = modifier.semantics { contentDescription = "CVV input" }
     )
