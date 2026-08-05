@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Everything the Android SDK needs verifying runs on a free Linux runner.
+  # There is no macOS step here and there never should be.
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble
+        run: ./gradlew :sdk:assembleRelease
+
+      - name: Unit tests
+        run: ./gradlew :sdk:testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew :sdk:lintRelease
+
+      # Proves the maven-publish configuration actually resolves and produces an
+      # AAR. Publishing to GitHub Packages needs credentials; publishing to the
+      # local repo needs none and catches the same class of config error, which is
+      # what a Flutter plugin consuming this module would otherwise hit first.
+      - name: Publication resolves
+        run: ./gradlew :sdk:publishToMavenLocal -PpaycrossVersion=0.0.0-ci
+
+      - name: Upload AAR
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-aar
+          path: sdk/build/outputs/aar/*.aar
+          if-no-files-found: warn
+
+      - name: Upload test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            sdk/build/reports/tests/**
+            sdk/build/reports/lint-results-*.html
+          if-no-files-found: warn
+
+  # Guards properties that break consumers silently rather than at build time in
+  # this repo, so nothing here would be caught by the job above.
+  invariants:
+    name: Invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A type that appears in a public signature must arrive on the consumer's
+      # compile classpath. ActivityResultContract behind `implementation` is what
+      # made PayCrossContract unusable from any external module.
+      - name: Types in the public API are exposed with `api`
+        run: |
+          set -euo pipefail
+          status=0
+          for dep in androidx.activity:activity-compose androidx.annotation:annotation; do
+            if ! grep -qE "^\s*api\(\"$dep" sdk/build.gradle.kts; then
+              echo "::error::$dep appears in the public API and must be declared with api(), not implementation()"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: No card data may reach disk or logs
+        run: |
+          set -euo pipefail
+          # Strip comments first: the sources legitimately discuss these APIs.
+          if find sdk/src/main -name '*.kt' -exec sed -E 's://.*::' {} + \
+             | grep -nE 'SharedPreferences|HttpLoggingInterceptor|getExternalFilesDir|MediaStore'; then
+            echo "::error::persistence or request-logging API referenced in SDK sources"
+            exit 1
+          fi
+          echo "ok"
+
+      # The card form is hosted in an Activity the SDK owns. A launchMode or
+      # taskAffinity here would put it in a separate task, and Android cannot
+      # route an Activity result across a task boundary - every payment would
+      # resolve as Cancelled while the card still gets charged.
+      - name: PaymentActivity stays in the caller's task
+        run: |
+          set -euo pipefail
+          if grep -nE 'launchMode|taskAffinity' sdk/src/main/AndroidManifest.xml; then
+            echo "::error::PaymentActivity must launch into the caller's task or results are lost"
+            exit 1
+          fi
+          if grep -rnE 'FLAG_ACTIVITY_NEW_TASK' sdk/src/main/kotlin; then
+            echo "::error::FLAG_ACTIVITY_NEW_TASK breaks startActivityForResult"
+            exit 1
+          fi
+          echo "ok"

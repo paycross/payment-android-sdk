@@ -1,8 +1,13 @@
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-parcelize")
+    id("maven-publish")
 }
+
+group = "com.paycross"
+version = providers.gradleProperty("paycrossVersion").getOrElse("0.1.0-SNAPSHOT")
 
 android {
     namespace = "com.paycross.sdk"
@@ -37,8 +42,31 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.6"
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
+    }
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("release") {
+            artifactId = "sdk"
+            afterEvaluate { from(components["release"]) }
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/paycross/payment-android-sdk")
+            credentials {
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+                password = providers.gradleProperty("gpr.token")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
+            }
+        }
     }
 }
 
@@ -49,7 +77,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.8.2")
+    // api, not implementation: ActivityResultContract is the public supertype of
+    // PayCrossContract and @ColorInt appears in PayCross.init's signature, so both
+    // must be on the consumer's compile classpath.
+    api("androidx.activity:activity-compose:1.8.2")
+    api("androidx.annotation:annotation:1.7.1")
     implementation("androidx.core:core-ktx:1.12.0")
 
     // Lifecycle
@@ -59,8 +91,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0")
 
     // Networking
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // Retrofit 2.11+, not 2.9: 2.9 predates OkHttp 5, and Gradle resolves to the
+    // highest version in the graph, so a merchant app that also ships
+    // flutter_stripe (which pins OkHttp 5) drags this SDK onto it. Verified by
+    // forcing okhttp 5.3.2 through the whole graph and rebuilding. Note the
+    // Kotlin version above does the heavier lifting here - OkHttp 5 carries
+    // Kotlin 2.2 metadata, which a 1.9 compiler cannot read at all.
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
