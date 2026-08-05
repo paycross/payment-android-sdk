@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The 3DS tests point a WebView at a MockWebServer on 127.0.0.1, which is
+         cleartext. Test-only: the SDK manifest itself carries no such flag. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>
