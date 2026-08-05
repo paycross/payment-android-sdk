@@ -2,7 +2,8 @@ package com.paycross.sdk.internal.api
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import java.util.Base64
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * Claims extracted from a PayCross session JWT token.
@@ -64,10 +65,18 @@ internal object JwtParser {
         )
     }
 
+    // kotlin.io.encoding.Base64, not java.util.Base64: the latter is API 26 while
+    // minSdk is 24, so on Android 7.x it threw NoClassDefFoundError - an Error,
+    // which the catch below does not catch - and every payment hard-crashed on the
+    // first token parse. The Kotlin one is pure stdlib with no API level floor and
+    // still decodes on the JVM, so this stays unit-testable.
+    @OptIn(ExperimentalEncodingApi::class)
     private fun decodePayload(encodedPayload: String): String {
         return try {
-            val decoder = Base64.getUrlDecoder()
-            val decoded = decoder.decode(encodedPayload)
+            // JWT payloads are base64url and unpadded.
+            val decoded = Base64.UrlSafe
+                .withPadding(Base64.PaddingOption.ABSENT_OPTIONAL)
+                .decode(encodedPayload)
             String(decoded, Charsets.UTF_8)
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid JWT payload encoding", e)

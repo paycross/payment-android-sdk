@@ -1,6 +1,5 @@
 package com.paycross.sdk.internal.api
 
-import androidx.annotation.VisibleForTesting
 import com.paycross.sdk.PayCross
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -57,7 +56,9 @@ internal object ApiClient {
      * Call this when SDK configuration changes to ensure the next [get] call
      * creates a fresh instance with updated settings.
      */
-    @VisibleForTesting
+    // Not @VisibleForTesting: PayCross.init calls this on an environment change
+    // to invalidate the cached base URL, which is the production reason it
+    // exists. The object is already internal, so this is not public API.
     internal fun reset() {
         api = null
     }
