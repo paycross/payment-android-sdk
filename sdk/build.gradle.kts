@@ -6,7 +6,15 @@ plugins {
     id("maven-publish")
 }
 
-group = "com.paycross"
+// com.pay-cross, not com.paycross: Maven Central verifies a namespace by reversing
+// the domain EXACTLY, hyphens included, so pay-cross.com grants com.pay-cross and
+// nothing else. paycross.com is a different company's domain, registered since
+// 2010 and transfer-locked, so matching it is not an option. Hyphens are legal in
+// a groupId and do not have to match the Kotlin package, which stays com.paycross.
+//
+// Central coordinates are permanent once published - a relocation POM is the only
+// escape and it is lossy - so this is settled here rather than at first publish.
+group = "com.pay-cross"
 version = providers.gradleProperty("paycrossVersion").getOrElse("0.1.0-SNAPSHOT")
 
 android {
@@ -45,6 +53,10 @@ android {
     publishing {
         singleVariant("release") {
             withSourcesJar()
+            // Central requires a -javadoc artifact to be present. It checks that
+            // the file exists, not what is in it, so this stays satisfiable even
+            // if the SDK is later shipped closed-source.
+            withJavadocJar()
         }
     }
 }
@@ -52,8 +64,36 @@ android {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            artifactId = "sdk"
+            // Not "sdk": Central is a global namespace and a merchant reading their
+            // dependency block should be able to tell what they are depending on.
+            // Follows com.stripe:stripe-android.
+            artifactId = "paycross-android"
             afterEvaluate { from(components["release"]) }
+
+            // Required by Central. Harmless on GitHub Packages, and cheaper to set
+            // now than to discover missing at the first Portal upload.
+            pom {
+                name.set("PayCross Android SDK")
+                description.set("Card payments, 3-D Secure v2 and saved cards for Android.")
+                url.set("https://github.com/paycross/payment-android-sdk")
+                licenses {
+                    license {
+                        name.set("Proprietary")
+                        url.set("https://github.com/paycross/payment-android-sdk/blob/main/LICENSE")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("paycross")
+                        name.set("PayCross")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/paycross/payment-android-sdk")
+                    connection.set("scm:git:https://github.com/paycross/payment-android-sdk.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/paycross/payment-android-sdk.git")
+                }
+            }
         }
     }
     repositories {
