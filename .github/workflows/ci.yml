@@ -126,6 +126,29 @@ jobs:
           done
           exit $status
 
+      # Maven Central verifies a namespace by reversing the domain exactly, so
+      # pay-cross.com grants com.pay-cross and nothing else, and a published
+      # coordinate can never be changed afterwards. Worth a grep.
+      - name: Maven coordinate matches the verifiable namespace
+        run: |
+          set -euo pipefail
+          status=0
+          grep -q '^group = "com\.pay-cross"$' sdk/build.gradle.kts || {
+            echo "::error::groupId must be com.pay-cross - com.paycross cannot be verified, paycross.com belongs to someone else"
+            status=1
+          }
+          grep -q 'artifactId = "paycross-android"' sdk/build.gradle.kts || {
+            echo "::error::artifactId must be paycross-android"
+            status=1
+          }
+          for block in licenses developers scm; do
+            grep -q "$block {" sdk/build.gradle.kts || {
+              echo "::error::pom is missing the $block block, which Maven Central requires"
+              status=1
+            }
+          done
+          exit $status
+
       - name: No card data may reach disk or logs
         run: |
           set -euo pipefail
