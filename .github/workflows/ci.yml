@@ -111,6 +111,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Central coordinates are permanent and so is a published ABI: anything
+      # importable in 1.0.0 has to keep resolving forever. apiCheck fails when
+      # the AAR's public surface drifts from the committed sdk/api/sdk.api, so
+      # a type leaking out of internal/ is a build failure, not a 1.x regret.
+      - name: Public ABI matches the committed dump
+        run: ./gradlew :sdk:apiCheck
+
       # A type that appears in a public signature must arrive on the consumer's
       # compile classpath. ActivityResultContract behind `implementation` is what
       # made PayCrossContract unusable from any external module.
