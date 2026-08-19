@@ -43,28 +43,36 @@ jobs:
       - name: Test before publishing
         run: ./gradlew :sdk:testDebugUnitTest :sdk:lintRelease
 
-      - name: Publish
+      - name: Publish to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./gradlew :sdk:publishReleasePublicationToGitHubPackagesRepository \
             -PpaycrossVersion=${{ steps.version.outputs.version }}
 
+      # Skipped rather than failed when the Central secrets are absent, so forks
+      # and a mid-rotation repo can still cut a GitHub Packages release.
+      - name: Upload to Maven Central
+        if: ${{ secrets.CENTRAL_TOKEN_USERNAME != '' }}
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew publishAggregationToCentralPortal \
+            -PpaycrossVersion=${{ steps.version.outputs.version }}
+
       - name: Summary
         run: |
           {
-            echo "### Published \`com.paycross:sdk:${{ steps.version.outputs.version }}\`"
+            echo "### Published \`com.pay-cross:paycross-android:${{ steps.version.outputs.version }}\`"
             echo
-            echo 'Consumers add the GitHub Packages repository and authenticate with a'
-            echo 'token carrying `read:packages`:'
+            echo 'Uploaded to the Central Portal as USER_MANAGED: someone must press'
+            echo '**Publish** at <https://central.sonatype.com/publishing> to release it.'
+            echo 'Once released, merchants need no repository config:'
             echo
             echo '```kotlin'
-            echo 'maven {'
-            echo '    url = uri("https://maven.pkg.github.com/paycross/payment-android-sdk")'
-            echo '    credentials {'
-            echo '        username = providers.gradleProperty("gpr.user").orNull'
-            echo '        password = providers.gradleProperty("gpr.token").orNull'
-            echo '    }'
-            echo '}'
+            echo 'implementation("com.pay-cross:paycross-android:${{ steps.version.outputs.version }}")'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

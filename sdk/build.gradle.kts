@@ -1,9 +1,13 @@
+import java.util.Base64
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-parcelize")
     id("maven-publish")
+    id("signing")
 }
 
 // com.pay-cross, not com.paycross: Maven Central verifies a namespace by reversing
@@ -42,10 +46,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -58,6 +58,12 @@ android {
             // if the SDK is later shipped closed-source.
             withJavadocJar()
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
@@ -107,6 +113,22 @@ publishing {
                     .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
             }
         }
+    }
+}
+
+// Central rejects unsigned uploads. The key arrives base64-wrapped because CI
+// secret handling mangles the armored block's newlines. When either variable is
+// absent, signing stays off entirely, so local builds and forks without the
+// secrets still assemble and publish to GitHub Packages.
+signing {
+    val signingKey = providers.environmentVariable("SIGNING_KEY").orNull
+    val signingPassword = providers.environmentVariable("SIGNING_PASSWORD").orNull
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(
+            String(Base64.getDecoder().decode(signingKey)),
+            signingPassword
+        )
+        sign(publishing.publications)
     }
 }
 
