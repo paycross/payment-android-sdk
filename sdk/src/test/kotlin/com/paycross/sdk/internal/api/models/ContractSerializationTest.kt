@@ -1,6 +1,7 @@
 package com.paycross.sdk.internal.api.models
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import org.junit.Assert.*
 import org.junit.Test
@@ -98,6 +99,97 @@ class ContractSerializationTest {
         assertEquals("6f9619ff-8b86-d011-b42d-00cf4fc964ff", card.get("saved_uuid").asString)
         assertFalse(card.has("pan"))
         assertFalse(card.has("save"))
+    }
+
+    @Test
+    fun `wallet submit request serializes to the submit-card contract`() {
+        val paymentMethodData = JsonParser.parseString(
+            """
+            {
+              "type": "CARD",
+              "description": "Visa \u2022\u2022\u2022\u2022 1234",
+              "info": {"cardNetwork": "VISA", "cardDetails": "1234"},
+              "tokenizationData": {"type": "PAYMENT_GATEWAY", "token": "{\"signature\":\"MEQCIA==\"}"}
+            }
+            """.trimIndent()
+        ).asJsonObject
+
+        val request = SubmitCardRequest(
+            session = "jwt-token",
+            paymentMethod = "google_pay",
+            walletToken = WalletToken(type = "google_pay", data = paymentMethodData),
+            browserInfo = minimalBrowserInfo(),
+            fieldGroups = mapOf("billing_address" to mapOf("country" to "US"))
+        )
+
+        val json = JsonParser.parseString(gson.toJson(request)).asJsonObject
+
+        assertEquals("google_pay", json.get("payment_method").asString)
+        // No card block for wallet payments: the edge routes on wallet_token.
+        assertFalse(json.has("card"))
+
+        val walletToken = json.getAsJsonObject("wallet_token")
+        assertEquals("google_pay", walletToken.get("type").asString)
+        assertEquals("VISA", walletToken.getAsJsonObject("data")
+            .getAsJsonObject("info").get("cardNetwork").asString)
+
+        assertTrue(json.has("browser_info"))
+        assertEquals("US", json.getAsJsonObject("field_groups")
+            .getAsJsonObject("billing_address").get("country").asString)
+    }
+
+    @Test
+    fun `google pay token string survives serialization byte-identical`() {
+        // Google's ECv2 signature covers tokenizationData.token byte for byte
+        // and the edge forwards it to the vault untouched, so the decoded token
+        // string must survive the SDK's serialization round trip exactly:
+        // no key reordering of the envelope JSON inside it, no empty-field
+        // stripping, no re-encoding. The token here exercises the hazards —
+        // base64 '=' padding (Gson escapes it as \u003d on the wire, which
+        // decodes back to '='), escaped quotes, an empty string value, and
+        // deliberate non-alphabetical key order.
+        val token = """{"signature":"MEQCIF4Sd+2u0G0DM4dtd8SyBnMOm0m4RfDNQTgc9SpXo0GhAiB8qk1sQ==",""" +
+            """"intermediateSigningKey":{"signedKey":"{\"keyValue\":\"MFkwEwYHKoZI==\",\"keyExpiration\":\"1879788278688\"}",""" +
+            """"signatures":["MEYCIQCO=="]},"protocolVersion":"ECv2","signedMessage":"{\"encryptedMessage\":\"ZW5j\",\"ephemeralPublicKey\":\"BPh=\",\"tag\":\"\"}"}"""
+
+        val paymentDataJson = JsonObject().apply {
+            add("paymentMethodData", JsonObject().apply {
+                addProperty("type", "CARD")
+                add("info", JsonObject().apply {
+                    addProperty("cardNetwork", "MASTERCARD")
+                    addProperty("cardDetails", "4111")
+                    addProperty("assuranceDetails", "")
+                })
+                add("tokenizationData", JsonObject().apply {
+                    addProperty("type", "PAYMENT_GATEWAY")
+                    addProperty("token", token)
+                })
+            })
+        }.toString()
+
+        // The exact path the ViewModel takes: parse the sheet's JSON, embed
+        // paymentMethodData as a Gson tree, serialize the submit request with
+        // the same default Gson configuration Retrofit's converter uses.
+        val paymentMethodData = JsonParser.parseString(paymentDataJson)
+            .asJsonObject.getAsJsonObject("paymentMethodData")
+        val request = SubmitCardRequest(
+            session = "jwt-token",
+            paymentMethod = "google_pay",
+            walletToken = WalletToken(type = "google_pay", data = paymentMethodData),
+            browserInfo = minimalBrowserInfo()
+        )
+
+        val wire = gson.toJson(request)
+        val decoded = JsonParser.parseString(wire).asJsonObject
+            .getAsJsonObject("wallet_token").getAsJsonObject("data")
+
+        assertEquals(token, decoded.getAsJsonObject("tokenizationData").get("token").asString)
+        // Empty fields must not be stripped either — the whole object is opaque.
+        assertEquals("", decoded.getAsJsonObject("info").get("assuranceDetails").asString)
+        assertEquals(
+            JsonParser.parseString(paymentDataJson).asJsonObject.get("paymentMethodData"),
+            decoded
+        )
     }
 
     @Test

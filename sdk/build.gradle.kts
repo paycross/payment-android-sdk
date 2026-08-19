@@ -185,6 +185,13 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Google Pay. The sheet, IsReadyToPay, the ActivityResult contract and the
+    // official PayButton view all come from this one artifact. The Compose
+    // wrapper (com.google.pay.button:compose-pay-button) is deliberately not
+    // used: 1.1.0 drags androidx.core 1.15.0, whose AAR metadata demands
+    // compileSdk 35 while this project pins 34.
+    implementation("com.google.android.gms:play-services-wallet:20.0.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 

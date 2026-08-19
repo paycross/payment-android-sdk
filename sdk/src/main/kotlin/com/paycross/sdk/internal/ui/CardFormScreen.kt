@@ -39,11 +39,13 @@ import com.paycross.sdk.internal.ui.components.CardholderNameField
 import com.paycross.sdk.internal.ui.components.CvvField
 import com.paycross.sdk.internal.ui.components.ExpiryField
 import com.paycross.sdk.internal.ui.components.FieldGroupsSection
+import com.paycross.sdk.internal.ui.components.GooglePaySection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.util.Amounts
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
+import com.paycross.sdk.internal.wallet.GooglePayRequests
 import java.util.Locale
 
 private const val EXPIRY_MIN_LENGTH = 4
@@ -70,6 +72,8 @@ internal fun CardFormScreen(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     error: String? = null,
+    googlePayAvailable: Boolean = false,
+    onGooglePay: (Map<String, Map<String, String>>) -> Unit = {},
     onSubmit: (CardFormData, Map<String, Map<String, String>>) -> Unit
 ) {
     val brandColor = PayCross.requireConfig().brandColor?.let { Color(it) }
@@ -129,6 +133,30 @@ internal fun CardFormScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AmountHeader(amount = formattedAmount)
+
+            if (googlePayAvailable) {
+                GooglePaySection(
+                    allowedPaymentMethodsJson = remember(claims, sessionData) {
+                        GooglePayRequests.buildPaymentDataRequest(
+                            claims,
+                            sessionData,
+                            PayCross.requireConfig().googlePayMerchantId
+                        ).getAsJsonArray("allowedPaymentMethods").toString()
+                    },
+                    onClick = {
+                        showErrors = true
+                        // Field groups must validate before the sheet opens, like the
+                        // web: core validates them unconditionally before the wallet
+                        // branch, so an invalid form would open a sheet into a
+                        // guaranteed reject. The isLoading check is the double-submit
+                        // guard — the sheet closes on resolve while settlement is
+                        // still polling and the button stays on screen.
+                        if (!isLoading && fieldGroupErrors.isEmpty()) {
+                            onGooglePay(FieldGroupLogic.submissionValues(fieldGroups, fieldValues))
+                        }
+                    }
+                )
+            }
 
             if (savedCards.isNotEmpty()) {
                 SavedCardSelector(

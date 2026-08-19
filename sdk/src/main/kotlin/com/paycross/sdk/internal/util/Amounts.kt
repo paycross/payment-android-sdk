@@ -1,5 +1,6 @@
 package com.paycross.sdk.internal.util
 
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -14,6 +15,17 @@ internal object Amounts {
 
     fun fractionDigits(currencyCode: String): Int =
         if (currencyCode.uppercase() in ZERO_DECIMAL_CURRENCIES) 0 else 2
+
+    /**
+     * Plain decimal string in major units for gateway/wallet amount fields —
+     * no symbol, no grouping (e.g. 12345 EUR -> "123.45", 5000 JPY -> "5000").
+     * Mirrors the checkout page's minorToAmountString.
+     */
+    fun toMajorString(amountMinor: Long, currencyCode: String): String =
+        BigDecimal.valueOf(amountMinor)
+            .movePointLeft(fractionDigits(currencyCode))
+            .setScale(fractionDigits(currencyCode))
+            .toPlainString()
 
     /**
      * Formats a minor-unit amount (e.g. cents) as a localized currency string.

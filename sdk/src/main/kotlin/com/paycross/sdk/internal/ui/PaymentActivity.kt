@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
@@ -35,7 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.wallet.contract.TaskResultContracts
+import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.internal.wallet.GooglePayClient
+import com.paycross.sdk.internal.wallet.GooglePayRequests
 
 /**
  * Internal activity that hosts the payment flow UI.
@@ -118,6 +124,31 @@ private fun PaymentScreen(
         uiState.result?.let { onResult(it) }
     }
 
+    val paymentsClient = remember {
+        GooglePayClient.createPaymentsClient(context, PayCross.requireConfig().environment)
+    }
+
+    val googlePayLauncher = rememberLauncherForActivityResult(
+        TaskResultContracts.GetPaymentDataResult()
+    ) { taskResult ->
+        when (taskResult.status.statusCode) {
+            CommonStatusCodes.SUCCESS ->
+                taskResult.result?.toJson()?.let { viewModel.submitGooglePay(context, it) }
+                    ?: viewModel.onGooglePayFailed()
+            // The shopper closed the sheet; stay on the form silently.
+            CommonStatusCodes.CANCELED -> Unit
+            else -> viewModel.onGooglePayFailed()
+        }
+    }
+
+    LaunchedEffect(uiState.claims, uiState.sessionData) {
+        if (uiState.claims == null) return@LaunchedEffect
+        val ready = paymentsClient != null &&
+            GooglePayRequests.isSessionEligible(uiState.sessionData) &&
+            GooglePayClient.isReadyToPay(paymentsClient)
+        viewModel.onGooglePayReadiness(ready)
+    }
+
     val challenge = uiState.threeDs?.takeIf { it.isChallenge }
     val fingerprint = uiState.threeDs?.takeIf { !it.isChallenge }
 
@@ -140,6 +171,24 @@ private fun PaymentScreen(
                     sessionData = uiState.sessionData,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
+                    googlePayAvailable = uiState.googlePayAvailable,
+                    onGooglePay = { fieldValues ->
+                        viewModel.onGooglePaySheetOpened(fieldValues)
+                        val claims = uiState.claims
+                        if (paymentsClient == null || claims == null) {
+                            viewModel.onGooglePayFailed()
+                        } else {
+                            // The contract requires a completed task; launching the
+                            // resolution from the completion listener keeps it on the
+                            // same user gesture.
+                            GooglePayClient.loadPaymentDataTask(
+                                client = paymentsClient,
+                                claims = claims,
+                                sessionData = uiState.sessionData,
+                                googlePayMerchantId = PayCross.requireConfig().googlePayMerchantId
+                            ).addOnCompleteListener(googlePayLauncher::launch)
+                        }
+                    },
                     onSubmit = { card, fieldValues ->
                         viewModel.submitCard(context, card, fieldValues)
                     }
