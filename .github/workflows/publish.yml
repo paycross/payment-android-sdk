@@ -15,6 +15,10 @@ jobs:
   publish:
     name: Publish to GitHub Packages
     runs-on: ubuntu-latest
+    # Job-level because the secrets context is not allowed in a step-level if;
+    # an empty value means the Central upload is skipped.
+    env:
+      CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,9 +57,8 @@ jobs:
       # Skipped rather than failed when the Central secrets are absent, so forks
       # and a mid-rotation repo can still cut a GitHub Packages release.
       - name: Upload to Maven Central
-        if: ${{ secrets.CENTRAL_TOKEN_USERNAME != '' }}
+        if: ${{ env.CENTRAL_TOKEN_USERNAME != '' }}
         env:
-          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
