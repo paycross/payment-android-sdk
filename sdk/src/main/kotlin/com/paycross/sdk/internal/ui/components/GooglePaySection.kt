@@ -1,0 +1,83 @@
+package com.paycross.sdk.internal.ui.components
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.wallet.button.ButtonConstants
+import com.google.android.gms.wallet.button.ButtonOptions
+import com.google.android.gms.wallet.button.PayButton
+
+internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
+
+/**
+ * Google's official Pay button above an "Or pay with card" divider.
+ *
+ * The button is the PayButton view from play-services-wallet wrapped in an
+ * AndroidView — Google's brand guidelines prohibit custom markup, the SDK owns
+ * the button's rendering. The compose-pay-button wrapper artifact does the
+ * same thing but drags in androidx.core 1.15.0, which demands compileSdk 35;
+ * this project pins 34, so the view is wrapped directly.
+ */
+@Composable
+internal fun GooglePaySection(
+    allowedPaymentMethodsJson: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val buttonOptions = remember(allowedPaymentMethodsJson) {
+        ButtonOptions.newBuilder()
+            .setButtonType(ButtonConstants.ButtonType.PLAIN)
+            .setButtonTheme(ButtonConstants.ButtonTheme.DARK)
+            .setAllowedPaymentMethods(allowedPaymentMethodsJson)
+            .build()
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        AndroidView(
+            factory = { context ->
+                PayButton(context).apply { initialize(buttonOptions) }
+            },
+            update = { button ->
+                button.setOnClickListener { currentOnClick() }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag(GOOGLE_PAY_BUTTON_TAG)
+        )
+
+        OrPayWithCardDivider(modifier = Modifier.padding(top = 16.dp))
+    }
+}
+
+@Composable
+private fun OrPayWithCardDivider(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f))
+        Text(
+            text = "Or pay with card",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f))
+    }
+}

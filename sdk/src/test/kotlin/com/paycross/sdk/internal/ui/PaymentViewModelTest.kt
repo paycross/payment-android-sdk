@@ -5,14 +5,18 @@ import androidx.lifecycle.SavedStateHandle
 import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.models.BrowserInfo
+import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.api.models.SessionResponse
 import com.paycross.sdk.internal.api.models.StatusResponse
+import com.paycross.sdk.internal.api.models.WalletsAvailability
 import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.SubmitCardResponse
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import com.paycross.sdk.internal.repository.PaymentRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -213,8 +217,131 @@ class PaymentViewModelTest {
         assertTrue(vm.uiState.value.result is PayCrossResult.Success)
     }
 
+    @Test
+    fun `google pay readiness needs device support and session gates together`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(googlePay = true))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.onGooglePayReadiness(deviceReady = true)
+        assertTrue(vm.uiState.value.googlePayAvailable)
+
+        vm.onGooglePayReadiness(deviceReady = false)
+        assertFalse(vm.uiState.value.googlePayAvailable)
+    }
+
+    @Test
+    fun `google pay stays hidden on account funding sessions`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(googlePay = true, accountFunding = true))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.onGooglePayReadiness(deviceReady = true)
+        assertFalse(vm.uiState.value.googlePayAvailable)
+    }
+
+    @Test
+    fun `google pay shows for sessions without a wallets block`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(googlePay = null))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.onGooglePayReadiness(deviceReady = true)
+        assertTrue(vm.uiState.value.googlePayAvailable)
+    }
+
+    @Test
+    fun `google pay submit sends the wallet token with stashed field groups and no card`() =
+        runTest(dispatcher.scheduler) {
+            coEvery { repository.getSession(any(), any()) } returns
+                sessionResponse(sessionData(googlePay = true))
+            val requestSlot = slot<SubmitCardRequest>()
+            coEvery { repository.submitCard(any(), capture(requestSlot)) } returns
+                SubmitCardResponse(true, "tx-9", null, null, null)
+            coEvery { repository.getStatus("tx-9") } returns
+                StatusResponse("tx-9", "success", 9999, "EUR", null, null)
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceUntilIdle()
+
+            vm.onGooglePaySheetOpened(mapOf("billing_address" to mapOf("country" to "US")))
+            vm.submitGooglePay(context, paymentDataJson)
+            advanceUntilIdle()
+
+            val request = requestSlot.captured
+            assertEquals("google_pay", request.paymentMethod)
+            assertNull(request.card)
+            assertEquals("google_pay", request.walletToken?.type)
+            val data = request.walletToken?.data as com.google.gson.JsonObject
+            assertEquals(
+                """{"signature":"MEQ==","protocolVersion":"ECv2","signedMessage":"{}"}""",
+                data.getAsJsonObject("tokenizationData").get("token").asString
+            )
+            assertEquals(mapOf("billing_address" to mapOf("country" to "US")), request.fieldGroups)
+            assertTrue(vm.uiState.value.result is PayCrossResult.Success)
+        }
+
+    @Test
+    fun `google pay submit with malformed payment data re-arms the form`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(googlePay = true))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.submitGooglePay(context, "not json")
+        advanceUntilIdle()
+
+        assertEquals("Payment failed. Please try again.", vm.uiState.value.error)
+        assertFalse(vm.uiState.value.isLoading)
+        assertNull(vm.uiState.value.result)
+        coVerify(exactly = 0) { repository.submitCard(any(), any()) }
+    }
+
+    @Test
+    fun `google pay sheet failure re-arms the form with the generic copy`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(googlePay = true))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.onGooglePayFailed()
+
+        assertEquals("Payment failed. Please try again.", vm.uiState.value.error)
+        assertNull(vm.uiState.value.result)
+    }
+
     private fun sessionResponse(status: String, latestTransactionId: String?) =
         SessionResponse("session-123", status, latestTransactionId, null)
+
+    private fun sessionResponse(data: SessionData) =
+        SessionResponse("session-123", "open", null, data)
+
+    private fun sessionData(googlePay: Boolean?, accountFunding: Boolean? = null) = SessionData(
+        locale = null,
+        returnUrl = null,
+        successUrl = null,
+        fieldGroups = null,
+        merchantCountry = null,
+        saveCardConfig = null,
+        savedCards = null,
+        wallets = googlePay?.let { WalletsAvailability(applePay = null, googlePay = it) },
+        accountFunding = accountFunding,
+        googlePay = null
+    )
 
     private fun newCard() = CardFormData(
         cardholderName = "JOHN DOE",
@@ -238,6 +365,23 @@ class PaymentViewModelTest {
         javaEnabled = false,
         javascriptEnabled = true
     )
+
+    // Trimmed but structurally real PaymentData.toJson() output.
+    private val paymentDataJson = """
+        {
+          "apiVersionMinor": 0,
+          "apiVersion": 2,
+          "paymentMethodData": {
+            "description": "Visa 1234",
+            "tokenizationData": {
+              "type": "PAYMENT_GATEWAY",
+              "token": "{\"signature\":\"MEQ==\",\"protocolVersion\":\"ECv2\",\"signedMessage\":\"{}\"}"
+            },
+            "type": "CARD",
+            "info": {"cardNetwork": "VISA", "cardDetails": "1234"}
+          }
+        }
+    """.trimIndent()
 
     private fun httpException(code: Int) =
         HttpException(Response.error<Any>(code, "".toResponseBody()))

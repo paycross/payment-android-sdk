@@ -10,11 +10,13 @@ import com.paycross.sdk.internal.api.ApiClient
  * @property environment The target environment for API requests.
  * @property brandColor Optional brand color for UI customization (ARGB format).
  * @property testCardPrefill Optional card-form prefill for test runs.
+ * @property googlePayMerchantId Google Business Console merchant ID for Google Pay.
  */
 internal data class PayCrossConfig(
     val environment: PayCrossEnvironment,
     @ColorInt val brandColor: Int?,
-    val testCardPrefill: TestCardPrefill? = null
+    val testCardPrefill: TestCardPrefill? = null,
+    val googlePayMerchantId: String? = null
 ) {
     internal fun effectiveTestPrefill(): TestCardPrefill? =
         testCardPrefill.takeIf { environment != PayCrossEnvironment.PRODUCTION }
@@ -54,16 +56,20 @@ object PayCross {
      * @param environment The target environment for API requests.
      * @param brandColor Optional brand color for UI customization (ARGB format).
      * @param testCardPrefill Optional card-form prefill for test runs; ignored in production.
+     * @param googlePayMerchantId Google Business Console merchant ID. Google requires it in
+     *   merchantInfo for PRODUCTION Google Pay requests; the TEST environment works without
+     *   one, so it is optional and simply omitted from the request when null.
      */
     fun init(
         environment: PayCrossEnvironment,
         @ColorInt brandColor: Int? = null,
-        testCardPrefill: TestCardPrefill? = null
+        testCardPrefill: TestCardPrefill? = null,
+        googlePayMerchantId: String? = null
     ) {
         // The API client caches its base URL from the config it was built with,
         // so a changed environment has to invalidate it.
         val environmentChanged = config?.environment != null && config?.environment != environment
-        config = PayCrossConfig(environment, brandColor, testCardPrefill)
+        config = PayCrossConfig(environment, brandColor, testCardPrefill, googlePayMerchantId)
         if (environmentChanged) {
             ApiClient.reset()
         }

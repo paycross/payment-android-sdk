@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.JsonParser
 import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.JwtClaims
@@ -15,10 +16,12 @@ import com.paycross.sdk.internal.api.models.SessionStatus
 import com.paycross.sdk.internal.api.models.StatusResponse
 import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.ThreeDsAction
+import com.paycross.sdk.internal.api.models.WalletToken
 import com.paycross.sdk.internal.repository.PaymentRepository
 import com.paycross.sdk.internal.util.BrowserInfoProvider
 import com.paycross.sdk.internal.util.IdempotencyKey
 import com.paycross.sdk.internal.util.IpAddressProvider
+import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +43,8 @@ import java.io.IOException
  * @property claims Parsed JWT claims from the session token
  * @property threeDs 3DS step requiring a WebView, if any
  * @property result Final payment result, signals flow completion
+ * @property googlePayAvailable Whether to show the Google Pay button (session
+ *   gates and device readiness combined)
  */
 internal data class PaymentUiState(
     val isLoading: Boolean = true,
@@ -47,7 +52,8 @@ internal data class PaymentUiState(
     val sessionData: SessionData? = null,
     val claims: JwtClaims? = null,
     val threeDs: ThreeDsUi? = null,
-    val result: PayCrossResult? = null
+    val result: PayCrossResult? = null,
+    val googlePayAvailable: Boolean = false
 )
 
 /**
@@ -210,6 +216,76 @@ internal class PaymentViewModel(
         }
     }
 
+    /**
+     * Combines device-level Google Pay readiness (isReadyToPay, resolved by the
+     * activity) with the session-level gates. Both must pass to show the button.
+     */
+    fun onGooglePayReadiness(deviceReady: Boolean) {
+        _uiState.update {
+            it.copy(
+                googlePayAvailable = deviceReady && GooglePayRequests.isSessionEligible(it.sessionData)
+            )
+        }
+    }
+
+    /**
+     * Stashes validated field-group values when the Google Pay sheet opens.
+     * Saved-state backed so a process death while the sheet is up (the sheet
+     * runs in Google's UI, our process is backgroundable) still submits with
+     * the values the shopper entered.
+     */
+    fun onGooglePaySheetOpened(fieldValues: Map<String, Map<String, String>>) {
+        savedStateHandle[KEY_GOOGLE_PAY_FIELDS] =
+            HashMap(fieldValues.mapValues { HashMap(it.value) })
+    }
+
+    /** Surfaces the generic error after a non-cancel sheet failure; the form stays armed. */
+    fun onGooglePayFailed() {
+        _uiState.update { it.copy(isLoading = false, error = "Payment failed. Please try again.") }
+    }
+
+    /**
+     * Submits a Google Pay payment from the sheet's result.
+     *
+     * @param paymentDataJson The full PaymentData.toJson() string from the sheet
+     */
+    fun submitGooglePay(context: Context, paymentDataJson: String) {
+        viewModelScope.launch(dispatcher) {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            // Google's ECv2 signature covers the tokenizationData.token string
+            // byte for byte and the edge forwards it to the vault untouched, so
+            // paymentMethodData is parsed into a Gson tree and embedded verbatim:
+            // no model round-trip that could drop empty fields, reorder
+            // reordering-sensitive keys, or re-encode the token string.
+            val paymentMethodData = try {
+                JsonParser.parseString(paymentDataJson).asJsonObject
+                    .getAsJsonObject("paymentMethodData")
+            } catch (e: RuntimeException) {
+                null
+            }
+            if (paymentMethodData == null) {
+                _uiState.update {
+                    it.copy(isLoading = false, error = "Payment failed. Please try again.")
+                }
+                return@launch
+            }
+
+            val fieldValues: Map<String, Map<String, String>>? =
+                savedStateHandle.get<HashMap<String, HashMap<String, String>>>(KEY_GOOGLE_PAY_FIELDS)
+
+            val request = SubmitCardRequest(
+                session = sessionToken,
+                paymentMethod = "google_pay",
+                walletToken = WalletToken(type = "google_pay", data = paymentMethodData),
+                browserInfo = browserInfoProvider(context, ipAddressProvider()),
+                fieldGroups = fieldValues?.takeIf { it.isNotEmpty() }
+            )
+
+            submitWithRetry(request)
+        }
+    }
+
     private suspend fun submitWithRetry(request: SubmitCardRequest) {
         val idempotencyKey = IdempotencyKey.generate()
 
@@ -361,6 +437,7 @@ internal class PaymentViewModel(
     companion object {
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_TRANSACTION_ID = "transaction_id"
+        private const val KEY_GOOGLE_PAY_FIELDS = "google_pay_field_values"
 
         private const val MAX_SUBMIT_ATTEMPTS = 5
         private const val POLL_DEADLINE_MS = 8 * 60 * 1000L
