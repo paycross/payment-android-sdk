@@ -2,7 +2,7 @@ package com.paycross.sdk.internal.api.models
 
 import com.google.gson.annotations.SerializedName
 
-data class BrowserInfo(
+internal data class BrowserInfo(
     @SerializedName("user_agent") val userAgent: String,
     @SerializedName("ip_address") val ipAddress: String,
     @SerializedName("screen_width") val screenWidth: Int,

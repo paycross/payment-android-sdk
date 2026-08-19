@@ -1,6 +1,6 @@
 package com.paycross.sdk.internal.validation
 
-enum class CardType(
+internal enum class CardType(
     val displayName: String,
     val cvvLength: Int,
     private val prefixPattern: Regex

@@ -2,14 +2,14 @@ package com.paycross.sdk.internal.api.models
 
 import com.google.gson.annotations.SerializedName
 
-data class SessionResponse(
+internal data class SessionResponse(
     @SerializedName("session_id") val sessionId: String,
     val status: String?,
     @SerializedName("latest_transaction_id") val latestTransactionId: String?,
     val data: SessionData?
 )
 
-data class SessionData(
+internal data class SessionData(
     val locale: String?,
     @SerializedName("return_url") val returnUrl: String?,
     @SerializedName("success_url") val successUrl: String?,
@@ -19,13 +19,13 @@ data class SessionData(
     @SerializedName("saved_cards") val savedCards: List<SavedCard>?
 )
 
-data class FieldGroup(
+internal data class FieldGroup(
     val key: String,
     val label: String?,
     val fields: List<FieldDefinition>?
 )
 
-data class FieldDefinition(
+internal data class FieldDefinition(
     val name: String,
     val type: String?,
     val label: String?,
@@ -38,29 +38,29 @@ data class FieldDefinition(
     val validation: FieldValidation?
 )
 
-data class FieldCondition(
+internal data class FieldCondition(
     @SerializedName("when") val whenField: String,
     @SerializedName("in") val whenIn: List<String>?,
     val display: String?,
     val default: String?
 )
 
-data class FieldOption(
+internal data class FieldOption(
     val value: String,
     val label: String?
 )
 
-data class FieldValidation(
+internal data class FieldValidation(
     val pattern: String?,
     @SerializedName("max_length") val maxLength: Int?,
     val messages: Map<String, String>?
 )
 
-data class SaveCardConfig(
+internal data class SaveCardConfig(
     val usage: String?
 )
 
-data class SavedCard(
+internal data class SavedCard(
     val uuid: String,
     @SerializedName("masked_pan") val maskedPan: String,
     @SerializedName("card_brand") val cardBrand: String?,
