@@ -2,16 +2,18 @@ package com.paycross.sdk.internal.api.models
 
 import com.google.gson.annotations.SerializedName
 
-data class SubmitCardRequest(
+internal data class SubmitCardRequest(
     val session: String,
     @SerializedName("payment_method") val paymentMethod: String,
     val card: CardData? = null,
     @SerializedName("wallet_token") val walletToken: WalletToken? = null,
     @SerializedName("browser_info") val browserInfo: BrowserInfo,
-    @SerializedName("field_groups") val fieldGroups: Map<String, Map<String, String>>? = null
+    // Any, not String: the backend contract is map[string]map[string]interface{},
+    // so group values may legitimately be booleans or numbers.
+    @SerializedName("field_groups") val fieldGroups: Map<String, Map<String, Any>>? = null
 )
 
-data class CardData(
+internal data class CardData(
     @SerializedName("saved_uuid") val savedUuid: String? = null,
     @SerializedName("cardholder_name") val cardholderName: String? = null,
     val pan: String? = null,
@@ -21,7 +23,7 @@ data class CardData(
     val save: Boolean? = null
 )
 
-data class WalletToken(
+internal data class WalletToken(
     val type: String,
     val data: Any
 )

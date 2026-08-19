@@ -16,7 +16,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * @property currency ISO 4217 currency code
  * @property expiresAt Token expiry as epoch seconds (from "exp" claim)
  */
-data class JwtClaims(
+internal data class JwtClaims(
     val sessionId: String,
     val merchantId: String,
     val customerId: String,

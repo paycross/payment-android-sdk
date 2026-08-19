@@ -11,7 +11,7 @@ import com.paycross.sdk.internal.api.ApiClient
  * @property brandColor Optional brand color for UI customization (ARGB format).
  * @property testCardPrefill Optional card-form prefill for test runs.
  */
-data class PayCrossConfig(
+internal data class PayCrossConfig(
     val environment: PayCrossEnvironment,
     @ColorInt val brandColor: Int?,
     val testCardPrefill: TestCardPrefill? = null

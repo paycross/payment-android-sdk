@@ -8,6 +8,10 @@ plugins {
     id("kotlin-parcelize")
     id("maven-publish")
     id("signing")
+    // Pins the importable surface of the AAR: apiCheck fails the build whenever
+    // the public ABI drifts from the committed api/sdk.api, so nothing under
+    // internal/ can leak back into merchant-visible API unnoticed.
+    id("org.jetbrains.kotlinx.binary-compatibility-validator")
 }
 
 // com.pay-cross, not com.paycross: Maven Central verifies a namespace by reversing
@@ -65,6 +69,23 @@ kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
     }
+}
+
+apiValidation {
+    // The Compose compiler emits one public ComposableSingletons holder class
+    // per file containing composable lambdas; its members are internal-mangled
+    // and unusable from outside, but the class itself is public bytecode.
+    // Listed by exact name rather than ignoring com.paycross.sdk.internal
+    // wholesale, so a genuinely public type leaking from internal/ still fails
+    // apiCheck - that leak is what this validation exists to catch. A new file
+    // with composable lambdas will surface here; add its holder to this list.
+    ignoredClasses.addAll(
+        listOf(
+            "com.paycross.sdk.internal.ui.ComposableSingletons\$PaymentActivityKt",
+            "com.paycross.sdk.internal.ui.components.ComposableSingletons\$CardInputFieldsKt",
+            "com.paycross.sdk.internal.ui.components.ComposableSingletons\$SavedCardSelectorKt"
+        )
+    )
 }
 
 publishing {
