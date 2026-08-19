@@ -16,7 +16,21 @@ internal data class SessionData(
     @SerializedName("field_groups") val fieldGroups: List<FieldGroup>?,
     @SerializedName("merchant_country") val merchantCountry: String?,
     @SerializedName("save_card_config") val saveCardConfig: SaveCardConfig?,
-    @SerializedName("saved_cards") val savedCards: List<SavedCard>?
+    @SerializedName("saved_cards") val savedCards: List<SavedCard>?,
+    val wallets: WalletsAvailability?,
+    @SerializedName("account_funding") val accountFunding: Boolean?,
+    @SerializedName("google_pay") val googlePay: GooglePayConfig?
+)
+
+internal data class WalletsAvailability(
+    @SerializedName("apple_pay") val applePay: Boolean?,
+    @SerializedName("google_pay") val googlePay: Boolean?
+)
+
+internal data class GooglePayConfig(
+    @SerializedName("merchant_origin") val merchantOrigin: String?,
+    @SerializedName("merchant_name") val merchantName: String?,
+    @SerializedName("billing_address_required") val billingAddressRequired: Boolean?
 )
 
 internal data class FieldGroup(

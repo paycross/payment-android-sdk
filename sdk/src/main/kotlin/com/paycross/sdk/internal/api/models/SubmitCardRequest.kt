@@ -8,7 +8,9 @@ internal data class SubmitCardRequest(
     val card: CardData? = null,
     @SerializedName("wallet_token") val walletToken: WalletToken? = null,
     @SerializedName("browser_info") val browserInfo: BrowserInfo,
-    @SerializedName("field_groups") val fieldGroups: Map<String, Map<String, String>>? = null
+    // Any, not String: the backend contract is map[string]map[string]interface{},
+    // so group values may legitimately be booleans or numbers.
+    @SerializedName("field_groups") val fieldGroups: Map<String, Map<String, Any>>? = null
 )
 
 internal data class CardData(

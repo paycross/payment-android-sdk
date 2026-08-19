@@ -63,6 +63,29 @@ class ContractSerializationTest {
     }
 
     @Test
+    fun `field_groups carries non-string values with their JSON types intact`() {
+        // The Go side of the contract is map[string]map[string]interface{}, so
+        // booleans and numbers must arrive as JSON booleans and numbers, not as
+        // their string renderings.
+        val request = SubmitCardRequest(
+            session = "jwt-token",
+            paymentMethod = "card",
+            card = CardData(cvv = "123"),
+            browserInfo = minimalBrowserInfo(),
+            fieldGroups = mapOf(
+                "consents" to mapOf("marketing_opt_in" to false, "installments" to 3)
+            )
+        )
+
+        val fieldGroups = JsonParser.parseString(gson.toJson(request))
+            .asJsonObject.getAsJsonObject("field_groups")
+        val consents = fieldGroups.getAsJsonObject("consents")
+        assertTrue(consents.get("marketing_opt_in").isJsonPrimitive)
+        assertFalse(consents.get("marketing_opt_in").asBoolean)
+        assertEquals(3, consents.get("installments").asInt)
+    }
+
+    @Test
     fun `saved card request carries saved_uuid and cvv only`() {
         val request = SubmitCardRequest(
             session = "jwt-token",
@@ -117,6 +140,13 @@ class ContractSerializationTest {
                     ]
                   }
                 ],
+                "wallets": {"apple_pay": false, "google_pay": true},
+                "account_funding": false,
+                "google_pay": {
+                  "merchant_origin": "shop.example.com",
+                  "merchant_name": "Example Shop",
+                  "billing_address_required": true
+                },
                 "save_card_config": {"usage": "card_on_file"},
                 "saved_cards": [
                   {
@@ -154,6 +184,28 @@ class ContractSerializationTest {
         assertEquals("country", state.condition?.whenField)
         assertEquals(listOf("US"), state.condition?.whenIn)
         assertEquals("hidden", state.condition?.default)
+
+        assertEquals(false, data.wallets?.applePay)
+        assertEquals(true, data.wallets?.googlePay)
+        assertEquals(false, data.accountFunding)
+        assertEquals("shop.example.com", data.googlePay?.merchantOrigin)
+        assertEquals("Example Shop", data.googlePay?.merchantName)
+        assertEquals(true, data.googlePay?.billingAddressRequired)
+    }
+
+    @Test
+    fun `session response tolerates payloads without wallet fields`() {
+        // wallets, account_funding and google_pay are additive: sessions minted
+        // before the backend shipped them must still parse.
+        val json = """
+            {"session_id": "550e8400-e29b-41d4-a716-446655440000", "data": {"locale": "en"}}
+        """.trimIndent()
+
+        val response = gson.fromJson(json, SessionResponse::class.java)
+        val data = response.data!!
+        assertNull(data.wallets)
+        assertNull(data.accountFunding)
+        assertNull(data.googlePay)
     }
 
     @Test
