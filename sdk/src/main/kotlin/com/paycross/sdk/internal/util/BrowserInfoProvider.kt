@@ -39,7 +39,7 @@ internal object BrowserInfoProvider {
             // Date.getTimezoneOffset() convention 3DS expects.
             timezoneOffset = -TimeZone.getDefault()
                 .getOffset(System.currentTimeMillis()) / MILLIS_PER_MINUTE,
-            language = Locale.getDefault().toLanguageTag(),
+            language = BrowserLanguage.clamp(Locale.getDefault().toLanguageTag()),
             acceptHeader = DEFAULT_ACCEPT_HEADER,
             javaEnabled = false,
             javascriptEnabled = true
