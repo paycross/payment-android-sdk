@@ -155,7 +155,7 @@ signing {
 
 dependencies {
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -163,9 +163,9 @@ dependencies {
     // api, not implementation: ActivityResultContract is the public supertype of
     // PayCrossContract and @ColorInt appears in PayCross.init's signature, so both
     // must be on the consumer's compile classpath.
-    api("androidx.activity:activity-compose:1.8.2")
+    api("androidx.activity:activity-compose:1.13.0")
     api("androidx.annotation:annotation:1.7.1")
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-ktx:1.19.0")
 
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
@@ -180,10 +180,10 @@ dependencies {
     // forcing okhttp 5.3.2 through the whole graph and rebuilding. Note the
     // Kotlin version above does the heavier lifting here - OkHttp 5 carries
     // Kotlin 2.2 metadata, which a 1.9 compiler cannot read at all.
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
 
     // Google Pay. The sheet, IsReadyToPay, the ActivityResult contract and the
     // official PayButton view all come from this one artifact. The Compose
@@ -200,9 +200,9 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("io.mockk:mockk:1.14.11")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.08.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.5.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
