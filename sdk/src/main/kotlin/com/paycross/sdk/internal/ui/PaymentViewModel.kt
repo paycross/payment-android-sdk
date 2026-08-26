@@ -20,7 +20,6 @@ import com.paycross.sdk.internal.api.models.WalletToken
 import com.paycross.sdk.internal.repository.PaymentRepository
 import com.paycross.sdk.internal.util.BrowserInfoProvider
 import com.paycross.sdk.internal.util.IdempotencyKey
-import com.paycross.sdk.internal.util.IpAddressProvider
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -75,8 +74,7 @@ internal class PaymentViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val repository: PaymentRepository = PaymentRepository(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val browserInfoProvider: (Context, String) -> BrowserInfo = BrowserInfoProvider::collect,
-    private val ipAddressProvider: () -> String = IpAddressProvider::get,
+    private val browserInfoProvider: (Context) -> BrowserInfo = BrowserInfoProvider::collect,
     private val clock: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
@@ -110,8 +108,6 @@ internal class PaymentViewModel(
         if (_uiState.value.claims != null) return
 
         sessionToken = token
-
-        viewModelScope.launch(dispatcher) { ipAddressProvider() }
 
         viewModelScope.launch(dispatcher) {
             val claims = try {
@@ -208,7 +204,7 @@ internal class PaymentViewModel(
                 session = sessionToken,
                 paymentMethod = "card",
                 card = cardData,
-                browserInfo = browserInfoProvider(context, ipAddressProvider()),
+                browserInfo = browserInfoProvider(context),
                 fieldGroups = fieldValues.takeIf { it.isNotEmpty() }
             )
 
@@ -278,7 +274,7 @@ internal class PaymentViewModel(
                 session = sessionToken,
                 paymentMethod = "google_pay",
                 walletToken = WalletToken(type = "google_pay", data = paymentMethodData),
-                browserInfo = browserInfoProvider(context, ipAddressProvider()),
+                browserInfo = browserInfoProvider(context),
                 fieldGroups = fieldValues?.takeIf { it.isNotEmpty() }
             )
 

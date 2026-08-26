@@ -23,15 +23,13 @@ internal object BrowserInfoProvider {
      * Collects browser and device information from the current context.
      *
      * @param context Android context used to access display metrics and WebView settings
-     * @param ipAddress Public IP address of the device
      * @return BrowserInfo containing device characteristics for 3DS
      */
-    fun collect(context: Context, ipAddress: String): BrowserInfo {
+    fun collect(context: Context): BrowserInfo {
         val displayMetrics = context.resources.displayMetrics
 
         return BrowserInfo(
             userAgent = WebSettings.getDefaultUserAgent(context),
-            ipAddress = ipAddress,
             screenWidth = displayMetrics.widthPixels,
             screenHeight = displayMetrics.heightPixels,
             colorDepth = COLOR_DEPTH_ANDROID_STANDARD,

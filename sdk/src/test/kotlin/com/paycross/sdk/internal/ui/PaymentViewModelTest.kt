@@ -46,8 +46,7 @@ class PaymentViewModelTest {
         savedStateHandle = SavedStateHandle(),
         repository = repository,
         dispatcher = dispatcher,
-        browserInfoProvider = { _, ip -> browserInfo(ip) },
-        ipAddressProvider = { "203.0.113.10" }
+        browserInfoProvider = { browserInfo() }
     )
 
     @Before
@@ -159,7 +158,7 @@ class PaymentViewModelTest {
         assertEquals(token, request.session)
         assertEquals("card", request.paymentMethod)
         assertEquals("4111111111111111", request.card?.pan)
-        assertEquals("203.0.113.10", request.browserInfo.ipAddress)
+        assertEquals("ua", request.browserInfo.userAgent)
         assertEquals(mapOf("billing_address" to mapOf("country" to "DE")), request.fieldGroups)
         assertTrue(vm.uiState.value.result is PayCrossResult.Success)
     }
@@ -353,9 +352,8 @@ class PaymentViewModelTest {
         saveCard = false
     )
 
-    private fun browserInfo(ip: String) = BrowserInfo(
+    private fun browserInfo() = BrowserInfo(
         userAgent = "ua",
-        ipAddress = ip,
         screenWidth = 1,
         screenHeight = 1,
         colorDepth = 24,
