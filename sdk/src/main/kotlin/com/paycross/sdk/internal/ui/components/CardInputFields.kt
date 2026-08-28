@@ -14,8 +14,6 @@ import com.paycross.sdk.internal.validation.CardType
 
 private const val MAX_CARD_NUMBER_LENGTH = 19
 private const val EXPIRY_LENGTH = 4
-private const val CARD_NUMBER_CHUNK_SIZE = 4
-private const val EXPIRY_MONTH_LENGTH = 2
 
 @Composable
 internal fun CardNumberField(
@@ -25,7 +23,10 @@ internal fun CardNumberField(
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        value = formatCardNumber(value),
+        // Raw digits in, grouping drawn on top: formatting the value itself
+        // leaves the caret behind the group separator and the next keystroke
+        // lands in front of the digit before it.
+        value = value,
         onValueChange = { newValue ->
             val digitsOnly = newValue.filter { it.isDigit() }
             if (digitsOnly.length <= MAX_CARD_NUMBER_LENGTH) {
@@ -34,6 +35,7 @@ internal fun CardNumberField(
         },
         label = { Text("Card Number") },
         isError = isError,
+        visualTransformation = CardNumberVisualTransformation,
         // NumberPassword, not Number: the framework treats the password variation
         // as a password input type, and EditorInfo then refuses to hand the field's
         // existing contents to the IME process as initial surrounding text.
@@ -54,7 +56,7 @@ internal fun ExpiryField(
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        value = formatExpiry(value),
+        value = value,
         onValueChange = { newValue ->
             val digitsOnly = newValue.filter { it.isDigit() }
             if (digitsOnly.length <= EXPIRY_LENGTH) {
@@ -63,6 +65,7 @@ internal fun ExpiryField(
         },
         label = { Text("MM/YY") },
         isError = isError,
+        visualTransformation = ExpiryVisualTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
         modifier = modifier.semantics { contentDescription = "Expiry date input" }
@@ -102,7 +105,9 @@ internal fun CardholderNameField(
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        value = value.uppercase(),
+        // The state is already uppercased on the way in; uppercasing it again on
+        // the way out only risks the field editing text it never handed back.
+        value = value,
         onValueChange = { onValueChange(it.uppercase()) },
         label = { Text("Cardholder Name") },
         isError = isError,
@@ -111,15 +116,4 @@ internal fun CardholderNameField(
             .fillMaxWidth()
             .semantics { contentDescription = "Cardholder name input" }
     )
-}
-
-private fun formatCardNumber(input: String): String {
-    return input.chunked(CARD_NUMBER_CHUNK_SIZE).joinToString(" ")
-}
-
-private fun formatExpiry(input: String): String {
-    return when {
-        input.length <= EXPIRY_MONTH_LENGTH -> input
-        else -> "${input.substring(0, EXPIRY_MONTH_LENGTH)}/${input.substring(EXPIRY_MONTH_LENGTH)}"
-    }
 }
