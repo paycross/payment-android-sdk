@@ -25,7 +25,6 @@ class ContractSerializationTest {
             ),
             browserInfo = BrowserInfo(
                 userAgent = "ua",
-                ipAddress = "203.0.113.10",
                 screenWidth = 1080,
                 screenHeight = 2400,
                 colorDepth = 24,
@@ -53,7 +52,7 @@ class ContractSerializationTest {
         assertFalse(card.has("saved_uuid"))
 
         val browser = json.getAsJsonObject("browser_info")
-        assertEquals("203.0.113.10", browser.get("ip_address").asString)
+        assertEquals("ua", browser.get("user_agent").asString)
         assertEquals(-180, browser.get("timezone_offset").asInt)
 
         val fieldGroups = json.getAsJsonObject("field_groups")
@@ -326,9 +325,39 @@ class ContractSerializationTest {
         assertNull(response.success)
     }
 
+    @Test
+    fun `browser_info omits ip_address on every submit shape`() {
+        // The key has to be absent rather than "" or null. The handler fills
+        // browser_info.ip_address from CF-Connecting-IP, falling back to the
+        // API Gateway source IP, whenever the client leaves it blank; a value
+        // the client does send wins over both, so sending one would override
+        // the address the connection actually came from.
+        val requests = listOf(
+            SubmitCardRequest(
+                session = "jwt-token",
+                paymentMethod = "card",
+                card = CardData(savedUuid = "6f9619ff-8b86-d011-b42d-00cf4fc964ff", cvv = "123"),
+                browserInfo = minimalBrowserInfo()
+            ),
+            SubmitCardRequest(
+                session = "jwt-token",
+                paymentMethod = "google_pay",
+                walletToken = WalletToken(type = "google_pay", data = JsonObject()),
+                browserInfo = minimalBrowserInfo()
+            )
+        )
+
+        for (request in requests) {
+            val browser = JsonParser.parseString(gson.toJson(request))
+                .asJsonObject.getAsJsonObject("browser_info")
+            assertFalse(browser.has("ip_address"))
+            // Guards against the whole object silently going missing instead.
+            assertEquals("ua", browser.get("user_agent").asString)
+        }
+    }
+
     private fun minimalBrowserInfo() = BrowserInfo(
         userAgent = "ua",
-        ipAddress = "127.0.0.1",
         screenWidth = 1,
         screenHeight = 1,
         colorDepth = 24,

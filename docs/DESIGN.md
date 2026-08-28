@@ -470,7 +470,6 @@ SDK auto-collects for 3DS v2:
 ```kotlin
 BrowserInfo(
     userAgent = WebSettings.getDefaultUserAgent(context),
-    ipAddress = IpAddressProvider.get(),  // required by /submit-card
     screenWidth = displayMetrics.widthPixels,
     screenHeight = displayMetrics.heightPixels,
     colorDepth = 24,  // Android standard
@@ -483,7 +482,7 @@ BrowserInfo(
 )
 ```
 
-**Note:** `browser_info.ip_address` is required by the submit-card API. The SDK resolves the public IP via ipify (as the checkout page does) and falls back to `127.0.0.1` so submission never blocks on the lookup.
+**Note:** `browser_info.ip_address` is not collected or sent. The submit-card API derives it from the connection (`CF-Connecting-IP`, falling back to the API Gateway source IP) whenever the client omits it, so the SDK contacts no third-party host.
 
 ## Testing
 

@@ -225,7 +225,7 @@ Saved card submissions use the same nested `field_groups` object when configured
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `user_agent` | string | Yes | Browser user agent |
-| `ip_address` | string | Yes | Customer IP address |
+| `ip_address` | string | No | Customer IP address. Derived from the connection (`CF-Connecting-IP`, else the API Gateway source IP) when omitted; a supplied value wins over both. The Android SDK omits it. |
 | `screen_width` | int | Yes | Screen width in pixels |
 | `screen_height` | int | Yes | Screen height in pixels |
 | `color_depth` | int | Yes | Color depth (1,4,8,15,16,24,32,48) |
