@@ -9,6 +9,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-03
+
 ### Changed
 
 - The Google Pay button is no longer hidden on account-funding sessions. The
@@ -17,12 +19,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   snapshot marks the session as a transfer rather than switching wallets off.
   An explicit `wallets.google_pay: false` still hides the button.
 
+## [0.3.3] - 2026-08-28
+
 ### Removed
 
 - The SDK no longer contacts `api.ipify.org`; the backend derives the client IP
   from the connection. Privacy: no third-party hosts are contacted.
 
-## [0.3.2] - Unreleased
+## [0.3.2] - 2026-08-28
 
 ### Fixed
 
@@ -33,5 +37,7 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   `VisualTransformation` over the raw digits. Pasted and prefilled numbers were
   never affected.
 
-[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/paycross/payment-android-sdk/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/paycross/payment-android-sdk/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/paycross/payment-android-sdk/compare/v0.3.1...v0.3.2
