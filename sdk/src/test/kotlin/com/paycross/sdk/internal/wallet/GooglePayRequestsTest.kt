@@ -72,9 +72,23 @@ class GooglePayRequestsTest {
     }
 
     @Test
-    fun `account funding session is not eligible even with google_pay enabled`() {
+    fun `account funding session with google_pay enabled is eligible`() {
         val data = sessionData(
             wallets = WalletsAvailability(applePay = null, googlePay = true),
+            accountFunding = true
+        )
+        assertTrue(GooglePayRequests.isSessionEligible(data))
+    }
+
+    @Test
+    fun `account funding session without a wallets block is eligible`() {
+        assertTrue(GooglePayRequests.isSessionEligible(sessionData(accountFunding = true)))
+    }
+
+    @Test
+    fun `account funding session with explicit google_pay false is not eligible`() {
+        val data = sessionData(
+            wallets = WalletsAvailability(applePay = null, googlePay = false),
             accountFunding = true
         )
         assertFalse(GooglePayRequests.isSessionEligible(data))
