@@ -9,6 +9,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed
+
+- The Google Pay button is no longer hidden on account-funding sessions. The
+  backend now accepts wallet payments on those sessions and forwards the
+  account-funding block to the acquirer, so `account_funding` in the session
+  snapshot marks the session as a transfer rather than switching wallets off.
+  An explicit `wallets.google_pay: false` still hides the button.
+
 ### Removed
 
 - The SDK no longer contacts `api.ipify.org`; the backend derives the client IP

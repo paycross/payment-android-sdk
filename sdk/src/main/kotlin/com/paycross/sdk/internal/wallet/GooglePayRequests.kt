@@ -31,11 +31,12 @@ internal object GooglePayRequests {
      * Session-level gate for showing Google Pay. Strict-false semantics on the
      * wallets block: sessions snapshotted before the backend shipped `wallets`
      * have no block at all and must keep showing the wallet, so only an
-     * explicit `google_pay: false` hides it. AFT sessions never show wallets —
-     * core rejects wallet payments on account-funding sessions server-side.
+     * explicit `google_pay: false` hides it. `account_funding` is not a gate:
+     * it marks the session as an account-funding transfer, and core accepts
+     * wallet payments on those and forwards the AFT block to the acquirer.
      */
     fun isSessionEligible(sessionData: SessionData?): Boolean =
-        sessionData?.wallets?.googlePay != false && sessionData?.accountFunding != true
+        sessionData?.wallets?.googlePay != false
 
     /**
      * The IsReadyToPay probe carries only the base CARD method — no

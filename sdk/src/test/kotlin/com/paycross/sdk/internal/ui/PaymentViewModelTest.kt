@@ -233,7 +233,7 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `google pay stays hidden on account funding sessions`() = runTest(dispatcher.scheduler) {
+    fun `google pay shows on account funding sessions`() = runTest(dispatcher.scheduler) {
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(sessionData(googlePay = true, accountFunding = true))
 
@@ -242,7 +242,7 @@ class PaymentViewModelTest {
         advanceUntilIdle()
 
         vm.onGooglePayReadiness(deviceReady = true)
-        assertFalse(vm.uiState.value.googlePayAvailable)
+        assertTrue(vm.uiState.value.googlePayAvailable)
     }
 
     @Test
