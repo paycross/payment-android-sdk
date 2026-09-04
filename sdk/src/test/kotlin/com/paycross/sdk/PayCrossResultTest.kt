@@ -59,8 +59,23 @@ class PayCrossResultTest {
     }
 
     @Test
-    fun `Cancelled is singleton`() {
-        val result = PayCrossResult.Cancelled
+    fun `Cancelled carries the last transaction the sheet knew about`() {
+        val result = PayCrossResult.Cancelled(transactionId = "abc-123")
+
+        assertEquals("abc-123", result.transactionId)
+    }
+
+    @Test
+    fun `Cancelled can have null transactionId`() {
+        // Cancelled before any transaction existed.
+        assertNull(PayCrossResult.Cancelled(transactionId = null).transactionId)
+    }
+
+    @Test
+    fun `Cancelled still matches as a type`() {
+        // Merchants branch on the type; that must keep working.
+        val result: PayCrossResult = PayCrossResult.Cancelled(transactionId = null)
+
         assertTrue(result is PayCrossResult.Cancelled)
     }
 }

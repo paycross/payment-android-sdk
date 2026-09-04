@@ -464,7 +464,8 @@ private fun ResultCard(
                             "${formatMinor(result.amount, result.currency)}\n${result.transactionId}"
                         is PayCrossResult.Failure ->
                             "Recovery: ${result.recovery}\n${result.transactionId ?: "no transaction"}"
-                        is PayCrossResult.Cancelled -> "User cancelled"
+                        is PayCrossResult.Cancelled ->
+                            "User cancelled\n${result.transactionId ?: "no transaction"}"
                     },
                     color = Color.White.copy(alpha = 0.85f),
                     style = MaterialTheme.typography.bodySmall

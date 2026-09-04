@@ -14,6 +14,11 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 The next release carries every public-API break together, so merchants absorb
 one. Each entry here names what stops compiling and what to do about it.
 
+- `Recovery.VERIFY_BEFORE_RETRY` is a new member, meaning the SDK never
+  observed the payment's outcome and the transaction must be checked before
+  re-collecting. It is not retryable. An exhaustive `when (recovery)` in
+  merchant code needs a branch for it.
+
 - `Recovery.UNRECOGNIZED` replaces `DO_NOT_RETRY` as the parse result for a
   recovery value this SDK version does not know, and `PayCrossResult.Failure`
   gains `recoveryRaw` holding the server's value verbatim. Previously an
@@ -28,13 +33,14 @@ one. Each entry here names what stops compiling and what to do about it.
   for every server decline, not only unrecognised ones, and is null when the
   SDK raised the failure itself.
 
-### Added
-
-- `Recovery.VERIFY_BEFORE_RETRY`, meaning the SDK never observed the payment's
-  outcome and the transaction must be checked before re-collecting. It is not
-  retryable. **This is a new enum member, so an exhaustive `when (recovery)` in
-  merchant code stops compiling until a branch is added.** It therefore belongs
-  in a minor release, not a patch.
+- `PayCrossResult.Cancelled` carries the last known transaction id. It was a
+  `data object` and is now `data class Cancelled(val transactionId: String?)`,
+  so `is PayCrossResult.Cancelled` still matches but code that used
+  `PayCrossResult.Cancelled` as a value must construct one. A shopper can
+  cancel after a decline or part-way through a 3-D Secure challenge, both of
+  which leave a real transaction on the merchant's side, and the host app had
+  no way to correlate the attempt it had just abandoned. The id is null when
+  the sheet was cancelled before any transaction existed.
 
 ### Fixed
 

@@ -18,7 +18,7 @@ import com.paycross.sdk.internal.ui.PaymentActivity
  *     when (result) {
  *         is PayCrossResult.Success -> handleSuccess(result)
  *         is PayCrossResult.Failure -> handleFailure(result)
- *         is PayCrossResult.Cancelled -> handleCancellation()
+ *         is PayCrossResult.Cancelled -> handleCancellation(result.transactionId)
  *     }
  * }
  *
@@ -33,13 +33,15 @@ class PayCrossContract : ActivityResultContract<String, PayCrossResult>() {
     }
 
     override fun parseResult(resultCode: Int, intent: Intent?): PayCrossResult {
+        // No id on these two paths by construction: the activity was torn down
+        // without setting a result, so nothing it learned survived to be read.
         if (resultCode != Activity.RESULT_OK || intent == null) {
-            return PayCrossResult.Cancelled
+            return PayCrossResult.Cancelled(transactionId = null)
         }
         return IntentCompat.getParcelableExtra(
             intent,
             PaymentActivity.EXTRA_RESULT,
             PayCrossResult::class.java
-        ) ?: PayCrossResult.Cancelled
+        ) ?: PayCrossResult.Cancelled(transactionId = null)
     }
 }
