@@ -163,7 +163,10 @@ internal fun CardFormScreen(
                 SavedCardSelector(
                     savedCards = savedCards,
                     selectedCard = selectedSavedCard,
-                    onCardSelected = { selectedCardUuid = it?.uuid }
+                    onCardSelected = { picked ->
+                        cvv = cvvAfterCardSelection(selectedCardUuid, picked?.uuid, cvv)
+                        selectedCardUuid = picked?.uuid
+                    }
                 )
             }
 
@@ -375,6 +378,21 @@ internal fun cvvCardType(
     enteredCardType: CardType,
     savedCard: SavedCard?
 ): CardType = if (isNewCard) enteredCardType else CardType.fromBrand(savedCard?.cardBrand)
+
+/**
+ * The CVV the form keeps when the shopper picks a card. A CVV belongs to the card
+ * it was typed for, so any change of card drops it: one form-level `cvv` backs both
+ * entry modes, and carrying a value across would submit a new card's CVV against a
+ * stored card's token while the "Enter CVV for <pan>" prompt sat over a box that
+ * already looked filled. Re-picking the card already selected is not a change and
+ * keeps what was typed. iOS drops it in CardFormState.sourceSelected for the same
+ * reason.
+ */
+internal fun cvvAfterCardSelection(
+    selectedUuid: String?,
+    pickedUuid: String?,
+    cvv: String
+): String = if (selectedUuid == pickedUuid) cvv else ""
 
 internal fun validateForm(
     isNewCard: Boolean,

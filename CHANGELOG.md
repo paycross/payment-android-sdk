@@ -16,6 +16,12 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   digits and validated at 3 whatever the card's brand, leaving a saved Amex
   permanently unpayable. The length now comes from the brand the card was saved
   with.
+- A CVV typed for one card is no longer carried across to another. One
+  form-level `cvv` backs both entry modes and the saved-card selector left it
+  alone, so a shopper who typed a new card's CVV and then picked a stored card
+  submitted the first card's CVV against the second card's token, over a
+  prompt that already looked answered. Picking a different card now clears it,
+  in both directions.
 
 ## [0.3.4] - 2026-09-03
 
