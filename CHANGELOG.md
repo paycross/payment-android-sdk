@@ -9,10 +9,12 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
-### Changed — source-incompatible, next release is 0.4.0
+## [0.4.0] - 2026-09-04
 
-The next release carries every public-API break together, so merchants absorb
-one. Each entry here names what stops compiling and what to do about it.
+### Changed — source-incompatible
+
+This release carries every public-API break together, so merchants absorb one.
+Each entry here names what stops compiling and what to do about it.
 
 - `Recovery.VERIFY_BEFORE_RETRY` is a new member, meaning the SDK never
   observed the payment's outcome and the transaction must be checked before
@@ -49,6 +51,7 @@ one. Each entry here names what stops compiling and what to do about it.
   digits and validated at 3 whatever the card's brand, leaving a saved Amex
   permanently unpayable. The length now comes from the brand the card was saved
   with.
+
 - A CVV typed for one card is no longer carried across to another. One
   form-level `cvv` backs both entry modes and the saved-card selector left it
   alone, so a shopper who typed a new card's CVV and then picked a stored card
@@ -103,7 +106,8 @@ one. Each entry here names what stops compiling and what to do about it.
   `VisualTransformation` over the raw digits. Pasted and prefilled numbers were
   never affected.
 
-[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/paycross/payment-android-sdk/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/paycross/payment-android-sdk/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/paycross/payment-android-sdk/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/paycross/payment-android-sdk/compare/v0.3.1...v0.3.2
