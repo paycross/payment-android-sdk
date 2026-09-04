@@ -38,4 +38,36 @@ class CardTypeTest {
         assertEquals(3, CardType.VISA.cvvLength)
         assertEquals(3, CardType.MASTERCARD.cvvLength)
     }
+
+    @Test
+    fun `maps a stored card's brand whatever case the BIN database used`() {
+        assertEquals(CardType.VISA, CardType.fromBrand("VISA"))
+        assertEquals(CardType.VISA, CardType.fromBrand("visa"))
+        assertEquals(CardType.MASTERCARD, CardType.fromBrand("MasterCard"))
+        assertEquals(CardType.AMEX, CardType.fromBrand("AMEX"))
+        assertEquals(CardType.AMEX, CardType.fromBrand("AMERICAN EXPRESS"))
+        assertEquals(CardType.DISCOVER, CardType.fromBrand("Discover"))
+    }
+
+    @Test
+    fun `maps the abbreviations the BIN database also emits`() {
+        assertEquals(CardType.MASTERCARD, CardType.fromBrand("MC"))
+        assertEquals(CardType.MASTERCARD, CardType.fromBrand("MASTER"))
+    }
+
+    @Test
+    fun `brands without a type of their own fall back to unknown`() {
+        // Their CVV is 3 digits, which is what UNKNOWN carries.
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand("JCB"))
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand("UNIONPAY"))
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand("MAESTRO"))
+    }
+
+    @Test
+    fun `an absent or unresolved brand is unknown`() {
+        // The backend writes the literal "unknown" when the BIN lookup found nothing.
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand("unknown"))
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand(null))
+        assertEquals(CardType.UNKNOWN, CardType.fromBrand(""))
+    }
 }
