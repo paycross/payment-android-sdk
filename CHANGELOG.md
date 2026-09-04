@@ -9,6 +9,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Added
+
+- `Recovery.VERIFY_BEFORE_RETRY`, meaning the SDK never observed the payment's
+  outcome and the transaction must be checked before re-collecting. It is not
+  retryable. **This is a new enum member, so an exhaustive `when (recovery)` in
+  merchant code stops compiling until a branch is added.** It therefore belongs
+  in a minor release, not a patch.
+
 ### Fixed
 
 - A saved American Express card can now have its 4-digit CID entered. The
@@ -16,6 +24,16 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   digits and validated at 3 whatever the card's brand, leaving a saved Amex
   permanently unpayable. The length now comes from the brand the card was saved
   with.
+
+- A status poll that reaches its deadline no longer reports `Recovery.RETRY`.
+  The loop treats network errors and non-2xx responses as transient and keeps
+  going, which is right for a blip but indistinguishable from a network that is
+  gone for good, so the loop simply ran out and the deadline branch asserted a
+  retryable failure over an outcome it had never seen. Measured twice against
+  payments that had succeeded server-side with liability shifted to the issuer,
+  where a merchant acting on `RETRY` re-collects money already taken. The
+  deadline now reports `Recovery.VERIFY_BEFORE_RETRY` and still carries the
+  transaction id, which is what resolves the outcome out of band.
 
 ## [0.3.4] - 2026-09-03
 

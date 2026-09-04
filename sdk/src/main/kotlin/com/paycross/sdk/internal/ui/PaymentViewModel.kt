@@ -347,10 +347,16 @@ internal class PaymentViewModel(
                 delay(POLL_INTERVAL_MS)
             }
 
+            // The deadline says the SDK never learned the outcome, not that the
+            // payment failed. A cut network is indistinguishable from a blip, so
+            // the loop above swallows both and simply runs out - and the
+            // authorization may well have completed meanwhile. Reporting a retry
+            // here re-collects a payment the customer has already made. The
+            // transaction id is what the merchant resolves it with out of band.
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    result = PayCrossResult.Failure(transactionId, Recovery.RETRY)
+                    result = PayCrossResult.Failure(transactionId, Recovery.VERIFY_BEFORE_RETRY)
                 )
             }
         }

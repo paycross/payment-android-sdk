@@ -20,6 +20,7 @@ import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -31,6 +32,7 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.HttpException
 import retrofit2.Response
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentViewModelTest {
@@ -42,12 +44,18 @@ class PaymentViewModelTest {
     private val repository = mockk<PaymentRepository>()
     private val context = mockk<Context>(relaxed = true)
 
-    private fun viewModel() = PaymentViewModel(
+    private fun viewModel(clock: () -> Long = System::currentTimeMillis) = PaymentViewModel(
         savedStateHandle = SavedStateHandle(),
         repository = repository,
         dispatcher = dispatcher,
-        browserInfoProvider = { browserInfo() }
+        browserInfoProvider = { browserInfo() },
+        clock = clock
     )
+
+    // The poll deadline is measured against the clock, not against delay(), so a
+    // test that wants to reach it has to hand the view model the scheduler's
+    // virtual time. On the real clock the loop would spin forever here.
+    private fun TestScope.virtualClock(): () -> Long = { testScheduler.currentTime }
 
     @Before
     fun setUp() {
@@ -126,6 +134,51 @@ class PaymentViewModelTest {
 
         val result = vm.uiState.value.result as PayCrossResult.Failure
         assertEquals(Recovery.DO_NOT_RETRY, result.recovery)
+    }
+
+    @Test
+    fun `a poll that runs out of time never claims the payment can be retried`() = runTest(dispatcher.scheduler) {
+        // The network is gone for good, so every poll throws and the loop simply
+        // runs to POLL_DEADLINE_MS. Server-side the authorization may well have
+        // completed: measured twice, both times over a succeeded, liability-shifted
+        // payment. Reporting a retry there re-collects money already taken.
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-8", null, null, null)
+        coEvery { repository.getStatus("tx-8") } throws IOException("network is unreachable")
+
+        val vm = viewModel(clock = virtualClock())
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.VERIFY_BEFORE_RETRY, result.recovery)
+        assertFalse(result.recovery.isRetryable)
+        // The merchant resolves the outcome out of band, so the id has to be there.
+        assertEquals("tx-8", result.transactionId)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `a poll that runs out of time behind a throttling gateway says the same`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-9", null, null, null)
+        coEvery { repository.getStatus("tx-9") } throws httpException(429)
+
+        val vm = viewModel(clock = virtualClock())
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.VERIFY_BEFORE_RETRY, result.recovery)
+        assertEquals("tx-9", result.transactionId)
     }
 
     @Test
