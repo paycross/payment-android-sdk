@@ -62,7 +62,8 @@ private val paymentLauncher = registerForActivityResult(PayCrossContract()) { re
             // result.transactionId, result.status, result.amount, result.currency
         }
         is PayCrossResult.Failure -> {
-            // result.recovery (RETRY, CHANGE_METHOD, RESTART, CONTACT_SUPPORT, DO_NOT_RETRY)
+            // result.recovery (RETRY, CHANGE_METHOD, RESTART, CONTACT_SUPPORT,
+            //                  DO_NOT_RETRY, VERIFY_BEFORE_RETRY)
         }
         is PayCrossResult.Cancelled -> {
             // User closed the payment screen
@@ -154,7 +155,9 @@ class PaymentViewModel(
                 delay(POLL_INTERVAL_MS)
             }
 
-            _result.value = PayCrossResult.Failure(transactionId, Recovery.RETRY)
+            // The deadline means the outcome was never observed, not that the
+            // payment failed. It may have succeeded.
+            _result.value = PayCrossResult.Failure(transactionId, Recovery.VERIFY_BEFORE_RETRY)
         }
     }
 
@@ -431,7 +434,8 @@ enum class Recovery {
     CHANGE_METHOD,   // "Use a different card"
     RESTART,         // "Start over" (session expired)
     CONTACT_SUPPORT, // "Contact support"
-    DO_NOT_RETRY     // Terminal decline; unknown values fail closed to this
+    DO_NOT_RETRY,    // Terminal decline; unknown values fail closed to this
+    VERIFY_BEFORE_RETRY // Outcome never observed; check the transaction first
 }
 ```
 
@@ -446,6 +450,7 @@ enum class Recovery {
 | `RESTART` | "Start over" | Duplicate transaction, session expired, abandoned |
 | `CONTACT_SUPPORT` | "Contact support" | Invalid request, merchant config issue |
 | `DO_NOT_RETRY` | Dead-end message | Terminal decline (stolen card, do-not-honor); also the fail-closed mapping for unknown values |
+| `VERIFY_BEFORE_RETRY` | "We could not confirm this payment" | The status poll reached its deadline without an outcome. The payment may have succeeded, so the merchant must check the transaction before re-collecting |
 
 Only `RETRY` and `CHANGE_METHOD` re-arm the payment form (`recovery.isRetryable`).
 

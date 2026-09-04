@@ -27,6 +27,13 @@ class RecoveryTest {
     }
 
     @Test
+    fun `the SDK's own unknown-outcome value survives a round trip`() {
+        // The server never sends it; a host that carries recoveries as their wire
+        // token does, and it must not come back as a terminal decline.
+        assertEquals(Recovery.VERIFY_BEFORE_RETRY, Recovery.fromString("verify_before_retry"))
+    }
+
+    @Test
     fun `unknown recovery fails closed`() {
         assertEquals(Recovery.DO_NOT_RETRY, Recovery.fromString("some_future_value"))
     }
@@ -38,5 +45,6 @@ class RecoveryTest {
         assertFalse(Recovery.RESTART.isRetryable)
         assertFalse(Recovery.CONTACT_SUPPORT.isRetryable)
         assertFalse(Recovery.DO_NOT_RETRY.isRetryable)
+        assertFalse(Recovery.VERIFY_BEFORE_RETRY.isRetryable)
     }
 }

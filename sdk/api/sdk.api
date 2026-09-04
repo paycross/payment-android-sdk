@@ -83,6 +83,7 @@ public final class com/paycross/sdk/Recovery : java/lang/Enum {
 	public static final field DO_NOT_RETRY Lcom/paycross/sdk/Recovery;
 	public static final field RESTART Lcom/paycross/sdk/Recovery;
 	public static final field RETRY Lcom/paycross/sdk/Recovery;
+	public static final field VERIFY_BEFORE_RETRY Lcom/paycross/sdk/Recovery;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun isRetryable ()Z
 	public static fun valueOf (Ljava/lang/String;)Lcom/paycross/sdk/Recovery;
