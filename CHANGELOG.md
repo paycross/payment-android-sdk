@@ -9,6 +9,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- A saved American Express card can now have its 4-digit CID entered. The
+  stored-card CVV box was built at `CardType.UNKNOWN`, so it capped input at 3
+  digits and validated at 3 whatever the card's brand, leaving a saved Amex
+  permanently unpayable. The length now comes from the brand the card was saved
+  with.
+
 ## [0.3.4] - 2026-09-03
 
 ### Changed

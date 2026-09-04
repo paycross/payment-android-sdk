@@ -17,5 +17,22 @@ internal enum class CardType(
             return entries.firstOrNull { it != UNKNOWN && it.prefixPattern.containsMatchIn(cleaned) }
                 ?: UNKNOWN
         }
+
+        /**
+         * Maps a stored card's `card_brand` to a type. The value is a verbatim BIN
+         * database string, so it arrives in any case and sometimes spaced
+         * ("AMERICAN EXPRESS"), and the backend substitutes "unknown" when the BIN
+         * lookup found nothing. Brands with no entry of their own take UNKNOWN,
+         * whose 3-digit CVV is correct for every one of them. Mirrors the iOS SDK's
+         * SessionResponse.brand(from:).
+         */
+        fun fromBrand(brand: String?): CardType =
+            when (brand?.trim()?.lowercase()?.replace(" ", "")) {
+                "visa" -> VISA
+                "mastercard", "master", "mc" -> MASTERCARD
+                "amex", "americanexpress" -> AMEX
+                "discover" -> DISCOVER
+                else -> UNKNOWN
+            }
     }
 }

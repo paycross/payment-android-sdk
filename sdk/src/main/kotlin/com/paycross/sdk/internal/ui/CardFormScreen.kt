@@ -106,6 +106,7 @@ internal fun CardFormScreen(
     }
     val isNewCard = selectedCardUuid == null
     val cardType = CardType.detect(cardNumber)
+    val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
     val formattedAmount = formatAmount(claims, sessionData?.locale)
 
     val validation = validateForm(
@@ -114,7 +115,7 @@ internal fun CardFormScreen(
         expiry = expiry,
         cvv = cvv,
         cardholderName = cardholderName,
-        cardType = cardType
+        cvvCardType = cvvCardType
     )
     val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat) {
         FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat))
@@ -186,6 +187,7 @@ internal fun CardFormScreen(
             } else {
                 SavedCardCvvInput(
                     savedCard = selectedSavedCard,
+                    cvvCardType = cvvCardType,
                     cvv = cvv,
                     showErrors = showErrors,
                     isCvvValid = validation.isCvvValid,
@@ -303,6 +305,7 @@ private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Uni
 @Composable
 private fun SavedCardCvvInput(
     savedCard: SavedCard?,
+    cvvCardType: CardType,
     cvv: String,
     showErrors: Boolean,
     isCvvValid: Boolean,
@@ -311,7 +314,7 @@ private fun SavedCardCvvInput(
     Text("Enter CVV for ${savedCard?.maskedPan}")
     CvvField(
         value = cvv,
-        cardType = CardType.UNKNOWN,
+        cardType = cvvCardType,
         isError = showErrors && !isCvvValid,
         onValueChange = onCvvChange,
         modifier = Modifier.width(100.dp)
@@ -353,7 +356,7 @@ private fun PayButton(
     }
 }
 
-private data class FormValidation(
+internal data class FormValidation(
     val isCardNumberValid: Boolean,
     val isExpiryValid: Boolean,
     val isCvvValid: Boolean,
@@ -363,13 +366,23 @@ private data class FormValidation(
         get() = isCardNumberValid && isExpiryValid && isCvvValid && isNameValid
 }
 
-private fun validateForm(
+/**
+ * The card type whose CVV length governs the field and its validation. One
+ * derivation feeds both, so the box cannot accept a digit the validator rejects.
+ */
+internal fun cvvCardType(
+    isNewCard: Boolean,
+    enteredCardType: CardType,
+    savedCard: SavedCard?
+): CardType = if (isNewCard) enteredCardType else CardType.fromBrand(savedCard?.cardBrand)
+
+internal fun validateForm(
     isNewCard: Boolean,
     cardNumber: String,
     expiry: String,
     cvv: String,
     cardholderName: String,
-    cardType: CardType
+    cvvCardType: CardType
 ): FormValidation {
     val isExpiryValid = !isNewCard || (expiry.length >= EXPIRY_MIN_LENGTH && CardValidator.isValidExpiry(
         expiry.substring(0, EXPIRY_MONTH_END),
@@ -379,7 +392,7 @@ private fun validateForm(
     return FormValidation(
         isCardNumberValid = !isNewCard || CardValidator.isValidCardNumber(cardNumber),
         isExpiryValid = isExpiryValid,
-        isCvvValid = CardValidator.isValidCvv(cvv, if (isNewCard) cardType else CardType.UNKNOWN),
+        isCvvValid = CardValidator.isValidCvv(cvv, cvvCardType),
         isNameValid = !isNewCard || CardValidator.isValidCardholderName(cardholderName)
     )
 }
