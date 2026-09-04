@@ -124,7 +124,7 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `unknown recovery on failed status fails closed`() = runTest(dispatcher.scheduler) {
+    fun `unknown recovery fails closed and keeps what the server said`() = runTest(dispatcher.scheduler) {
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
         coEvery { repository.submitCard(any(), any()) } returns
@@ -139,7 +139,43 @@ class PaymentViewModelTest {
         advanceUntilIdle()
 
         val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.UNRECOGNIZED, result.recovery)
+        assertFalse(result.recovery.isRetryable)
+        assertEquals("brand_new_value", result.recoveryRaw)
+    }
+
+    @Test
+    fun `a recognised recovery keeps the server's value too`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-30", null, null, null)
+        coEvery { repository.getStatus("tx-30") } returns
+            StatusResponse("tx-30", "failed", null, null, null, "do_not_retry")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
         assertEquals(Recovery.DO_NOT_RETRY, result.recovery)
+        assertEquals("do_not_retry", result.recoveryRaw)
+    }
+
+    @Test
+    fun `a failure the SDK raised itself carries no server value`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "expired", latestTransactionId = null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.RESTART, result.recovery)
+        assertNull(result.recoveryRaw)
     }
 
     @Test

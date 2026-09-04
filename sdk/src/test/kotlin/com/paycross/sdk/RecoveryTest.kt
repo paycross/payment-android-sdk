@@ -34,8 +34,11 @@ class RecoveryTest {
     }
 
     @Test
-    fun `unknown recovery fails closed`() {
-        assertEquals(Recovery.DO_NOT_RETRY, Recovery.fromString("some_future_value"))
+    fun `unknown recovery is kept apart from a terminal decline`() {
+        // Both fail closed, but only one of them means "the server said something
+        // this version cannot read", and the raw value has to stay recoverable.
+        assertEquals(Recovery.UNRECOGNIZED, Recovery.fromString("some_future_value"))
+        assertEquals(Recovery.UNRECOGNIZED, Recovery.fromString("ISSUER_WANTS_A_PHONE_CALL"))
     }
 
     @Test
@@ -46,5 +49,6 @@ class RecoveryTest {
         assertFalse(Recovery.CONTACT_SUPPORT.isRetryable)
         assertFalse(Recovery.DO_NOT_RETRY.isRetryable)
         assertFalse(Recovery.VERIFY_BEFORE_RETRY.isRetryable)
+        assertFalse(Recovery.UNRECOGNIZED.isRetryable)
     }
 }

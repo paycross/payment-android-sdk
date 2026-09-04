@@ -29,6 +29,27 @@ class PayCrossResultTest {
     }
 
     @Test
+    fun `Failure keeps the server's own recovery value`() {
+        val result = PayCrossResult.Failure(
+            transactionId = "abc-123",
+            recovery = Recovery.UNRECOGNIZED,
+            recoveryRaw = "issuer_wants_a_phone_call"
+        )
+
+        assertEquals("issuer_wants_a_phone_call", result.recoveryRaw)
+    }
+
+    @Test
+    fun `a failure the SDK raised itself has no server value`() {
+        val result = PayCrossResult.Failure(
+            transactionId = null,
+            recovery = Recovery.RESTART
+        )
+
+        assertNull(result.recoveryRaw)
+    }
+
+    @Test
     fun `Failure can have null transactionId`() {
         val result = PayCrossResult.Failure(
             transactionId = null,

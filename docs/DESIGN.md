@@ -63,7 +63,8 @@ private val paymentLauncher = registerForActivityResult(PayCrossContract()) { re
         }
         is PayCrossResult.Failure -> {
             // result.recovery (RETRY, CHANGE_METHOD, RESTART, CONTACT_SUPPORT,
-            //                  DO_NOT_RETRY, VERIFY_BEFORE_RETRY)
+            //                  DO_NOT_RETRY, VERIFY_BEFORE_RETRY, UNRECOGNIZED)
+            // result.recoveryRaw is what the server actually sent, if anything
         }
         is PayCrossResult.Cancelled -> {
             // User closed the payment screen
@@ -422,7 +423,8 @@ sealed class PayCrossResult : Parcelable {
     @Parcelize
     data class Failure(
         val transactionId: String?,
-        val recovery: Recovery
+        val recovery: Recovery,
+        val recoveryRaw: String? = null  // the server's own value, for support
     ) : PayCrossResult()
 
     @Parcelize
@@ -434,8 +436,9 @@ enum class Recovery {
     CHANGE_METHOD,   // "Use a different card"
     RESTART,         // "Start over" (session expired)
     CONTACT_SUPPORT, // "Contact support"
-    DO_NOT_RETRY,    // Terminal decline; unknown values fail closed to this
-    VERIFY_BEFORE_RETRY // Outcome never observed; check the transaction first
+    DO_NOT_RETRY,    // Terminal decline
+    VERIFY_BEFORE_RETRY, // Outcome never observed; check the transaction first
+    UNRECOGNIZED     // Server value this version cannot read; see recoveryRaw
 }
 ```
 
@@ -449,7 +452,8 @@ enum class Recovery {
 | `CHANGE_METHOD` | "Use a different card" | Declined, insufficient funds, expired, fraud, 3DS failed |
 | `RESTART` | "Start over" | Duplicate transaction, session expired, abandoned |
 | `CONTACT_SUPPORT` | "Contact support" | Invalid request, merchant config issue |
-| `DO_NOT_RETRY` | Dead-end message | Terminal decline (stolen card, do-not-honor); also the fail-closed mapping for unknown values |
+| `DO_NOT_RETRY` | Dead-end message | Terminal decline (stolen card, do-not-honor) |
+| `UNRECOGNIZED` | Dead-end message | The server sent a value this SDK version does not know. Fails closed like a terminal decline; the value itself is on `Failure.recoveryRaw` |
 | `VERIFY_BEFORE_RETRY` | "We could not confirm this payment" | The status poll reached its deadline without an outcome. The payment may have succeeded, so the merchant must check the transaction before re-collecting |
 
 Only `RETRY` and `CHANGE_METHOD` re-arm the payment form (`recovery.isRetryable`).

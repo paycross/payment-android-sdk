@@ -38,7 +38,16 @@ enum class Recovery {
      * correct to act on instead of a retry over a payment the customer may
      * already have made. Not retryable, so [isRetryable] still fails closed.
      */
-    VERIFY_BEFORE_RETRY;
+    VERIFY_BEFORE_RETRY,
+
+    /**
+     * The server sent a recovery value this SDK version does not know. Terminal:
+     * [isRetryable] is a whitelist, so an unknown instruction is never a retry.
+     *
+     * The value itself is kept on [PayCrossResult.Failure.recoveryRaw], so a
+     * merchant can log or support it even though this SDK cannot act on it.
+     */
+    UNRECOGNIZED;
 
     /**
      * Whether the user may retry payment within the same session.
@@ -51,8 +60,9 @@ enum class Recovery {
         /**
          * Parses a server recovery value to a [Recovery] enum.
          *
-         * Absent values default to [RETRY]; unrecognized values fail closed
-         * to [DO_NOT_RETRY], matching the checkout page's recovery policy.
+         * Absent values default to [RETRY]; values this version does not know
+         * become [UNRECOGNIZED], which fails closed exactly as [DO_NOT_RETRY]
+         * does and keeps the server's own string on the failure result.
          *
          * The server does not send `verify_before_retry` - the SDK raises it
          * itself when a poll ends without an outcome - but it parses here so the
@@ -67,7 +77,7 @@ enum class Recovery {
             "contact_support", "contact_us" -> CONTACT_SUPPORT
             "do_not_retry" -> DO_NOT_RETRY
             "verify_before_retry" -> VERIFY_BEFORE_RETRY
-            else -> DO_NOT_RETRY
+            else -> UNRECOGNIZED
         }
     }
 }
