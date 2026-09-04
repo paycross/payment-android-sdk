@@ -50,7 +50,13 @@ sealed class PayCrossResult : Parcelable {
 
     /**
      * User cancelled the payment flow.
+     *
+     * @property transactionId The last transaction this payment sheet knew about,
+     * or null if it was cancelled before one existed. A shopper can cancel after a
+     * decline or part-way through a 3-D Secure challenge, which leaves a real
+     * transaction on the merchant's side; without this the host app has no way to
+     * correlate the attempt it just abandoned.
      */
     @Parcelize
-    data object Cancelled : PayCrossResult()
+    data class Cancelled(val transactionId: String?) : PayCrossResult()
 }

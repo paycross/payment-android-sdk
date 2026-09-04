@@ -346,6 +346,81 @@ class PaymentViewModelTest {
     }
 
     @Test
+    fun `the last transaction is remembered once a submit starts polling`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-20", null, null, null)
+        coEvery { repository.getStatus("tx-20") } returns
+            StatusResponse("tx-20", "threeds_challenge", null, null, challengeAction(), null) andThen
+            StatusResponse("tx-20", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceTimeBy(FORM_SETTLE_MS)
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceTimeBy(FIRST_POLL_MS)
+        dispatcher.scheduler.runCurrent()
+
+        // Cancelling mid-challenge has to name the attempt the merchant can see.
+        assertNotNull(vm.uiState.value.threeDs)
+        assertEquals("tx-20", vm.lastTransactionId)
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `the last transaction outlives the re-arm after a retryable decline`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-21", null, null, null)
+        coEvery { repository.getStatus("tx-21") } returns
+            StatusResponse("tx-21", "failed", null, null, null, "change_method")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceTimeBy(FORM_SETTLE_MS)
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceTimeBy(FORM_SETTLE_MS)
+
+        // The re-arm clears the resume pointer so a fresh poll does not chase a
+        // dead transaction, but decline-then-cancel still has to name the attempt.
+        assertNull(vm.uiState.value.result)
+        assertEquals("tx-21", vm.lastTransactionId)
+    }
+
+    @Test
+    fun `a session resumed without a submit still remembers its transaction`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = "tx-22")
+        coEvery { repository.getStatus("tx-22") } returns
+            StatusResponse("tx-22", "threeds_challenge", null, null, challengeAction(), null) andThen
+            StatusResponse("tx-22", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceTimeBy(FIRST_POLL_MS)
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals("tx-22", vm.lastTransactionId)
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `nothing is remembered before a transaction exists`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceTimeBy(FORM_SETTLE_MS)
+
+        assertNull(vm.lastTransactionId)
+    }
+
+    @Test
     fun `fingerprint action surfaces once as hidden step`() = runTest(dispatcher.scheduler) {
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
@@ -504,6 +579,12 @@ class PaymentViewModelTest {
         googlePay = null
     )
 
+    // A challenge status never terminates, so a poll over one has to be advanced by
+    // a bounded amount: POLL_DEADLINE_MS is measured against the real clock while
+    // delay() runs on the scheduler, and advanceUntilIdle would spin forever.
+    private fun challengeAction() =
+        ThreeDsAction("https://acs.bank.com/3ds/challenge", "POST", mapOf("creq" to "abc"))
+
     private fun newCard() = CardFormData(
         cardholderName = "JOHN DOE",
         pan = "4111111111111111",
@@ -543,10 +624,15 @@ class PaymentViewModelTest {
         }
     """.trimIndent()
 
-    // Long enough for a submit and its first poll to settle, short enough that the
-    // session is still alive: these tests are about the armed form, not expiry.
+    // FORM_SETTLE_MS is long enough for a submit and its first poll to settle and
+    // short enough that the session is still alive: those tests are about the armed
+    // form, not expiry. FIRST_POLL_MS stops at the first status call, while a
+    // challenge is still on screen and before the 2s cadence fetches the terminal
+    // one. Every polled challenge is given a terminal follow-up, because runTest
+    // drains the scheduler when the body returns and a poll left running hangs it.
     private companion object {
         const val FORM_SETTLE_MS = 60_000L
+        const val FIRST_POLL_MS = 1_500L
     }
 
     private fun httpException(code: Int) =

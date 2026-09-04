@@ -67,7 +67,8 @@ private val paymentLauncher = registerForActivityResult(PayCrossContract()) { re
             // result.recoveryRaw is what the server actually sent, if anything
         }
         is PayCrossResult.Cancelled -> {
-            // User closed the payment screen
+            // User closed the payment screen; result.transactionId names the
+            // attempt they abandoned, or is null if there was none yet
         }
     }
 }
@@ -428,7 +429,9 @@ sealed class PayCrossResult : Parcelable {
     ) : PayCrossResult()
 
     @Parcelize
-    object Cancelled : PayCrossResult()
+    data class Cancelled(
+        val transactionId: String?   // last known attempt, null if none
+    ) : PayCrossResult()
 }
 
 enum class Recovery {

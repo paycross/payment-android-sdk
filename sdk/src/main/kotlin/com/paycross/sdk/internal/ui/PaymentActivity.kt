@@ -69,7 +69,7 @@ internal class PaymentActivity : ComponentActivity() {
 
         val sessionToken = intent.getStringExtra(EXTRA_SESSION_TOKEN)
         if (sessionToken.isNullOrEmpty()) {
-            finishWithResult(PayCrossResult.Cancelled)
+            finishWithResult(PayCrossResult.Cancelled(transactionId = null))
             return
         }
 
@@ -79,7 +79,9 @@ internal class PaymentActivity : ComponentActivity() {
             MaterialTheme {
                 PaymentScreen(
                     viewModel = viewModel,
-                    onCancel = { finishWithResult(PayCrossResult.Cancelled) },
+                    onCancel = {
+                        finishWithResult(PayCrossResult.Cancelled(viewModel.lastTransactionId))
+                    },
                     onResult = { finishWithResult(it) }
                 )
             }

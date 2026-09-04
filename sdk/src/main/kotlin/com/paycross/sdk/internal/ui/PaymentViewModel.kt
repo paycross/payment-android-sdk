@@ -94,6 +94,18 @@ internal class PaymentViewModel(
         set(value) { savedStateHandle[KEY_TRANSACTION_ID] = value }
 
     /**
+     * The last transaction this sheet learned of, for a shopper who cancels.
+     *
+     * Separate from [transactionId], which is the resume pointer and is cleared
+     * when a retryable decline re-arms the form so a fresh poll cannot chase a
+     * dead transaction. A cancel after that decline still has to name the attempt,
+     * or the merchant is left with a transaction the host app cannot correlate.
+     */
+    var lastTransactionId: String?
+        get() = savedStateHandle[KEY_LAST_TRANSACTION_ID]
+        private set(value) { savedStateHandle[KEY_LAST_TRANSACTION_ID] = value }
+
+    /**
      * Initializes the payment flow with the given session token.
      *
      * Parses the JWT, fetches session data, and resolves already-terminal
@@ -337,6 +349,9 @@ internal class PaymentViewModel(
      */
     private fun pollStatus(transactionId: String) {
         if (pollJob?.isActive == true) return
+        // Every route to a transaction id passes through here: a fresh submit, a
+        // resume after process death, and a session reloaded with one already open.
+        lastTransactionId = transactionId
 
         pollJob = viewModelScope.launch(dispatcher) {
             val deadline = clock() + POLL_DEADLINE_MS
@@ -485,6 +500,7 @@ internal class PaymentViewModel(
     companion object {
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_TRANSACTION_ID = "transaction_id"
+        private const val KEY_LAST_TRANSACTION_ID = "last_transaction_id"
         private const val KEY_GOOGLE_PAY_FIELDS = "google_pay_field_values"
 
         private const val MAX_SUBMIT_ATTEMPTS = 5

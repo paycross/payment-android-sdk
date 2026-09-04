@@ -163,7 +163,10 @@ class DemoViewModel(
                     outcome = "failed · ${result.recovery}",
                     transactionId = result.transactionId
                 )
-                is PayCrossResult.Cancelled -> run.copy(outcome = "cancelled")
+                is PayCrossResult.Cancelled -> run.copy(
+                    outcome = "cancelled",
+                    transactionId = result.transactionId
+                )
             }
         }
     }
