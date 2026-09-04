@@ -82,6 +82,7 @@ internal class PaymentViewModel(
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
     private var pollJob: Job? = null
+    private var sessionExpiryJob: Job? = null
     private val handledThreeDsActions = mutableSetOf<String>()
 
     private var sessionToken: String
@@ -117,7 +118,7 @@ internal class PaymentViewModel(
                 return@launch
             }
 
-            if (claims.isExpired()) {
+            if (claims.isExpired(clock() / 1000)) {
                 failInitialization("Session expired")
                 return@launch
             }
@@ -153,7 +154,10 @@ internal class PaymentViewModel(
                     }
                     else -> pollStatus(resumeTransactionId)
                 }
-                else -> resumeTransactionId?.let { pollStatus(it) }
+                else -> {
+                    claims.expiresAt?.let { watchSessionExpiry(it) }
+                    resumeTransactionId?.let { pollStatus(it) }
+                }
             }
         }
     }
@@ -427,6 +431,42 @@ internal class PaymentViewModel(
         }
         return true
     }
+
+    /**
+     * Ends the sheet once the session token it holds has expired.
+     *
+     * A retryable decline re-arms the form and ends the poll job cleanly, so
+     * POLL_DEADLINE_MS stops applying and nothing bounds the sheet afterwards: it
+     * was observed offering a live Pay button 45 minutes on, against a session the
+     * server had long since expired. Whatever the session's own state, a submit
+     * made with a dead token cannot be authorized, so the sheet resolves rather
+     * than take a card it has no way to charge. RESTART is what initialize already
+     * reports for the same condition, and it is not retryable, so the sheet ends.
+     *
+     * @param expiresAtEpochSeconds the token's `exp` claim
+     */
+    private fun watchSessionExpiry(expiresAtEpochSeconds: Long) {
+        sessionExpiryJob = viewModelScope.launch(dispatcher) {
+            delay(expiresAtEpochSeconds * 1000 - clock())
+
+            // A submit or a poll still running is an authorization the server may
+            // yet complete, and its outcome is the poll's to report. Waiting is
+            // bounded: the poll carries POLL_DEADLINE_MS of its own.
+            while (isPaymentInFlight()) delay(POLL_INTERVAL_MS)
+            if (_uiState.value.result != null) return@launch
+
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    threeDs = null,
+                    result = PayCrossResult.Failure(transactionId, Recovery.RESTART)
+                )
+            }
+        }
+    }
+
+    private fun isPaymentInFlight(): Boolean =
+        _uiState.value.isLoading || pollJob?.isActive == true
 
     /**
      * Clears the current 3DS step after the WebView reports completion.

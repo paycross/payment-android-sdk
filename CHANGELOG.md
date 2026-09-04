@@ -41,6 +41,15 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   deadline now reports `Recovery.VERIFY_BEFORE_RETRY` and still carries the
   transaction id, which is what resolves the outcome out of band.
 
+- The payment sheet no longer outlives the session it was opened for. A
+  retryable decline re-arms the card form and ends the poll job cleanly, so the
+  poll deadline stopped applying and nothing bounded the sheet afterwards: it
+  was observed still offering a live Pay button 45 minutes on, against a session
+  the server had already expired. The sheet now resolves with a terminal
+  `Failure` carrying `Recovery.RESTART` once the session token expires, which is
+  what the SDK already reports for the same condition at launch. A submit or a
+  poll in flight is never cut short; its outcome stays the poll's to report.
+
 ## [0.3.4] - 2026-09-03
 
 ### Changed

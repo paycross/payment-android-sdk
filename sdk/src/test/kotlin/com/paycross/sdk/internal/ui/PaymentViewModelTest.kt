@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -40,6 +41,10 @@ class PaymentViewModelTest {
     // Payload: {"sub":"session-123","merchant":"merchant-456","amount":9999,"currency":"EUR","exp":4102444800}
     private val token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzZXNzaW9uLTEyMyIsIm1lcmNoYW50IjoibWVyY2hhbnQtNDU2IiwiYW1vdW50Ijo5OTk5LCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6NDEwMjQ0NDgwMH0.sig" // gitleaks:allow
 
+    // Same claims, but the session dies 1800 virtual seconds in, so a test can sit
+    // on the form until it does. Payload: {..., "exp": 1800}
+    private val shortLivedToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzZXNzaW9uLTEyMyIsIm1lcmNoYW50IjoibWVyY2hhbnQtNDU2IiwiYW1vdW50Ijo5OTk5LCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6MTgwMH0.sig" // gitleaks:allow
+
     private val dispatcher = StandardTestDispatcher()
     private val repository = mockk<PaymentRepository>()
     private val context = mockk<Context>(relaxed = true)
@@ -52,9 +57,10 @@ class PaymentViewModelTest {
         clock = clock
     )
 
-    // The poll deadline is measured against the clock, not against delay(), so a
-    // test that wants to reach it has to hand the view model the scheduler's
-    // virtual time. On the real clock the loop would spin forever here.
+    // The poll deadline and the session expiry are both measured against the clock
+    // while delay() runs on the test scheduler, so a test that wants to reach
+    // either has to hand the view model the scheduler's virtual time. On the real
+    // clock those loops never finish.
     private fun TestScope.virtualClock(): () -> Long = { testScheduler.currentTime }
 
     @Before
@@ -227,13 +233,80 @@ class PaymentViewModelTest {
 
         val vm = viewModel()
         vm.initialize(token)
-        advanceUntilIdle()
+        advanceTimeBy(FORM_SETTLE_MS)
         vm.submitCard(context, newCard(), emptyMap())
-        advanceUntilIdle()
+        advanceTimeBy(FORM_SETTLE_MS)
 
         assertNull(vm.uiState.value.result)
         assertNotNull(vm.uiState.value.error)
         assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `a form re-armed by a decline does not outlive the session`() = runTest(dispatcher.scheduler) {
+        // The retryable-decline branch ends the poll job cleanly, so nothing bounds
+        // the sheet afterwards: observed sitting on a live Pay button for 45 minutes
+        // against a session the server had already expired.
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-7", null, null, null)
+        coEvery { repository.getStatus("tx-7") } returns
+            StatusResponse("tx-7", "failed", null, null, null, "change_method")
+
+        val vm = viewModel(clock = virtualClock())
+        vm.initialize(shortLivedToken)
+        advanceTimeBy(FORM_SETTLE_MS)
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceTimeBy(FORM_SETTLE_MS)
+
+        // The form is armed and still inside the session.
+        assertNull(vm.uiState.value.result)
+        assertNotNull(vm.uiState.value.error)
+
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.RESTART, result.recovery)
+        assertFalse(result.recovery.isRetryable)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `an untouched form does not outlive the session either`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+
+        val vm = viewModel(clock = virtualClock())
+        vm.initialize(shortLivedToken)
+        advanceTimeBy(FORM_SETTLE_MS)
+
+        assertNull(vm.uiState.value.result)
+
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Failure
+        assertEquals(Recovery.RESTART, result.recovery)
+    }
+
+    @Test
+    fun `expiry does not cut in over a payment the poll has already resolved`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-10", null, null, null)
+        coEvery { repository.getStatus("tx-10") } returns
+            StatusResponse("tx-10", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel(clock = virtualClock())
+        vm.initialize(shortLivedToken)
+        advanceTimeBy(FORM_SETTLE_MS)
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        // Long past the session's expiry by now; the success must stand.
+        val result = vm.uiState.value.result as PayCrossResult.Success
+        assertEquals("tx-10", result.transactionId)
     }
 
     @Test
@@ -350,10 +423,10 @@ class PaymentViewModelTest {
 
         val vm = viewModel()
         vm.initialize(token)
-        advanceUntilIdle()
+        advanceTimeBy(FORM_SETTLE_MS)
 
         vm.submitGooglePay(context, "not json")
-        advanceUntilIdle()
+        advanceTimeBy(FORM_SETTLE_MS)
 
         assertEquals("Payment failed. Please try again.", vm.uiState.value.error)
         assertFalse(vm.uiState.value.isLoading)
@@ -368,7 +441,7 @@ class PaymentViewModelTest {
 
         val vm = viewModel()
         vm.initialize(token)
-        advanceUntilIdle()
+        advanceTimeBy(FORM_SETTLE_MS)
 
         vm.onGooglePayFailed()
 
@@ -433,6 +506,12 @@ class PaymentViewModelTest {
           }
         }
     """.trimIndent()
+
+    // Long enough for a submit and its first poll to settle, short enough that the
+    // session is still alive: these tests are about the armed form, not expiry.
+    private companion object {
+        const val FORM_SETTLE_MS = 60_000L
+    }
 
     private fun httpException(code: Int) =
         HttpException(Response.error<Any>(code, "".toResponseBody()))
