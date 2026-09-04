@@ -9,6 +9,25 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed — source-incompatible, next release is 0.4.0
+
+The next release carries every public-API break together, so merchants absorb
+one. Each entry here names what stops compiling and what to do about it.
+
+- `Recovery.UNRECOGNIZED` replaces `DO_NOT_RETRY` as the parse result for a
+  recovery value this SDK version does not know, and `PayCrossResult.Failure`
+  gains `recoveryRaw` holding the server's value verbatim. Previously an
+  unknown value collapsed to `DO_NOT_RETRY` and the string was gone, so it
+  could not be logged or quoted in a support thread, and Android reported it
+  differently from iOS for the same response. Retry behaviour is unchanged:
+  `isRetryable` is a whitelist and `UNRECOGNIZED` is not on it, so unknown
+  instructions still fail closed. Two breaks to absorb: a new enum member, so
+  an exhaustive `when (recovery)` needs a branch; and a third property on
+  `Failure`, which has a default so construction still compiles but the
+  two-argument constructor is gone at the binary level. `recoveryRaw` is set
+  for every server decline, not only unrecognised ones, and is null when the
+  SDK raised the failure itself.
+
 ### Added
 
 - `Recovery.VERIFY_BEFORE_RETRY`, meaning the SDK never observed the payment's

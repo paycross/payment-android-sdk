@@ -35,11 +35,17 @@ sealed class PayCrossResult : Parcelable {
      *
      * @property transactionId Transaction identifier, if available (may be null for early failures)
      * @property recovery Suggested action for the user to recover from the failure
+     * @property recoveryRaw The recovery value exactly as the server sent it, for
+     * logging and support. Null when the SDK raised the failure itself and no
+     * server value exists, such as an invalid token or a status poll that ran out
+     * of time. Always set when [recovery] is [Recovery.UNRECOGNIZED], which is the
+     * only case where [recovery] cannot tell you what the server said.
      */
     @Parcelize
     data class Failure(
         val transactionId: String?,
-        val recovery: Recovery
+        val recovery: Recovery,
+        val recoveryRaw: String? = null
     ) : PayCrossResult()
 
     /**

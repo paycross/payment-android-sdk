@@ -406,7 +406,13 @@ internal class PaymentViewModel(
                             threeDs = null,
                             result = PayCrossResult.Failure(
                                 transactionId = status.transactionId,
-                                recovery = recovery
+                                recovery = recovery,
+                                // Kept for every decline, not just the ones this
+                                // version cannot read: what the server actually
+                                // said is what a merchant needs in a support
+                                // thread, and for UNRECOGNIZED it is the only
+                                // place the value survives at all.
+                                recoveryRaw = status.recovery
                             )
                         )
                     }
