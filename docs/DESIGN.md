@@ -63,8 +63,13 @@ private val paymentLauncher = registerForActivityResult(PayCrossContract()) { re
         }
         is PayCrossResult.Failure -> {
             // result.recovery (RETRY, CHANGE_METHOD, RESTART, CONTACT_SUPPORT,
-            //                  DO_NOT_RETRY, VERIFY_BEFORE_RETRY, UNRECOGNIZED)
+            //                  DO_NOT_RETRY, UNRECOGNIZED)
             // result.recoveryRaw is what the server actually sent, if anything
+        }
+        is PayCrossResult.Pending -> {
+            // Outcome unknown. Reconcile server-side before charging again.
+            // result.transactionId is what you reconcile against;
+            // result.reason is POLL_TIMEOUT or SERVER_VERIFY
         }
         is PayCrossResult.Cancelled -> {
             // User closed the payment screen; result.transactionId names the
@@ -159,7 +164,7 @@ class PaymentViewModel(
 
             // The deadline means the outcome was never observed, not that the
             // payment failed. It may have succeeded.
-            _result.value = PayCrossResult.Failure(transactionId, Recovery.VERIFY_BEFORE_RETRY)
+            _result.value = PayCrossResult.Pending(transactionId, PendingReason.POLL_TIMEOUT)
         }
     }
 
@@ -403,6 +408,7 @@ Required for release builds (`consumer-rules.pro` - auto-applied to consumers):
 -keep class com.paycross.sdk.PayCrossResult { *; }
 -keep class com.paycross.sdk.PayCrossResult$* { *; }
 -keep enum com.paycross.sdk.Recovery { *; }
+-keep enum com.paycross.sdk.PendingReason { *; }
 
 # Retrofit
 -keepattributes Signature
@@ -428,6 +434,14 @@ sealed class PayCrossResult : Parcelable {
         val recoveryRaw: String? = null  // the server's own value, for support
     ) : PayCrossResult()
 
+    // The outcome was never observed. NOT a decline: the payment may have
+    // succeeded, so reconcile on transactionId before charging again.
+    @Parcelize
+    data class Pending(
+        val transactionId: String?,
+        val reason: PendingReason
+    ) : PayCrossResult()
+
     @Parcelize
     data class Cancelled(
         val transactionId: String?   // last known attempt, null if none
@@ -440,8 +454,17 @@ enum class Recovery {
     RESTART,         // "Start over" (session expired)
     CONTACT_SUPPORT, // "Contact support"
     DO_NOT_RETRY,    // Terminal decline
-    VERIFY_BEFORE_RETRY, // Outcome never observed; check the transaction first
+    VERIFY_BEFORE_RETRY, // Parses off the wire, but never reaches a Failure:
+                         // an unknown outcome is reported as Pending instead
     UNRECOGNIZED     // Server value this version cannot read; see recoveryRaw
+}
+
+// Wire names are name.lowercase(), shared verbatim with iOS and the Flutter
+// plugin: poll_timeout, result_lost, server_verify.
+enum class PendingReason {
+    POLL_TIMEOUT,    // The SDK's own status poll reached its deadline
+    RESULT_LOST,     // Produced only by the Flutter plugin, never natively
+    SERVER_VERIFY    // The server said verify_before_retry on a failed status
 }
 ```
 
@@ -457,9 +480,20 @@ enum class Recovery {
 | `CONTACT_SUPPORT` | "Contact support" | Invalid request, merchant config issue |
 | `DO_NOT_RETRY` | Dead-end message | Terminal decline (stolen card, do-not-honor) |
 | `UNRECOGNIZED` | Dead-end message | The server sent a value this SDK version does not know. Fails closed like a terminal decline; the value itself is on `Failure.recoveryRaw` |
-| `VERIFY_BEFORE_RETRY` | "We could not confirm this payment" | The status poll reached its deadline without an outcome. The payment may have succeeded, so the merchant must check the transaction before re-collecting |
+| `VERIFY_BEFORE_RETRY` | n/a | Never carried by a `Failure`. It parses off the wire so the value round-trips, but the outcome it describes is reported as `PayCrossResult.Pending` |
 
 Only `RETRY` and `CHANGE_METHOD` re-arm the payment form (`recovery.isRetryable`).
+
+**Pending Reasons:**
+
+| Reason | User Message | When Used |
+|--------|--------------|-----------|
+| `POLL_TIMEOUT` | "We could not confirm this payment" | The SDK's status poll reached its deadline without an outcome |
+| `RESULT_LOST` | "We could not confirm this payment" | The result was produced but lost before reaching the host app. Flutter plugin only; the native SDK never returns it |
+| `SERVER_VERIFY` | "We could not confirm this payment" | A failed status carried `recovery: verify_before_retry` |
+
+None of these is a decline. The payment may have succeeded, so the merchant must
+check the transaction against `transactionId` before re-collecting.
 
 **Validation Errors (shown inline):**
 - Invalid card number (Luhn check)

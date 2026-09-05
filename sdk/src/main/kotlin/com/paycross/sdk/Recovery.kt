@@ -33,10 +33,10 @@ enum class Recovery {
      * The outcome was never observed. Check the transaction's status before
      * re-collecting: it may already have succeeded.
      *
-     * Every other member asserts something about an outcome the SDK saw. This one
-     * is returned when it saw none, so a merchant integration has something
-     * correct to act on instead of a retry over a payment the customer may
-     * already have made. Not retryable, so [isRetryable] still fails closed.
+     * Never carried by a [PayCrossResult.Failure]. An unknown outcome is not a
+     * decline, so it is reported as [PayCrossResult.Pending] instead; this
+     * member remains only so the wire value `verify_before_retry` still parses
+     * and round-trips. Not retryable, so [isRetryable] fails closed either way.
      */
     VERIFY_BEFORE_RETRY,
 
@@ -64,10 +64,10 @@ enum class Recovery {
          * become [UNRECOGNIZED], which fails closed exactly as [DO_NOT_RETRY]
          * does and keeps the server's own string on the failure result.
          *
-         * The server does not send `verify_before_retry` - the SDK raises it
-         * itself when a poll ends without an outcome - but it parses here so the
-         * value survives a round trip through a host that carries recoveries as
-         * their wire token.
+         * `verify_before_retry` parses here so the value survives a round trip
+         * through a host that carries recoveries as their wire token, but it
+         * never reaches a result: a status carrying it becomes
+         * [PayCrossResult.Pending], as does the SDK's own poll deadline.
          */
         fun fromString(value: String?): Recovery = when (value?.trim()?.lowercase()) {
             null, "" -> RETRY

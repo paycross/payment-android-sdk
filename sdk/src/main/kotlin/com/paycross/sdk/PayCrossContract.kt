@@ -18,6 +18,8 @@ import com.paycross.sdk.internal.ui.PaymentActivity
  *     when (result) {
  *         is PayCrossResult.Success -> handleSuccess(result)
  *         is PayCrossResult.Failure -> handleFailure(result)
+ *         // Outcome unknown. Reconcile server-side before charging again.
+ *         is PayCrossResult.Pending -> handlePending(result.transactionId, result.reason)
  *         is PayCrossResult.Cancelled -> handleCancellation(result.transactionId)
  *     }
  * }

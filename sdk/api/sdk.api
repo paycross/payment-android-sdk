@@ -62,6 +62,23 @@ public final class com/paycross/sdk/PayCrossResult$Failure : com/paycross/sdk/Pa
 	public final fun writeToParcel (Landroid/os/Parcel;I)V
 }
 
+public final class com/paycross/sdk/PayCrossResult$Pending : com/paycross/sdk/PayCrossResult {
+	public static final field $stable I
+	public static final field CREATOR Landroid/os/Parcelable$Creator;
+	public fun <init> (Ljava/lang/String;Lcom/paycross/sdk/PendingReason;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/paycross/sdk/PendingReason;
+	public final fun copy (Ljava/lang/String;Lcom/paycross/sdk/PendingReason;)Lcom/paycross/sdk/PayCrossResult$Pending;
+	public static synthetic fun copy$default (Lcom/paycross/sdk/PayCrossResult$Pending;Ljava/lang/String;Lcom/paycross/sdk/PendingReason;ILjava/lang/Object;)Lcom/paycross/sdk/PayCrossResult$Pending;
+	public final fun describeContents ()I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Lcom/paycross/sdk/PendingReason;
+	public final fun getTransactionId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun writeToParcel (Landroid/os/Parcel;I)V
+}
+
 public final class com/paycross/sdk/PayCrossResult$Success : com/paycross/sdk/PayCrossResult {
 	public static final field $stable I
 	public static final field CREATOR Landroid/os/Parcelable$Creator;
@@ -81,6 +98,15 @@ public final class com/paycross/sdk/PayCrossResult$Success : com/paycross/sdk/Pa
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 	public final fun writeToParcel (Landroid/os/Parcel;I)V
+}
+
+public final class com/paycross/sdk/PendingReason : java/lang/Enum {
+	public static final field POLL_TIMEOUT Lcom/paycross/sdk/PendingReason;
+	public static final field RESULT_LOST Lcom/paycross/sdk/PendingReason;
+	public static final field SERVER_VERIFY Lcom/paycross/sdk/PendingReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/paycross/sdk/PendingReason;
+	public static fun values ()[Lcom/paycross/sdk/PendingReason;
 }
 
 public final class com/paycross/sdk/Recovery : java/lang/Enum {

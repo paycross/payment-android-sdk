@@ -440,6 +440,7 @@ private fun ResultCard(
             containerColor = when (result) {
                 is PayCrossResult.Success -> Color(0xFF4CAF50)
                 is PayCrossResult.Failure -> Color(0xFFF44336)
+                is PayCrossResult.Pending -> Color(0xFFFFA000)
                 is PayCrossResult.Cancelled -> Color(0xFF9E9E9E)
             }
         )
@@ -453,6 +454,7 @@ private fun ResultCard(
                     text = when (result) {
                         is PayCrossResult.Success -> "Payment Successful"
                         is PayCrossResult.Failure -> "Payment Failed"
+                        is PayCrossResult.Pending -> "Outcome pending"
                         is PayCrossResult.Cancelled -> "Cancelled"
                     },
                     color = Color.White,
@@ -464,6 +466,8 @@ private fun ResultCard(
                             "${formatMinor(result.amount, result.currency)}\n${result.transactionId}"
                         is PayCrossResult.Failure ->
                             "Recovery: ${result.recovery}\n${result.transactionId ?: "no transaction"}"
+                        is PayCrossResult.Pending ->
+                            "Reason: ${result.reason.name.lowercase()}\n${result.transactionId ?: "no transaction"}"
                         is PayCrossResult.Cancelled ->
                             "User cancelled\n${result.transactionId ?: "no transaction"}"
                     },

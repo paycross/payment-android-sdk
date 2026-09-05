@@ -411,8 +411,11 @@ Poll for transaction status updates during payment processing.
 | `restart` | Start a new payment session |
 | `contact_support` | Contact merchant support |
 | `do_not_retry` | Terminal decline — never offer a retry |
+| `verify_before_retry` | Outcome unknown — check the transaction before re-collecting |
 
-Unrecognized values must be treated as non-retryable (fail closed). `amount` and `currency` are omitted from status responses when not yet recorded.
+Unrecognized values must be treated as non-retryable (fail closed).
+`verify_before_retry` is not a decline: the Android SDK surfaces it as
+`PayCrossResult.Pending`, not `PayCrossResult.Failure`. `amount` and `currency` are omitted from status responses when not yet recorded.
 
 ### Polling Strategy
 

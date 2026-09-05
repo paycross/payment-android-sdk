@@ -163,6 +163,13 @@ class DemoViewModel(
                     outcome = "failed · ${result.recovery}",
                     transactionId = result.transactionId
                 )
+                // "unknown", not "pending": a record's outcome is "pending"
+                // exactly while its run is still in flight, and two lookups
+                // above and below match on that string.
+                is PayCrossResult.Pending -> run.copy(
+                    outcome = "unknown · ${result.reason.name.lowercase()}",
+                    transactionId = result.transactionId
+                )
                 is PayCrossResult.Cancelled -> run.copy(
                     outcome = "cancelled",
                     transactionId = result.transactionId

@@ -3,6 +3,7 @@ package com.paycross.sdk.internal.ui
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.PendingReason
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.models.BrowserInfo
 import com.paycross.sdk.internal.api.models.SessionData
@@ -145,6 +146,31 @@ class PaymentViewModelTest {
     }
 
     @Test
+    fun `a server-sent verify_before_retry is pending, not a decline`() = runTest(dispatcher.scheduler) {
+        // The SDK raises verify_before_retry itself on a poll deadline, but the
+        // value parses from the wire too, and a host that round-trips recoveries
+        // as their wire token can feed one back. Whatever the source, it means
+        // the outcome is unknown, so it must not arrive looking like a decline.
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-31", null, null, null)
+        coEvery { repository.getStatus("tx-31") } returns
+            StatusResponse("tx-31", "failed", null, null, null, "verify_before_retry")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Pending
+        assertEquals(PendingReason.SERVER_VERIFY, result.reason)
+        assertEquals("tx-31", result.transactionId)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
     fun `a recognised recovery keeps the server's value too`() = runTest(dispatcher.scheduler) {
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
@@ -196,9 +222,8 @@ class PaymentViewModelTest {
         vm.submitCard(context, newCard(), emptyMap())
         advanceUntilIdle()
 
-        val result = vm.uiState.value.result as PayCrossResult.Failure
-        assertEquals(Recovery.VERIFY_BEFORE_RETRY, result.recovery)
-        assertFalse(result.recovery.isRetryable)
+        val result = vm.uiState.value.result as PayCrossResult.Pending
+        assertEquals(PendingReason.POLL_TIMEOUT, result.reason)
         // The merchant resolves the outcome out of band, so the id has to be there.
         assertEquals("tx-8", result.transactionId)
         assertFalse(vm.uiState.value.isLoading)
@@ -218,8 +243,8 @@ class PaymentViewModelTest {
         vm.submitCard(context, newCard(), emptyMap())
         advanceUntilIdle()
 
-        val result = vm.uiState.value.result as PayCrossResult.Failure
-        assertEquals(Recovery.VERIFY_BEFORE_RETRY, result.recovery)
+        val result = vm.uiState.value.result as PayCrossResult.Pending
+        assertEquals(PendingReason.POLL_TIMEOUT, result.reason)
         assertEquals("tx-9", result.transactionId)
     }
 
