@@ -12,6 +12,6 @@
         <activity
             android:name=".internal.ui.PaymentActivity"
             android:exported="false"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:theme="@style/Theme.PayCross.Payment" />
     </application>
 </manifest>

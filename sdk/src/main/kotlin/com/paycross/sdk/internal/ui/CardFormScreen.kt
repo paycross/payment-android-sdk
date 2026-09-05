@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +27,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
@@ -76,8 +75,6 @@ internal fun CardFormScreen(
     onGooglePay: (Map<String, Map<String, String>>) -> Unit = {},
     onSubmit: (CardFormData, Map<String, Map<String, String>>) -> Unit
 ) {
-    val brandColor = PayCross.requireConfig().brandColor?.let { Color(it) }
-        ?: MaterialTheme.colorScheme.primary
     val savedCards = sessionData?.savedCards ?: emptyList()
     val canSaveCard = sessionData?.saveCardConfig != null
     val fieldGroups = sessionData?.fieldGroups ?: emptyList()
@@ -217,7 +214,6 @@ internal fun CardFormScreen(
         PayButton(
             amount = formattedAmount,
             isLoading = isLoading,
-            brandColor = brandColor,
             onClick = {
                 showErrors = true
                 if (validation.isValid && fieldGroupErrors.isEmpty()) {
@@ -334,16 +330,14 @@ private fun ErrorMessage(message: String) {
 }
 
 @Composable
-private fun PayButton(
+internal fun PayButton(
     amount: String,
     isLoading: Boolean,
-    brandColor: Color,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
         enabled = !isLoading,
-        colors = ButtonDefaults.buttonColors(containerColor = brandColor),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
@@ -351,7 +345,7 @@ private fun PayButton(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color.White
+                color = LocalContentColor.current
             )
         } else {
             Text("Pay $amount")
