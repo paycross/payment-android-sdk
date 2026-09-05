@@ -459,12 +459,14 @@ enum class Recovery {
     UNRECOGNIZED     // Server value this version cannot read; see recoveryRaw
 }
 
-// Wire names are name.lowercase(), shared verbatim with iOS and the Flutter
-// plugin: poll_timeout, result_lost, server_verify.
 enum class PendingReason {
     POLL_TIMEOUT,    // The SDK's own status poll reached its deadline
     RESULT_LOST,     // Produced only by the Flutter plugin, never natively
-    SERVER_VERIFY    // The server said verify_before_retry on a failed status
+    SERVER_VERIFY;   // The server said verify_before_retry on a failed status
+
+    // What crosses the platform boundary, shared verbatim with iOS and the
+    // Flutter plugin: poll_timeout, result_lost, server_verify.
+    val wireName: String get() = name.lowercase()
 }
 ```
 
@@ -486,11 +488,11 @@ Only `RETRY` and `CHANGE_METHOD` re-arm the payment form (`recovery.isRetryable`
 
 **Pending Reasons:**
 
-| Reason | User Message | When Used |
-|--------|--------------|-----------|
-| `POLL_TIMEOUT` | "We could not confirm this payment" | The SDK's status poll reached its deadline without an outcome |
-| `RESULT_LOST` | "We could not confirm this payment" | The result was produced but lost before reaching the host app. Flutter plugin only; the native SDK never returns it |
-| `SERVER_VERIFY` | "We could not confirm this payment" | A failed status carried `recovery: verify_before_retry` |
+| Reason | Wire name | User Message | When Used |
+|--------|-----------|--------------|-----------|
+| `POLL_TIMEOUT` | `poll_timeout` | "We could not confirm this payment" | The SDK's status poll reached its deadline without an outcome |
+| `RESULT_LOST` | `result_lost` | "We could not confirm this payment" | The result was produced but lost before reaching the host app. Flutter plugin only; the native SDK never returns it |
+| `SERVER_VERIFY` | `server_verify` | "We could not confirm this payment" | A failed status carried `recovery: verify_before_retry` |
 
 None of these is a decline. The payment may have succeeded, so the merchant must
 check the transaction against `transactionId` before re-collecting.

@@ -167,7 +167,7 @@ class DemoViewModel(
                 // exactly while its run is still in flight, and three lookups
                 // in this file match on that string exactly.
                 is PayCrossResult.Pending -> run.copy(
-                    outcome = "unknown · ${result.reason.name.lowercase()}",
+                    outcome = "unknown · ${result.reason.wireName}",
                     transactionId = result.transactionId
                 )
                 is PayCrossResult.Cancelled -> run.copy(

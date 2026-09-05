@@ -377,6 +377,7 @@ internal class PaymentViewModel(
             _uiState.update {
                 it.copy(
                     isLoading = false,
+                    threeDs = null,
                     result = PayCrossResult.Pending(transactionId, PendingReason.POLL_TIMEOUT)
                 )
             }

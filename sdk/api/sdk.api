@@ -105,6 +105,7 @@ public final class com/paycross/sdk/PendingReason : java/lang/Enum {
 	public static final field RESULT_LOST Lcom/paycross/sdk/PendingReason;
 	public static final field SERVER_VERIFY Lcom/paycross/sdk/PendingReason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getWireName ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lcom/paycross/sdk/PendingReason;
 	public static fun values ()[Lcom/paycross/sdk/PendingReason;
 }

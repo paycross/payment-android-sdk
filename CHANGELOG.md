@@ -30,10 +30,11 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   compiles and is now dead; move it to the `Pending` branch.
 
 - `PendingReason` is a new public enum: `POLL_TIMEOUT`, `RESULT_LOST`,
-  `SERVER_VERIFY`. Its wire names are `name.lowercase()` and are shared
-  verbatim with the iOS SDK and the Flutter plugin. `RESULT_LOST` is produced
-  only by the Flutter plugin, for a result that was created but lost before it
-  reached the host app; the native SDK never returns it.
+  `SERVER_VERIFY`. Each member's `wireName` is the value that crosses the
+  platform boundary, shared verbatim with the iOS SDK and the Flutter plugin.
+  `RESULT_LOST` is produced only by the Flutter plugin, for a result that was
+  created but lost before it reached the host app; the native SDK never
+  returns it.
 
 ### Fixed
 

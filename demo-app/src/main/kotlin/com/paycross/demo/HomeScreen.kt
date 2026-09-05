@@ -467,7 +467,7 @@ private fun ResultCard(
                         is PayCrossResult.Failure ->
                             "Recovery: ${result.recovery}\n${result.transactionId ?: "no transaction"}"
                         is PayCrossResult.Pending ->
-                            "Reason: ${result.reason.name.lowercase()}\n${result.transactionId ?: "no transaction"}"
+                            "Reason: ${result.reason.wireName}\n${result.transactionId ?: "no transaction"}"
                         is PayCrossResult.Cancelled ->
                             "User cancelled\n${result.transactionId ?: "no transaction"}"
                     },
