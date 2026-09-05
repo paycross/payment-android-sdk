@@ -164,8 +164,8 @@ class DemoViewModel(
                     transactionId = result.transactionId
                 )
                 // "unknown", not "pending": a record's outcome is "pending"
-                // exactly while its run is still in flight, and two lookups
-                // above and below match on that string.
+                // exactly while its run is still in flight, and three lookups
+                // in this file match on that string exactly.
                 is PayCrossResult.Pending -> run.copy(
                     outcome = "unknown · ${result.reason.name.lowercase()}",
                     transactionId = result.transactionId
