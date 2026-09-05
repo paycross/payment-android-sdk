@@ -463,7 +463,9 @@ private fun ResultCard(
                 Text(
                     text = when (result) {
                         is PayCrossResult.Success ->
-                            "${formatMinor(result.amount, result.currency)}\n${result.transactionId}"
+                            "${formatMinor(result.amount, result.currency)}\n" +
+                                "${result.transactionId}" +
+                                (result.savedCardToken?.let { "\nSaved card token: $it" } ?: "")
                         is PayCrossResult.Failure ->
                             "Recovery: ${result.recovery}\n${result.transactionId ?: "no transaction"}"
                         is PayCrossResult.Pending ->

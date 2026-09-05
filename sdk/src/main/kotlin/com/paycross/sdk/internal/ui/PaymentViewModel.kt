@@ -19,6 +19,7 @@ import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import com.paycross.sdk.internal.api.models.WalletToken
 import com.paycross.sdk.internal.repository.PaymentRepository
+import com.paycross.sdk.internal.repository.RemoveSavedCardResult
 import com.paycross.sdk.internal.util.BrowserInfoProvider
 import com.paycross.sdk.internal.util.IdempotencyKey
 import com.paycross.sdk.internal.wallet.GooglePayRequests
@@ -33,6 +34,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * UI state for the payment flow.
@@ -45,6 +48,11 @@ import java.io.IOException
  * @property result Final payment result, signals flow completion
  * @property googlePayAvailable Whether to show the Google Pay button (session
  *   gates and device readiness combined)
+ * @property selectedSavedCardUuid The stored card the form is on, or null for a
+ *   new card. Held here rather than in the form because removing a card has to
+ *   drop it from [sessionData] and drop the selection in the same update; split
+ *   between two owners, the form would be left pointing at a card that no longer
+ *   exists.
  */
 internal data class PaymentUiState(
     val isLoading: Boolean = true,
@@ -53,7 +61,8 @@ internal data class PaymentUiState(
     val claims: JwtClaims? = null,
     val threeDs: ThreeDsUi? = null,
     val result: PayCrossResult? = null,
-    val googlePayAvailable: Boolean = false
+    val googlePayAvailable: Boolean = false,
+    val selectedSavedCardUuid: String? = null
 )
 
 /**
@@ -85,6 +94,12 @@ internal class PaymentViewModel(
     private var pollJob: Job? = null
     private var sessionExpiryJob: Job? = null
     private val handledThreeDsActions = mutableSetOf<String>()
+
+    // Added from the UI thread and dropped from a background dispatcher, so
+    // it cannot be a plain HashSet. add() returning false is the guard: a
+    // second confirm for a card already being removed does nothing.
+    private val removalsInFlight: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
 
     private var sessionToken: String
         get() = savedStateHandle[KEY_SESSION_TOKEN] ?: ""
@@ -145,7 +160,12 @@ internal class PaymentViewModel(
             }
 
             _uiState.update {
-                it.copy(isLoading = false, sessionData = session?.data, claims = claims)
+                it.copy(
+                    isLoading = false,
+                    sessionData = session?.data,
+                    claims = claims,
+                    selectedSavedCardUuid = preselectedSavedCardUuid(session?.data)
+                )
             }
 
             val resumeTransactionId = transactionId ?: session?.latestTransactionId
@@ -182,6 +202,76 @@ internal class PaymentViewModel(
                 error = message,
                 result = PayCrossResult.Failure(null, Recovery.RESTART)
             )
+        }
+    }
+
+    /**
+     * The card the form starts on. Null unless the merchant opted in, because a
+     * preselected card is one unnoticed tap from a charge; the CVV stays
+     * mandatory for exactly that reason, so the tap alone cannot pay.
+     *
+     * Cards arrive most-recently-used first, so the first is the likely one.
+     */
+    private fun preselectedSavedCardUuid(data: SessionData?): String? =
+        if (data?.preselectsSavedCard == true) data.savedCards?.firstOrNull()?.uuid else null
+
+    /**
+     * Records the shopper's pick.
+     *
+     * @param uuid The stored card, or null for "Use a new card".
+     */
+    fun selectSavedCard(uuid: String?) {
+        _uiState.update { it.copy(selectedSavedCardUuid = uuid) }
+    }
+
+    /**
+     * Removes a stored card, then takes it off the list the sheet is showing.
+     *
+     * Only the local copy is rewritten: the session blob is written once at
+     * creation, so a reload of the same session lists the card again even after
+     * the server has disabled it. Nothing but the local list can be kept honest
+     * from here.
+     *
+     * Ignored while a payment is in flight — the sheet is behind the processing
+     * overlay and an authorization is the only thing that should be happening —
+     * and ignored for a card whose removal has not come back yet.
+     *
+     * A 404 drops the card too. It says the card is not this customer's, which
+     * is either a card that was already removed or one this session was never
+     * allowed to touch; in both readings the sheet has no business still
+     * offering it. Unauthorized and a transient failure keep the card, because
+     * neither says anything about whether it is still there.
+     *
+     * @param uuid The stored card's uuid.
+     */
+    fun removeSavedCard(uuid: String) {
+        if (_uiState.value.isLoading) return
+        if (!removalsInFlight.add(uuid)) return
+
+        viewModelScope.launch(dispatcher) {
+            try {
+                when (repository.removeSavedCard(uuid, sessionToken)) {
+                    RemoveSavedCardResult.Removed,
+                    RemoveSavedCardResult.NotFound -> _uiState.update { state ->
+                        state.copy(
+                            // Only this banner is cleared. A decline the shopper
+                            // has not acted on yet is still true, and deleting a
+                            // card is not an answer to it.
+                            error = state.error.takeIf { it != REMOVE_CARD_ERROR },
+                            sessionData = state.sessionData?.let { data ->
+                                data.copy(
+                                    savedCards = data.savedCards?.filterNot { it.uuid == uuid }
+                                )
+                            },
+                            selectedSavedCardUuid =
+                                state.selectedSavedCardUuid.takeIf { it != uuid }
+                        )
+                    }
+                    else -> _uiState.update { it.copy(error = REMOVE_CARD_ERROR) }
+                }
+            } finally {
+                removalsInFlight.remove(uuid)
+            }
         }
     }
 
@@ -399,7 +489,8 @@ internal class PaymentViewModel(
                         transactionId = status.transactionId,
                         status = status.status,
                         amount = status.amount ?: claims?.amount ?: 0L,
-                        currency = status.currency ?: claims?.currency ?: ""
+                        currency = status.currency ?: claims?.currency ?: "",
+                        savedCardToken = status.savedToken
                     )
                 )
             }
@@ -527,6 +618,8 @@ internal class PaymentViewModel(
         // Fixed cadence matching the checkout page (SETTLEMENT_POLL_INTERVAL /
         // PAYMENT_CHALLENGE_POLL_INTERVAL in paymentConfig.js).
         private const val POLL_INTERVAL_MS = 2000L
+
+        private const val REMOVE_CARD_ERROR = "Could not remove the card. Try again."
 
         private const val STATUS_SUCCESS = "success"
         private const val STATUS_AUTHORIZED = "authorized"

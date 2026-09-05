@@ -36,6 +36,7 @@ class GooglePayRequestsTest {
         merchantCountry = merchantCountry,
         saveCardConfig = null,
         savedCards = null,
+        savedCardsConfig = null,
         wallets = wallets,
         accountFunding = accountFunding,
         googlePay = googlePay

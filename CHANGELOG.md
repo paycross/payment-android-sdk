@@ -9,6 +9,56 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed — binary-incompatible, and the next release is a MINOR bump
+
+- `PayCrossResult.Success` gains a fifth member, `savedCardToken: String?`. It is
+  the token for a card this payment stored, for charging that card again later,
+  and it is null on every other success — including a payment made with a card
+  that was already stored.
+
+  Kotlin source is unaffected: the member is appended with a default, so
+  four-argument construction still compiles and destructuring the four original
+  components still works. What changes is the ABI. The four-argument constructor
+  and the old `copy` descriptors are gone, so merchant code compiled against
+  0.5.0 must be **recompiled** against this release rather than swapped in. Java
+  code that constructs a `Success` — test doubles, mostly — needs the extra
+  argument, since Java has no default arguments.
+
+### Added
+
+- The saved-card picker can remove a card. When the session carries
+  `saved_cards_config.allow_removal`, every stored card gets a delete button that
+  raises a confirmation before anything happens; confirming calls
+  `DELETE /saved-cards/{uuid}` with the session bearer and drops the card from
+  the sheet. A 404 drops it too: the card is not this customer's, either because
+  it is already gone or because this session was never allowed to touch it, and
+  neither reading justifies still offering it. An unauthorized or transient
+  failure keeps the card and shows the error banner, since neither says anything
+  about whether the card is still there. Removal is refused while a payment is in
+  flight, and a second confirm for a card whose removal has not come back yet is
+  ignored. Only the sheet's own list is rewritten: the session blob is written
+  once at session creation, so reloading the same session lists the card again
+  even after the server has disabled it.
+
+- The first stored card can start selected, when the session carries
+  `saved_cards_config.preselect`. Off by default, and off for every session
+  minted before the backend shipped the key. It is a merchant opt-in rather than
+  the default because a preselected card is one unnoticed tap from a charge; what
+  makes it safe is that the CVV stays mandatory for a stored card, so the tap
+  alone cannot pay.
+
+- The picker is now a list of selectable rows — brand, `•••• 1234` and the
+  expiry, then "Use a new card" — instead of a dropdown. A per-row delete button
+  and the dialog it raises do not belong inside a menu that closes on the first
+  touch, and the iOS sheet already draws the same list.
+
+### Fixed
+
+- A saved card whose `cardholder_name` is null no longer risks a null in a
+  non-null field. The column is nullable in core and the value was passed
+  straight through into a non-null Kotlin property, which Gson will write anyway;
+  the crash then landed at the first read rather than at the decode.
+
 ## [0.5.0] - 2026-09-05
 
 ### Changed — source-incompatible, and the next release is a MINOR bump

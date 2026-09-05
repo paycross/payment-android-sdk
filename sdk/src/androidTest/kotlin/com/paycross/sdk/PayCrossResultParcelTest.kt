@@ -31,6 +31,31 @@ class PayCrossResultParcelTest {
     }
 
     @Test
+    fun successCarriesTheSavedCardTokenAcrossTheParcel() {
+        val restored = roundTrip(
+            PayCrossResult.Success(
+                transactionId = "tx-9",
+                status = "success",
+                amount = 9999,
+                currency = "EUR",
+                savedCardToken = "tok_abc123"
+            )
+        ) as PayCrossResult.Success
+
+        assertEquals("tok_abc123", restored.savedCardToken)
+    }
+
+    @Test
+    fun successWithoutASavedCardTokenSurvivesTheParcel() {
+        val restored = roundTrip(
+            PayCrossResult.Success("tx-9", "success", 9999, "EUR")
+        ) as PayCrossResult.Success
+
+        assertNull(restored.savedCardToken)
+        assertEquals("tx-9", restored.transactionId)
+    }
+
+    @Test
     fun pendingSurvivesAParcelRoundTrip() {
         val restored = roundTrip(
             PayCrossResult.Pending(transactionId = "tx-7", reason = PendingReason.POLL_TIMEOUT)

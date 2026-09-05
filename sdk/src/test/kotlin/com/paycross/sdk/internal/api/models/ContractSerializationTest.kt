@@ -356,6 +356,124 @@ class ContractSerializationTest {
         }
     }
 
+    @Test
+    fun `session response parses saved_cards_config`() {
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {
+                "saved_cards": [
+                  {
+                    "uuid": "6f9619ff-8b86-d011-b42d-00cf4fc964ff",
+                    "masked_pan": "411111******1111",
+                    "card_brand": "visa",
+                    "expire_month": "12",
+                    "expire_year": "2027",
+                    "cardholder_name": "John Doe"
+                  }
+                ],
+                "saved_cards_config": {"allow_removal": true, "preselect": true}
+              }
+            }
+        """.trimIndent()
+
+        val data = gson.fromJson(json, SessionResponse::class.java).data!!
+
+        assertEquals(true, data.savedCardsConfig?.allowRemoval)
+        assertEquals(true, data.savedCardsConfig?.preselect)
+        assertTrue(data.allowsSavedCardRemoval)
+        assertTrue(data.preselectsSavedCard)
+    }
+
+    @Test
+    fun `session response without saved_cards_config leaves both flags off`() {
+        // Sessions minted before the backend shipped the config key carry saved
+        // cards and no sibling object. Removal and preselection are opt-in, so
+        // the absent config must read as both-false rather than crash a `!!`.
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {
+                "saved_cards": [
+                  {
+                    "uuid": "6f9619ff-8b86-d011-b42d-00cf4fc964ff",
+                    "masked_pan": "411111******1111",
+                    "card_brand": "visa",
+                    "expire_month": "12",
+                    "expire_year": "2027",
+                    "cardholder_name": "John Doe"
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val data = gson.fromJson(json, SessionResponse::class.java).data!!
+
+        assertNull(data.savedCardsConfig)
+        assertFalse(data.allowsSavedCardRemoval)
+        assertFalse(data.preselectsSavedCard)
+    }
+
+    @Test
+    fun `saved card parses a null cardholder_name`() {
+        // customer_saved_cards.cardholder_name is nullable in core and the
+        // projection passes it through, so the field has to be nullable here or
+        // Gson writes null into a non-null Kotlin property and every read of it
+        // throws somewhere far from the decode.
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "saved_cards": [
+                  {
+                    "uuid": "6f9619ff-8b86-d011-b42d-00cf4fc964ff",
+                    "masked_pan": "411111******1111",
+                    "card_brand": "visa",
+                    "expire_month": "12",
+                    "expire_year": "2027",
+                    "cardholder_name": null
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val card = gson.fromJson(json, SessionResponse::class.java).data!!.savedCards!!.single()
+
+        assertNull(card.cardholderName)
+        assertEquals("411111******1111", card.maskedPan)
+    }
+
+    @Test
+    fun `status response parses saved_token`() {
+        val json = """
+            {
+              "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "success",
+              "amount": 9999,
+              "currency": "EUR",
+              "saved_token": "tok_abc123",
+              "used_token": "6f9619ff-8b86-d011-b42d-00cf4fc964ff"
+            }
+        """.trimIndent()
+
+        val response = gson.fromJson(json, StatusResponse::class.java)
+
+        assertEquals("tok_abc123", response.savedToken)
+    }
+
+    @Test
+    fun `status response without saved_token leaves the token null`() {
+        val json = """
+            {"transaction_id": "550e8400-e29b-41d4-a716-446655440000", "status": "success"}
+        """.trimIndent()
+
+        assertNull(gson.fromJson(json, StatusResponse::class.java).savedToken)
+    }
+
     private fun minimalBrowserInfo() = BrowserInfo(
         userAgent = "ua",
         screenWidth = 1,

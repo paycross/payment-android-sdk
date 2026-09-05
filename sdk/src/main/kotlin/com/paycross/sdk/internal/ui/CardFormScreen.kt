@@ -19,6 +19,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,9 +70,12 @@ internal fun CardFormScreen(
     claims: JwtClaims,
     sessionData: SessionData?,
     modifier: Modifier = Modifier,
+    selectedSavedCardUuid: String? = null,
     isLoading: Boolean = false,
     error: String? = null,
     googlePayAvailable: Boolean = false,
+    onSavedCardSelected: (String?) -> Unit = {},
+    onSavedCardRemoved: (String) -> Unit = {},
     onGooglePay: (Map<String, Map<String, String>>) -> Unit = {},
     onSubmit: (CardFormData, Map<String, Map<String, String>>) -> Unit
 ) {
@@ -80,7 +84,6 @@ internal fun CardFormScreen(
     val fieldGroups = sessionData?.fieldGroups ?: emptyList()
 
     val prefill = PayCross.requireConfig().effectiveTestPrefill()
-    var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }
     var cardNumber by rememberSaveable { mutableStateOf(prefill?.pan.orEmpty()) }
     var expiry by rememberSaveable {
         mutableStateOf(prefill?.let { it.expireMonth + it.expireYear.takeLast(2) }.orEmpty())
@@ -98,13 +101,35 @@ internal fun CardFormScreen(
     }
 
     val fieldValues = remember(fieldValuesFlat) { unflattenValues(fieldValuesFlat) }
-    val selectedSavedCard by remember(selectedCardUuid, savedCards) {
-        derivedStateOf { savedCards.find { it.uuid == selectedCardUuid } }
+    val selectedSavedCard by remember(selectedSavedCardUuid, savedCards) {
+        derivedStateOf { savedCards.find { it.uuid == selectedSavedCardUuid } }
     }
-    val isNewCard = selectedCardUuid == null
+    // Derived from the card, not from the uuid: a selection that no longer
+    // resolves to a card in the list is a removal that landed, and the form
+    // belongs back on new-card entry rather than prompting for the CVV of a card
+    // that is gone.
+    val isNewCard = selectedSavedCard == null
     val cardType = CardType.detect(cardNumber)
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
     val formattedAmount = formatAmount(claims, sessionData?.locale)
+
+    // A CVV belongs to the card it was typed for. Switching cards drops it in
+    // onCardSelected above; this covers the other way a selection ends, a
+    // removal the server confirmed, which drops the card and the selection
+    // together upstream. Keyed on the card actually leaving the list rather than
+    // on the confirm tap, so a removal that failed - the card is still there and
+    // still selected - leaves what the shopper typed alone.
+    var cvvOwnerUuid by remember { mutableStateOf(selectedSavedCardUuid) }
+    LaunchedEffect(selectedSavedCardUuid, savedCards) {
+        val previousOwner = cvvOwnerUuid
+        if (previousOwner != null &&
+            previousOwner != selectedSavedCardUuid &&
+            savedCards.none { it.uuid == previousOwner }
+        ) {
+            cvv = ""
+        }
+        cvvOwnerUuid = selectedSavedCardUuid
+    }
 
     val validation = validateForm(
         isNewCard = isNewCard,
@@ -160,10 +185,13 @@ internal fun CardFormScreen(
                 SavedCardSelector(
                     savedCards = savedCards,
                     selectedCard = selectedSavedCard,
+                    allowRemoval = sessionData?.allowsSavedCardRemoval == true,
+                    removalEnabled = !isLoading,
                     onCardSelected = { picked ->
-                        cvv = cvvAfterCardSelection(selectedCardUuid, picked?.uuid, cvv)
-                        selectedCardUuid = picked?.uuid
-                    }
+                        cvv = cvvAfterCardSelection(selectedSavedCardUuid, picked?.uuid, cvv)
+                        onSavedCardSelected(picked?.uuid)
+                    },
+                    onCardRemoved = onSavedCardRemoved
                 )
             }
 

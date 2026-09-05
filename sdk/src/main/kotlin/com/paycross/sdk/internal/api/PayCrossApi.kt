@@ -4,7 +4,9 @@ import com.paycross.sdk.internal.api.models.SessionResponse
 import com.paycross.sdk.internal.api.models.StatusResponse
 import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.SubmitCardResponse
+import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -49,4 +51,22 @@ internal interface PayCrossApi {
      */
     @GET("status/{transactionId}")
     suspend fun getStatus(@Path("transactionId") transactionId: String): StatusResponse
+
+    /**
+     * Removes one of the customer's stored cards.
+     *
+     * Returns the raw [Response] rather than Unit so the repository can read the
+     * status code: 204 removed, 400 malformed uuid, 401 bad or expired token,
+     * 404 not this customer's card, 5xx transient. A Unit return would collapse
+     * all four failures into one HttpException.
+     *
+     * @param authorization Bearer session JWT; its `customer` claim is the
+     * ownership check the server applies.
+     * @param uuid The stored card's uuid, from the session blob.
+     */
+    @DELETE("saved-cards/{uuid}")
+    suspend fun deleteSavedCard(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String
+    ): Response<Unit>
 }

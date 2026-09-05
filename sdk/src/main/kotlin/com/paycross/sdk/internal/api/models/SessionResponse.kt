@@ -17,9 +17,34 @@ internal data class SessionData(
     @SerializedName("merchant_country") val merchantCountry: String?,
     @SerializedName("save_card_config") val saveCardConfig: SaveCardConfig?,
     @SerializedName("saved_cards") val savedCards: List<SavedCard>?,
+    @SerializedName("saved_cards_config") val savedCardsConfig: SavedCardsConfig?,
     val wallets: WalletsAvailability?,
     @SerializedName("account_funding") val accountFunding: Boolean?,
     @SerializedName("google_pay") val googlePay: GooglePayConfig?
+) {
+    /**
+     * Whether the sheet may offer to delete a stored card. Both this and
+     * [preselectsSavedCard] read an absent config as off: `saved_cards_config` is
+     * a sibling the backend added after these sessions' shape was fixed, so every
+     * session minted before it, and every merchant who did not opt in, arrives
+     * without the object at all.
+     */
+    val allowsSavedCardRemoval: Boolean
+        get() = savedCardsConfig?.allowRemoval == true
+
+    /** Whether the first stored card starts selected. Merchant opt-in. */
+    val preselectsSavedCard: Boolean
+        get() = savedCardsConfig?.preselect == true
+}
+
+/**
+ * Merchant opt-ins that govern the saved-card picker, carried alongside
+ * `saved_cards` rather than inside it: the list is a flat array on the wire and
+ * has nowhere to hang a flag.
+ */
+internal data class SavedCardsConfig(
+    @SerializedName("allow_removal") val allowRemoval: Boolean?,
+    val preselect: Boolean?
 )
 
 internal data class WalletsAvailability(
@@ -80,7 +105,11 @@ internal data class SavedCard(
     @SerializedName("card_brand") val cardBrand: String?,
     @SerializedName("expire_month") val expireMonth: String,
     @SerializedName("expire_year") val expireYear: String,
-    @SerializedName("cardholder_name") val cardholderName: String
+    // Nullable because the column is: core projects cardholder_name straight
+    // out of customer_saved_cards, and Gson will happily write a null into a
+    // non-null Kotlin property, so the crash lands at the first read instead of
+    // at the decode.
+    @SerializedName("cardholder_name") val cardholderName: String?
 )
 
 internal object SessionStatus {
