@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.createSavedStateHandle
@@ -40,6 +41,7 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.internal.ui.theme.PayCrossTheme
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 
@@ -76,7 +78,7 @@ internal class PaymentActivity : ComponentActivity() {
         viewModel.initialize(sessionToken)
 
         setContent {
-            MaterialTheme {
+            PayCrossTheme(brand = PayCross.requireConfig().brandColor?.let { Color(it) }) {
                 PaymentScreen(
                     viewModel = viewModel,
                     onCancel = {
