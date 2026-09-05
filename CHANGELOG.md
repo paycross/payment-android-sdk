@@ -30,11 +30,15 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   `saved_cards_config.allow_removal`, every stored card gets a delete button that
   raises a confirmation before anything happens; confirming calls
   `DELETE /saved-cards/{uuid}` with the session bearer and drops the card from
-  the sheet. A failed removal keeps the card and shows the error banner, because
-  not-found, unauthorized and a transient server error all leave the sheet unable
-  to claim the card is gone. Only the sheet's own list is rewritten: the session
-  blob is written once at session creation, so reloading the same session lists
-  the card again even after the server has disabled it.
+  the sheet. A 404 drops it too: the card is not this customer's, either because
+  it is already gone or because this session was never allowed to touch it, and
+  neither reading justifies still offering it. An unauthorized or transient
+  failure keeps the card and shows the error banner, since neither says anything
+  about whether the card is still there. Removal is refused while a payment is in
+  flight, and a second confirm for a card whose removal has not come back yet is
+  ignored. Only the sheet's own list is rewritten: the session blob is written
+  once at session creation, so reloading the same session lists the card again
+  even after the server has disabled it.
 
 - The first stored card can start selected, when the session carries
   `saved_cards_config.preselect`. Off by default, and off for every session

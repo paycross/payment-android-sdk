@@ -1,6 +1,7 @@
 package com.paycross.sdk.internal.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -72,6 +73,24 @@ class SavedCardPickerTest {
 
         compose.onNodeWithTag(savedCardDeleteTag("card-1")).assertDoesNotExist()
         compose.onNodeWithTag(savedCardDeleteTag("card-2")).assertDoesNotExist()
+    }
+
+    @Test
+    fun deleteIsDisabledButStillShownWhileAPaymentIsInFlight() {
+        compose.setContent {
+            SavedCardSelector(
+                savedCards = listOf(visa, amex),
+                selectedCard = visa,
+                allowRemoval = true,
+                removalEnabled = false,
+                onCardSelected = {}
+            )
+        }
+
+        // Shown, so the rows do not reflow under the shopper mid-authorization,
+        // but dead to a tap.
+        compose.onNodeWithTag(savedCardDeleteTag("card-1")).assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag(savedCardDeleteTag("card-2")).assertIsNotEnabled()
     }
 
     @Test

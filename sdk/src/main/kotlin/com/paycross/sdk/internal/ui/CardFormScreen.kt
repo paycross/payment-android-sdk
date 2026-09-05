@@ -19,6 +19,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,6 +113,24 @@ internal fun CardFormScreen(
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
     val formattedAmount = formatAmount(claims, sessionData?.locale)
 
+    // A CVV belongs to the card it was typed for. Switching cards drops it in
+    // onCardSelected above; this covers the other way a selection ends, a
+    // removal the server confirmed, which drops the card and the selection
+    // together upstream. Keyed on the card actually leaving the list rather than
+    // on the confirm tap, so a removal that failed - the card is still there and
+    // still selected - leaves what the shopper typed alone.
+    var cvvOwnerUuid by remember { mutableStateOf(selectedSavedCardUuid) }
+    LaunchedEffect(selectedSavedCardUuid, savedCards) {
+        val previousOwner = cvvOwnerUuid
+        if (previousOwner != null &&
+            previousOwner != selectedSavedCardUuid &&
+            savedCards.none { it.uuid == previousOwner }
+        ) {
+            cvv = ""
+        }
+        cvvOwnerUuid = selectedSavedCardUuid
+    }
+
     val validation = validateForm(
         isNewCard = isNewCard,
         cardNumber = cardNumber,
@@ -167,17 +186,12 @@ internal fun CardFormScreen(
                     savedCards = savedCards,
                     selectedCard = selectedSavedCard,
                     allowRemoval = sessionData?.allowsSavedCardRemoval == true,
+                    removalEnabled = !isLoading,
                     onCardSelected = { picked ->
                         cvv = cvvAfterCardSelection(selectedSavedCardUuid, picked?.uuid, cvv)
                         onSavedCardSelected(picked?.uuid)
                     },
-                    onCardRemoved = { uuid ->
-                        // The removal clears the selection upstream, which puts
-                        // the form back on new-card entry; a CVV typed for the
-                        // card being deleted has no card left to belong to.
-                        if (uuid == selectedSavedCardUuid) cvv = ""
-                        onSavedCardRemoved(uuid)
-                    }
+                    onCardRemoved = onSavedCardRemoved
                 )
             }
 

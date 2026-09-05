@@ -701,13 +701,21 @@ issuer rules require it, and the SDK enforces it, so the tap alone cannot pay.
 **Authentication:** `Authorization: Bearer <session token>` — the same bearer the
 client already sends. The token's `customer` claim is the ownership check.
 
-| Status | Meaning |
-|--------|---------|
-| 204 | Removed. Repeating the call is the same success |
-| 400 | Malformed uuid |
-| 401 | Bad or expired session token |
-| 404 | Not this customer's card |
-| 500 | Transient. The card is already disabled server-side, so a retry is safe |
+| Status | Meaning | What the SDK does |
+|--------|---------|-------------------|
+| 204 | Removed | Drops the card from the list |
+| 400 | The uuid in the path was malformed | Keeps the card, shows the banner |
+| 401 | Bad or expired session token | Keeps the card, shows the banner |
+| 404 | Not this customer's card | Drops the card from the list |
+| 500 | Transient server error | Keeps the card, shows the banner |
+
+The endpoint is idempotent, so a retry is always safe. That is a property of the
+endpoint, not a claim about what a 5xx did: a 5xx says nothing about whether the
+removal was applied.
+
+A 404 drops the card even though nothing was removed by that call. The card is
+either already gone or was never this customer's, and under both readings the
+sheet should not keep offering it.
 
 The session blob is written once at session creation and is never rebuilt, so a
 reload of the same session lists the removed card again even though the server

@@ -1,6 +1,7 @@
 package com.paycross.sdk.internal.repository
 
 import com.paycross.sdk.internal.api.ApiClient
+import com.paycross.sdk.internal.api.PayCrossApi
 import com.paycross.sdk.internal.api.models.SessionResponse
 import com.paycross.sdk.internal.api.models.StatusResponse
 import com.paycross.sdk.internal.api.models.SubmitCardRequest
@@ -17,24 +18,35 @@ private const val HTTP_NOT_FOUND = 404
  * should not have to read status codes to do that.
  */
 internal sealed class RemoveSavedCardResult {
-    /** The card is gone. The server treats a repeat as the same success. */
+    /** The card is gone. The endpoint is idempotent, so a repeat is the same success. */
     data object Removed : RemoveSavedCardResult()
 
-    /** Not this customer's card, so this session may not remove it. */
+    /**
+     * The card is not this customer's. Either it never was, or it is already
+     * gone; the server does not distinguish, and from the sheet's side neither
+     * does the outcome.
+     */
     data object NotFound : RemoveSavedCardResult()
 
     /** The session token was rejected. */
     data object Unauthorized : RemoveSavedCardResult()
 
-    /** Network trouble, a malformed request, or a server error. Retrying is safe. */
+    /**
+     * Network trouble, a malformed uuid, or a server error. Retrying is safe
+     * because the endpoint is idempotent, not because the card is known to be
+     * gone: a 5xx says nothing about whether the removal was applied.
+     */
     data object Failed : RemoveSavedCardResult()
 }
 
 /**
  * Repository for payment-related API operations.
+ *
+ * The API is a constructor parameter so a test can feed a fake one and exercise
+ * the status-code mapping below without a server; production always takes the
+ * default.
  */
-internal class PaymentRepository {
-    private val api = ApiClient.get()
+internal class PaymentRepository(private val api: PayCrossApi = ApiClient.get()) {
 
     suspend fun getSession(sessionId: String, sessionToken: String?): SessionResponse {
         return api.getSession(sessionId, sessionToken?.let { "Bearer $it" })

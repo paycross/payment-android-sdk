@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * UI state for the payment flow.
@@ -92,6 +94,12 @@ internal class PaymentViewModel(
     private var pollJob: Job? = null
     private var sessionExpiryJob: Job? = null
     private val handledThreeDsActions = mutableSetOf<String>()
+
+    // Added from the UI thread and dropped from a background dispatcher, so
+    // it cannot be a plain HashSet. add() returning false is the guard: a
+    // second confirm for a card already being removed does nothing.
+    private val removalsInFlight: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
 
     private var sessionToken: String
         get() = savedStateHandle[KEY_SESSION_TOKEN] ?: ""
@@ -220,32 +228,49 @@ internal class PaymentViewModel(
      * Removes a stored card, then takes it off the list the sheet is showing.
      *
      * Only the local copy is rewritten: the session blob is written once at
-     * creation, so a reload of the same session would list the card again even
-     * though the server has disabled it. Nothing but the local list can be kept
-     * honest from here.
+     * creation, so a reload of the same session lists the card again even after
+     * the server has disabled it. Nothing but the local list can be kept honest
+     * from here.
      *
-     * A failure leaves the list alone. Not-found and unauthorized both mean this
-     * session may not remove that card, and a 5xx may already have disabled it
-     * server-side, but in none of those cases can the sheet claim it is gone.
+     * Ignored while a payment is in flight — the sheet is behind the processing
+     * overlay and an authorization is the only thing that should be happening —
+     * and ignored for a card whose removal has not come back yet.
+     *
+     * A 404 drops the card too. It says the card is not this customer's, which
+     * is either a card that was already removed or one this session was never
+     * allowed to touch; in both readings the sheet has no business still
+     * offering it. Unauthorized and a transient failure keep the card, because
+     * neither says anything about whether it is still there.
      *
      * @param uuid The stored card's uuid.
      */
     fun removeSavedCard(uuid: String) {
+        if (_uiState.value.isLoading) return
+        if (!removalsInFlight.add(uuid)) return
+
         viewModelScope.launch(dispatcher) {
-            when (repository.removeSavedCard(uuid, sessionToken)) {
-                RemoveSavedCardResult.Removed -> _uiState.update { state ->
-                    state.copy(
-                        // Only this banner is cleared. A decline the shopper has
-                        // not acted on yet is still true, and deleting a card is
-                        // not an answer to it.
-                        error = state.error.takeIf { it != REMOVE_CARD_ERROR },
-                        sessionData = state.sessionData?.let { data ->
-                            data.copy(savedCards = data.savedCards?.filterNot { it.uuid == uuid })
-                        },
-                        selectedSavedCardUuid = state.selectedSavedCardUuid.takeIf { it != uuid }
-                    )
+            try {
+                when (repository.removeSavedCard(uuid, sessionToken)) {
+                    RemoveSavedCardResult.Removed,
+                    RemoveSavedCardResult.NotFound -> _uiState.update { state ->
+                        state.copy(
+                            // Only this banner is cleared. A decline the shopper
+                            // has not acted on yet is still true, and deleting a
+                            // card is not an answer to it.
+                            error = state.error.takeIf { it != REMOVE_CARD_ERROR },
+                            sessionData = state.sessionData?.let { data ->
+                                data.copy(
+                                    savedCards = data.savedCards?.filterNot { it.uuid == uuid }
+                                )
+                            },
+                            selectedSavedCardUuid =
+                                state.selectedSavedCardUuid.takeIf { it != uuid }
+                        )
+                    }
+                    else -> _uiState.update { it.copy(error = REMOVE_CARD_ERROR) }
                 }
-                else -> _uiState.update { it.copy(error = REMOVE_CARD_ERROR) }
+            } finally {
+                removalsInFlight.remove(uuid)
             }
         }
     }

@@ -682,11 +682,10 @@ class PaymentViewModelTest {
 
     @Test
     fun `a failed removal keeps the card and shows the banner`() = runTest(dispatcher.scheduler) {
-        // Not found, unauthorized and a transient server error are all the same
-        // to the sheet: the card is still on the list it can see, so removing it
-        // from the UI would be a lie the next session reload would contradict.
+        // Neither outcome says anything about whether the card is still there,
+        // so dropping it from the UI would be a lie the next session reload
+        // would contradict.
         val outcomes = listOf(
-            RemoveSavedCardResult.NotFound,
             RemoveSavedCardResult.Unauthorized,
             RemoveSavedCardResult.Failed
         )
@@ -712,6 +711,96 @@ class PaymentViewModelTest {
             assertEquals("Could not remove the card. Try again.", state.error)
         }
     }
+
+    @Test
+    fun `a not-found removal drops the card without a banner`() = runTest(dispatcher.scheduler) {
+        // 404 means the card is not this customer's: either already gone, or one
+        // this session was never allowed to touch. Under both readings the sheet
+        // should stop offering it, and neither is something to shout at the
+        // shopper about.
+        coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+            sessionData(
+                savedCards = listOf(savedCard("card-1"), savedCard("card-2")),
+                savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = true)
+            )
+        )
+        coEvery { repository.removeSavedCard("card-1", any()) } returns
+            RemoveSavedCardResult.NotFound
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.removeSavedCard("card-1")
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(listOf("card-2"), state.sessionData?.savedCards?.map { it.uuid })
+        assertNull(state.selectedSavedCardUuid)
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `a removal is refused while a payment is in flight`() = runTest(dispatcher.scheduler) {
+        // The sheet is behind the processing overlay and an authorization is the
+        // only thing that should be happening. A card leaving the list under a
+        // submit that is still quoting it is not worth the race.
+        coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+            sessionData(
+                savedCards = listOf(savedCard("card-1")),
+                savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = true)
+            )
+        )
+        coEvery { repository.submitCard(any(), any()) } returns
+            SubmitCardResponse(true, "tx-1", null, null, null)
+        coEvery { repository.getStatus("tx-1") } returns
+            StatusResponse("tx-1", "processing", null, null, null, null) andThen
+            StatusResponse("tx-1", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceTimeBy(FIRST_POLL_MS)
+
+        assertTrue(vm.uiState.value.isLoading)
+        vm.removeSavedCard("card-1")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { repository.removeSavedCard(any(), any()) }
+        assertEquals(listOf("card-1"), vm.uiState.value.sessionData?.savedCards?.map { it.uuid })
+    }
+
+    @Test
+    fun `a second confirm for the same card is ignored until the first returns`() =
+        runTest(dispatcher.scheduler) {
+            coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+                sessionData(
+                    savedCards = listOf(savedCard("card-1")),
+                    savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = false)
+                )
+            )
+            // Failed rather than Removed so the card survives and a genuine retry
+            // is still a sensible thing for the shopper to ask for.
+            coEvery { repository.removeSavedCard("card-1", any()) } returns
+                RemoveSavedCardResult.Failed
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceUntilIdle()
+
+            vm.removeSavedCard("card-1")
+            vm.removeSavedCard("card-1")
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { repository.removeSavedCard("card-1", any()) }
+
+            // The guard releases once the call comes back, so the shopper can
+            // retry a removal that failed.
+            vm.removeSavedCard("card-1")
+            advanceUntilIdle()
+
+            coVerify(exactly = 2) { repository.removeSavedCard("card-1", any()) }
+        }
 
     @Test
     fun `selecting a card records it on the state`() = runTest(dispatcher.scheduler) {

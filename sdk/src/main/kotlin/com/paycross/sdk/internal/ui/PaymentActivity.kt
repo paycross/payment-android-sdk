@@ -2,6 +2,7 @@ package com.paycross.sdk.internal.ui
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -164,10 +165,17 @@ private fun PaymentScreen(
     // FLAG_SECURE blanks screenshots, so the E2E rig drives the sheet from
     // UiAutomator dumps instead; without this the testTags never reach the view
     // hierarchy as resource ids and nothing in the sheet is addressable there.
+    // Debug builds only: in a merchant's release build these ids would publish
+    // the sheet's structure, and the saved-card tags carry a card uuid, to any
+    // accessibility service on the device.
+    val publishTestTags = remember(context) {
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .semantics { testTagsAsResourceId = true }
+            .semantics { testTagsAsResourceId = publishTestTags }
     ) {
         when {
             uiState.isLoading && uiState.claims == null -> {

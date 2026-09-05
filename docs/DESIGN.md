@@ -576,9 +576,15 @@ session is created. Confirming the dialog calls
 the card from the list it is showing. Only the local list is rewritten: the
 session blob is written once at session creation and never rebuilt, so a reload
 of the same session lists the card again even though the server has disabled it.
-A failed removal leaves the list alone and shows the error banner — not found,
-unauthorized and a transient 5xx all mean the sheet cannot claim the card is
-gone, and a 5xx may already have disabled it.
+A 404 also drops the card: it means the card is not this customer's, either
+because it is already gone or because this session was never allowed to touch it,
+and neither reading justifies still offering it. An unauthorized or transient
+failure leaves the list alone and shows the error banner, since neither says
+anything about whether the card is still there. Retrying is always safe, because
+the endpoint is idempotent.
+
+Removal is refused outright while a payment is in flight, and a second confirm
+for a card whose removal has not come back yet is ignored.
 
 **Preselection** is `saved_cards_config.preselect`, also merchant opt-in. When
 set, the first card in the list starts selected; otherwise the form opens on
