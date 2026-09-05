@@ -78,7 +78,8 @@ internal class PaymentActivity : ComponentActivity() {
         viewModel.initialize(sessionToken)
 
         setContent {
-            PayCrossTheme(brand = PayCross.requireConfig().brandColor?.let { Color(it) }) {
+            val brand = remember { PayCross.requireConfig().brandColor?.let { Color(it) } }
+            PayCrossTheme(brand = brand) {
                 PaymentScreen(
                     viewModel = viewModel,
                     onCancel = {

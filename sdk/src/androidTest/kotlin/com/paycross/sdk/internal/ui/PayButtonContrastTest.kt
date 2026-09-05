@@ -38,7 +38,7 @@ class PayButtonContrastTest {
         renderPayButton(isLoading = false)
         compose.onNodeWithText("Pay €1.00").assertIsDisplayed()
 
-        assertContentIsDark("label", darkerThan = 0.05f)
+        assertContentIsDarkerThanTheBrand("label")
     }
 
     @Test
@@ -49,21 +49,16 @@ class PayButtonContrastTest {
         renderPayButton(isLoading = true)
         compose.mainClock.advanceTimeBy(400)
 
-        // The indicator strokes a thin antialiased arc, so every arc pixel is a
-        // blend of the content colour with the brand behind it and none of them
-        // reaches near-black. A black arc still lands far below the brand's own
-        // luminance; a white one would leave the band no darker than the brand.
-        assertContentIsDark("spinner", darkerThan = lightBrand.luminance() - 0.4f)
+        assertContentIsDarkerThanTheBrand("spinner")
     }
 
     private fun renderPayButton(isLoading: Boolean) {
         compose.setContent {
-            PayCrossTheme(brand = null) {
+            PayCrossTheme(brand = lightBrand) {
                 Box(Modifier.testTag(PAY_BUTTON_TAG)) {
                     PayButton(
                         amount = "€1.00",
                         isLoading = isLoading,
-                        brandColor = lightBrand,
                         onClick = {}
                     )
                 }
@@ -76,11 +71,15 @@ class PayButtonContrastTest {
      * of the antialiased outer edge, so neither assertion can be satisfied by
      * what sits behind the button rather than by what the button painted itself.
      *
-     * [darkerThan] is the luminance the darkest pixel in that band must beat.
-     * Solid glyphs hold their own colour and can be held to near-black; a hairline
-     * stroke only ever paints blends and is judged against the brand instead.
+     * Both the spinner's arc and the label's glyph stems are thin antialiased
+     * strokes, so every pixel they paint is a blend of the content colour with the
+     * brand behind it and, at a low display density, none of them reaches
+     * near-black. Both are therefore judged against the brand: black content lands
+     * far below the brand's own luminance, while white content would leave the
+     * band no darker than the brand.
      */
-    private fun assertContentIsDark(what: String, darkerThan: Float) {
+    private fun assertContentIsDarkerThanTheBrand(what: String) {
+        val darkerThan = lightBrand.luminance() - 0.4f
         val pixels = compose.onNodeWithTag(PAY_BUTTON_TAG).captureToImage().toPixelMap()
         var darkest = 1f
         var nearWhite = 0
