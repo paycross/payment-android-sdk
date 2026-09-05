@@ -22,13 +22,18 @@ sealed class PayCrossResult : Parcelable {
      * @property status Final status of the transaction (e.g., "success", "authorized")
      * @property amount Transaction amount in minor units (e.g., cents)
      * @property currency ISO 4217 currency code (e.g., "EUR", "USD")
+     * @property savedCardToken The token for the card this payment stored, for
+     * charging it again later. Present only when the shopper asked to save the
+     * card and the server stored one; null on every other success, including a
+     * payment made with a card that was already stored.
      */
     @Parcelize
     data class Success(
         val transactionId: String,
         val status: String,
         val amount: Long,
-        val currency: String
+        val currency: String,
+        val savedCardToken: String? = null
     ) : PayCrossResult()
 
     /**

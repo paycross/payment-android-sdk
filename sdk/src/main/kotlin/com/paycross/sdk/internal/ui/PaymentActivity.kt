@@ -29,10 +29,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
@@ -111,6 +114,7 @@ internal class PaymentActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun PaymentScreen(
     viewModel: PaymentViewModel,
@@ -157,7 +161,14 @@ private fun PaymentScreen(
     val challenge = uiState.threeDs?.takeIf { it.isChallenge }
     val fingerprint = uiState.threeDs?.takeIf { !it.isChallenge }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // FLAG_SECURE blanks screenshots, so the E2E rig drives the sheet from
+    // UiAutomator dumps instead; without this the testTags never reach the view
+    // hierarchy as resource ids and nothing in the sheet is addressable there.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { testTagsAsResourceId = true }
+    ) {
         when {
             uiState.isLoading && uiState.claims == null -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -174,9 +185,12 @@ private fun PaymentScreen(
                 CardFormScreen(
                     claims = uiState.claims!!,
                     sessionData = uiState.sessionData,
+                    selectedSavedCardUuid = uiState.selectedSavedCardUuid,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
                     googlePayAvailable = uiState.googlePayAvailable,
+                    onSavedCardSelected = viewModel::selectSavedCard,
+                    onSavedCardRemoved = viewModel::removeSavedCard,
                     onGooglePay = { fieldValues ->
                         viewModel.onGooglePaySheetOpened(fieldValues)
                         val claims = uiState.claims

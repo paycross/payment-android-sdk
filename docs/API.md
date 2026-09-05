@@ -378,9 +378,17 @@ Poll for transaction status updates during payment processing.
   "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "success",
   "amount": 10000,
-  "currency": "EUR"
+  "currency": "EUR",
+  "saved_token": "tok_9f2c1a"
 }
 ```
+
+`saved_token` appears on terminal statuses only, and only when this payment
+stored the card. It is the merchant's handle for charging that card again, and
+the SDK hands it back as `PayCrossResult.Success.savedCardToken`. A payment made
+with a card that was already stored does not produce one. The response also
+carries `used_token`, which the SDK ignores: the sheet already knows which stored
+card it submitted.
 
 #### Failed with Recovery
 
@@ -539,6 +547,10 @@ Fetch session data for checkout form prefill, field requirements, and saved card
         "cardholder_name": "John Doe"
       }
     ],
+    "saved_cards_config": {
+      "allow_removal": true,
+      "preselect": false
+    },
     "save_card_config": {
       "usage": "card_on_file"
     }
@@ -592,7 +604,8 @@ polling for that transaction instead of re-arming the form.
 | `success_url` | string | URL the checkout redirects to on success |
 | `merchant_country` | string | Merchant's country code (omitted when unset) |
 | `field_groups` | array | Ordered list of field groups to render (may be empty) |
-| `saved_cards` | array | Customer's saved cards (empty array if none) |
+| `saved_cards` | array | Customer's saved cards, most-recently-used first (empty array if none) |
+| `saved_cards_config` | object | Saved-card behaviour opt-ins (omitted unless the merchant set one) |
 | `save_card_config` | object | Card saving options (only present if configured on session) |
 
 ### Field Group Object
@@ -661,9 +674,45 @@ Fields with `display: hidden` in merchant configuration are omitted from the res
 | `card_brand` | string | Card brand (e.g., `visa`, `mastercard`) |
 | `expire_month` | string | Expiration month (01-12) |
 | `expire_year` | string | Expiration year (YYYY) |
-| `cardholder_name` | string | Name on card |
+| `cardholder_name` | string | Name on card. May be `null`; the column is nullable in core and the value is passed straight through |
 
 Expired cards are automatically excluded. `saved_cards` is always present and is `[]` when the customer has none.
+
+### Saved Cards Config Object
+
+Two merchant opt-ins, set on the session at creation and echoed into the blob as
+a sibling of `saved_cards` (the list is a flat array and has nowhere to hang a
+flag). The object is omitted entirely unless the merchant set one, and an absent
+object means both are off.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `allow_removal` | boolean | The sheet may offer to delete a stored card |
+| `preselect` | boolean | The first stored card starts selected |
+
+Preselection is opt-in because a preselected card is one unnoticed tap from a
+charge. What makes it safe is that the CVV stays mandatory for a stored card:
+issuer rules require it, and the SDK enforces it, so the tap alone cannot pay.
+
+### Remove a Saved Card
+
+**Endpoint:** `DELETE /saved-cards/{uuid}`
+
+**Authentication:** `Authorization: Bearer <session token>` — the same bearer the
+client already sends. The token's `customer` claim is the ownership check.
+
+| Status | Meaning |
+|--------|---------|
+| 204 | Removed. Repeating the call is the same success |
+| 400 | Malformed uuid |
+| 401 | Bad or expired session token |
+| 404 | Not this customer's card |
+| 500 | Transient. The card is already disabled server-side, so a retry is safe |
+
+The session blob is written once at session creation and is never rebuilt, so a
+reload of the same session lists the removed card again even though the server
+has disabled it. The SDK drops the card from the list it is showing and does not
+attempt to make the reload agree.
 
 ### Save Card Config Object
 
@@ -683,9 +732,12 @@ Expired cards are automatically excluded. `saved_cards` is always present and is
    - For select fields, render a dropdown with field.options
    - Apply validation rules client-side
 4. If saved_cards is non-empty:
-   - Show card selector UI with card_brand, masked_pan, cardholder_name
+   - Show card selector UI with card_brand, masked_pan and expiry, one row per card
+   - Start on the first card if saved_cards_config.preselect, otherwise on "Use a new card"
+   - Offer a per-row delete, behind a confirmation, if saved_cards_config.allow_removal
    - User selects saved card → submit with card.saved_uuid + cvv + field group values
    - Or user enters new card details + field group values
+   - CVV is mandatory either way; a stored card cannot be charged without one
 5. If save_card_config present:
    - Show "Save card" checkbox with usage context
 ```

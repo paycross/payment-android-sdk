@@ -292,7 +292,11 @@ class PaymentActivity : ComponentActivity() {
 
 ```
 ┌─────────────────────────────────┐
-│  [Saved Card ▼] (if available)  │
+│  ◉ Visa •••• 0366          🗑   │  ← One row per saved card; the bin
+│    Expires 12/30                │    appears only with allow_removal
+│  ○ Mastercard •••• 4444    🗑   │
+│    Expires 01/29                │
+│  ○ Use a new card               │
 ├─────────────────────────────────┤
 │  Card Number                    │
 │  ┌─────────────────────────┐    │
@@ -510,6 +514,7 @@ check the transaction against `transactionId` before re-collecting.
 | `/session/{session_id}` | GET | Fetch prefill data + saved cards |
 | `/submit-card` | POST | Submit card payment |
 | `/status/{transaction_id}` | GET | Poll transaction status |
+| `/saved-cards/{uuid}` | DELETE | Remove a stored card (session bearer) |
 
 ## Browser Info Collection
 
@@ -559,9 +564,36 @@ paymentLauncher.launch(testSessionToken)
 ## Saved Cards
 
 - Server-only (no local caching)
-- Displayed from `/session/{id}` response
+- Displayed from `/session/{id}` response, most-recently-used first
+- One selectable row per card (brand, `•••• 1234`, expiry), then "Use a new card"
 - User selects saved card → submit with `saved_uuid` + CVV only
 - Can add local caching later without breaking changes
+
+**Removal** is session-driven. `saved_cards_config.allow_removal` on the blob
+decides whether each row carries a delete button; the merchant sets it when the
+session is created. Confirming the dialog calls
+`DELETE /saved-cards/{uuid}` with the session bearer, and the sheet then drops
+the card from the list it is showing. Only the local list is rewritten: the
+session blob is written once at session creation and never rebuilt, so a reload
+of the same session lists the card again even though the server has disabled it.
+A failed removal leaves the list alone and shows the error banner — not found,
+unauthorized and a transient 5xx all mean the sheet cannot claim the card is
+gone, and a 5xx may already have disabled it.
+
+**Preselection** is `saved_cards_config.preselect`, also merchant opt-in. When
+set, the first card in the list starts selected; otherwise the form opens on
+"Use a new card". The selection lives in `PaymentUiState`, not in the form,
+because a removal has to drop the card and drop the selection in the same update.
+
+**CVC stays mandatory for a stored card.** Issuer rules require it, and it is
+what makes preselection safe: with a card already selected, the CVV field is the
+only thing standing between an accidental tap on Pay and a charge. There is no
+one-tap path through this sheet.
+
+**Result.** A payment that stored a card comes back as
+`PayCrossResult.Success(..., savedCardToken = "tok_…")`, read from `saved_token`
+on the terminal status. It is null on every other success, including a payment
+made with a card that was already stored.
 
 ## UI Customization
 

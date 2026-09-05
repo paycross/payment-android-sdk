@@ -19,6 +19,47 @@ class PayCrossResultTest {
     }
 
     @Test
+    fun `Success carries the token of a card this payment stored`() {
+        val result = PayCrossResult.Success(
+            transactionId = "abc-123",
+            status = "success",
+            amount = 9999,
+            currency = "EUR",
+            savedCardToken = "tok_abc123"
+        )
+
+        assertEquals("tok_abc123", result.savedCardToken)
+    }
+
+    @Test
+    fun `Success without a stored card has no token`() {
+        // The default is what keeps existing Kotlin call sites compiling; the
+        // four-argument construction above is the shape merchants already have.
+        val result = PayCrossResult.Success("abc-123", "success", 9999, "EUR")
+
+        assertNull(result.savedCardToken)
+    }
+
+    @Test
+    fun `destructuring a Success still yields the original four components`() {
+        // The new member is appended, so merchant code that destructures the
+        // four it knew about is untouched. Only recompilation is required: the
+        // four-argument constructor descriptor is gone from the ABI.
+        val (transactionId, status, amount, currency) = PayCrossResult.Success(
+            transactionId = "abc-123",
+            status = "success",
+            amount = 9999,
+            currency = "EUR",
+            savedCardToken = "tok_abc123"
+        )
+
+        assertEquals("abc-123", transactionId)
+        assertEquals("success", status)
+        assertEquals(9999, amount)
+        assertEquals("EUR", currency)
+    }
+
+    @Test
     fun `Failure contains recovery action`() {
         val result = PayCrossResult.Failure(
             transactionId = "abc-123",

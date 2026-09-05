@@ -6,6 +6,8 @@ import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.PendingReason
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.models.BrowserInfo
+import com.paycross.sdk.internal.api.models.SavedCard
+import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.api.models.SessionResponse
 import com.paycross.sdk.internal.api.models.StatusResponse
@@ -14,6 +16,7 @@ import com.paycross.sdk.internal.api.models.SubmitCardRequest
 import com.paycross.sdk.internal.api.models.SubmitCardResponse
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import com.paycross.sdk.internal.repository.PaymentRepository
+import com.paycross.sdk.internal.repository.RemoveSavedCardResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -585,23 +588,208 @@ class PaymentViewModelTest {
         assertNull(vm.uiState.value.result)
     }
 
+    // --- Saved cards: preselection, removal, and the token on success ---
+
+    @Test
+    fun `preselect selects the first saved card`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+            sessionData(
+                savedCards = listOf(savedCard("card-1"), savedCard("card-2")),
+                savedCardsConfig = SavedCardsConfig(allowRemoval = false, preselect = true)
+            )
+        )
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        // The list arrives most-recently-used first, so the first entry is the
+        // one a returning shopper is most likely to want.
+        assertEquals("card-1", vm.uiState.value.selectedSavedCardUuid)
+    }
+
+    @Test
+    fun `no preselect leaves the form on a new card`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+            sessionData(
+                savedCards = listOf(savedCard("card-1")),
+                savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = false)
+            )
+        )
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.selectedSavedCardUuid)
+    }
+
+    @Test
+    fun `absent saved_cards_config never preselects`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(savedCards = listOf(savedCard("card-1"))))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.selectedSavedCardUuid)
+    }
+
+    @Test
+    fun `removing a card drops it from the list and clears the selection`() =
+        runTest(dispatcher.scheduler) {
+            coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+                sessionData(
+                    savedCards = listOf(savedCard("card-1"), savedCard("card-2")),
+                    savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = true)
+                )
+            )
+            coEvery { repository.removeSavedCard("card-1", any()) } returns
+                RemoveSavedCardResult.Removed
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceUntilIdle()
+            vm.removeSavedCard("card-1")
+            advanceUntilIdle()
+
+            val state = vm.uiState.value
+            assertEquals(listOf("card-2"), state.sessionData?.savedCards?.map { it.uuid })
+            assertNull(state.selectedSavedCardUuid)
+            assertNull(state.error)
+        }
+
+    @Test
+    fun `removing an unselected card keeps the selection`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+            sessionData(
+                savedCards = listOf(savedCard("card-1"), savedCard("card-2")),
+                savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = true)
+            )
+        )
+        coEvery { repository.removeSavedCard("card-2", any()) } returns
+            RemoveSavedCardResult.Removed
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+        vm.removeSavedCard("card-2")
+        advanceUntilIdle()
+
+        assertEquals("card-1", vm.uiState.value.selectedSavedCardUuid)
+    }
+
+    @Test
+    fun `a failed removal keeps the card and shows the banner`() = runTest(dispatcher.scheduler) {
+        // Not found, unauthorized and a transient server error are all the same
+        // to the sheet: the card is still on the list it can see, so removing it
+        // from the UI would be a lie the next session reload would contradict.
+        val outcomes = listOf(
+            RemoveSavedCardResult.NotFound,
+            RemoveSavedCardResult.Unauthorized,
+            RemoveSavedCardResult.Failed
+        )
+
+        for (outcome in outcomes) {
+            coEvery { repository.getSession(any(), any()) } returns sessionResponse(
+                sessionData(
+                    savedCards = listOf(savedCard("card-1")),
+                    savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = true)
+                )
+            )
+            coEvery { repository.removeSavedCard("card-1", any()) } returns outcome
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceUntilIdle()
+            vm.removeSavedCard("card-1")
+            advanceUntilIdle()
+
+            val state = vm.uiState.value
+            assertEquals(listOf("card-1"), state.sessionData?.savedCards?.map { it.uuid })
+            assertEquals("card-1", state.selectedSavedCardUuid)
+            assertEquals("Could not remove the card. Try again.", state.error)
+        }
+    }
+
+    @Test
+    fun `selecting a card records it on the state`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(sessionData(savedCards = listOf(savedCard("card-1"))))
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        vm.selectSavedCard("card-1")
+        assertEquals("card-1", vm.uiState.value.selectedSavedCardUuid)
+
+        vm.selectSavedCard(null)
+        assertNull(vm.uiState.value.selectedSavedCardUuid)
+    }
+
+    @Test
+    fun `success carries the saved card token`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = "tx-9")
+        coEvery { repository.getStatus("tx-9") } returns
+            StatusResponse("tx-9", "success", 9999, "EUR", null, null, savedToken = "tok_abc123")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        val result = vm.uiState.value.result as PayCrossResult.Success
+        assertEquals("tok_abc123", result.savedCardToken)
+    }
+
+    @Test
+    fun `success without a saved card token leaves it null`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = "tx-10")
+        coEvery { repository.getStatus("tx-10") } returns
+            StatusResponse("tx-10", "success", 9999, "EUR", null, null)
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceUntilIdle()
+
+        assertNull((vm.uiState.value.result as PayCrossResult.Success).savedCardToken)
+    }
+
     private fun sessionResponse(status: String, latestTransactionId: String?) =
         SessionResponse("session-123", status, latestTransactionId, null)
 
     private fun sessionResponse(data: SessionData) =
         SessionResponse("session-123", "open", null, data)
 
-    private fun sessionData(googlePay: Boolean?, accountFunding: Boolean? = null) = SessionData(
+    private fun sessionData(
+        googlePay: Boolean? = null,
+        accountFunding: Boolean? = null,
+        savedCards: List<SavedCard>? = null,
+        savedCardsConfig: SavedCardsConfig? = null
+    ) = SessionData(
         locale = null,
         returnUrl = null,
         successUrl = null,
         fieldGroups = null,
         merchantCountry = null,
         saveCardConfig = null,
-        savedCards = null,
+        savedCards = savedCards,
+        savedCardsConfig = savedCardsConfig,
         wallets = googlePay?.let { WalletsAvailability(applePay = null, googlePay = it) },
         accountFunding = accountFunding,
         googlePay = null
+    )
+
+    private fun savedCard(uuid: String, maskedPan: String = "411111******1111") = SavedCard(
+        uuid = uuid,
+        maskedPan = maskedPan,
+        cardBrand = "visa",
+        expireMonth = "12",
+        expireYear = "2030",
+        cardholderName = "JOHN DOE"
     )
 
     // A challenge status never terminates, so a poll over one has to be advanced by
