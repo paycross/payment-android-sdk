@@ -38,7 +38,7 @@ class PayButtonContrastTest {
         renderPayButton(isLoading = false)
         compose.onNodeWithText("Pay €1.00").assertIsDisplayed()
 
-        assertContentIsDark("label")
+        assertContentIsDark("label", darkerThan = 0.05f)
     }
 
     @Test
@@ -49,7 +49,11 @@ class PayButtonContrastTest {
         renderPayButton(isLoading = true)
         compose.mainClock.advanceTimeBy(400)
 
-        assertContentIsDark("spinner")
+        // The indicator strokes a thin antialiased arc, so every arc pixel is a
+        // blend of the content colour with the brand behind it and none of them
+        // reaches near-black. A black arc still lands far below the brand's own
+        // luminance; a white one would leave the band no darker than the brand.
+        assertContentIsDark("spinner", darkerThan = lightBrand.luminance() - 0.4f)
     }
 
     private fun renderPayButton(isLoading: Boolean) {
@@ -71,8 +75,12 @@ class PayButtonContrastTest {
      * Reads a central column band of the button, clear of the rounded corners and
      * of the antialiased outer edge, so neither assertion can be satisfied by
      * what sits behind the button rather than by what the button painted itself.
+     *
+     * [darkerThan] is the luminance the darkest pixel in that band must beat.
+     * Solid glyphs hold their own colour and can be held to near-black; a hairline
+     * stroke only ever paints blends and is judged against the brand instead.
      */
-    private fun assertContentIsDark(what: String) {
+    private fun assertContentIsDark(what: String, darkerThan: Float) {
         val pixels = compose.onNodeWithTag(PAY_BUTTON_TAG).captureToImage().toPixelMap()
         var darkest = 1f
         var nearWhite = 0
@@ -84,7 +92,10 @@ class PayButtonContrastTest {
             }
         }
 
-        assertTrue("expected a dark $what on a light brand, darkest pixel was $darkest", darkest < 0.05f)
+        assertTrue(
+            "expected a $what darker than $darkerThan on a light brand, darkest pixel was $darkest",
+            darkest < darkerThan
+        )
         assertTrue("expected no white $what pixels, found $nearWhite", nearWhite == 0)
     }
 }
