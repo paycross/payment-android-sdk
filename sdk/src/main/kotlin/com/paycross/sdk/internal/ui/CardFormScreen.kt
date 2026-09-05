@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import com.paycross.sdk.internal.ui.components.ExpiryField
 import com.paycross.sdk.internal.ui.components.FieldGroupsSection
 import com.paycross.sdk.internal.ui.components.GooglePaySection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
+import com.paycross.sdk.internal.ui.theme.onBrandColor
 import com.paycross.sdk.internal.util.Amounts
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
@@ -334,7 +336,7 @@ private fun ErrorMessage(message: String) {
 }
 
 @Composable
-private fun PayButton(
+internal fun PayButton(
     amount: String,
     isLoading: Boolean,
     brandColor: Color,
@@ -343,7 +345,10 @@ private fun PayButton(
     Button(
         onClick = onClick,
         enabled = !isLoading,
-        colors = ButtonDefaults.buttonColors(containerColor = brandColor),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = brandColor,
+            contentColor = onBrandColor(brandColor)
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
@@ -351,7 +356,7 @@ private fun PayButton(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color.White
+                color = LocalContentColor.current
             )
         } else {
             Text("Pay $amount")

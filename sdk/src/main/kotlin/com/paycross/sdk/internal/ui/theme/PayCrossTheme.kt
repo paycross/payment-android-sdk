@@ -15,9 +15,12 @@ internal fun payCrossColorScheme(dark: Boolean, brand: Color?): ColorScheme {
 }
 
 // Named onBrandColor rather than contentColorFor: Material 3 already exports a
-// contentColorFor and the two would collide at every call site.
+// contentColorFor and the two would collide at every call site. 0.179 is the
+// WCAG crossover, where black and white content contrast equally against the
+// background; a midpoint of 0.5 would keep white text well past the point where
+// black reads better.
 internal fun onBrandColor(background: Color): Color =
-    if (background.luminance() > 0.5f) Color.Black else Color.White
+    if (background.luminance() > 0.179f) Color.Black else Color.White
 
 @Composable
 internal fun PayCrossTheme(brand: Color?, content: @Composable () -> Unit) {

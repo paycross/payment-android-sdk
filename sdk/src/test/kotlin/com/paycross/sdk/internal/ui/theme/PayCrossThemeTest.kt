@@ -23,4 +23,19 @@ class PayCrossThemeTest {
         assertEquals(brand, payCrossColorScheme(dark = true, brand = brand).primary)
         assertEquals(brand, payCrossColorScheme(dark = false, brand = brand).primary)
     }
+
+    @Test
+    fun `light brand gets dark content`() {
+        assertEquals(Color.Black, onBrandColor(Color(0xFFFFF176)))
+    }
+
+    @Test
+    fun `dark brand gets light content`() {
+        assertEquals(Color.White, onBrandColor(Color(0xFF0D47A1)))
+    }
+
+    @Test
+    fun `mid grey brand gets dark content`() {
+        assertEquals(Color.Black, onBrandColor(Color(0xFF808080)))
+    }
 }
