@@ -19,9 +19,10 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 - The pay button's label and spinner are no longer always white. Both were
   hardcoded, so a light brand colour left near-white content on a near-white
-  button, unreadable and well under the 4.5:1 contrast minimum. The content
+  button, unreadable and well under the 4.5:1 contrast minimum. The label
   colour is now derived from the brand colour's luminance, at the WCAG
-  crossover where black and white contrast equally.
+  crossover where black and white contrast equally, and the spinner follows
+  the button's content colour.
 
 ## [0.4.0] - 2026-09-04
 
