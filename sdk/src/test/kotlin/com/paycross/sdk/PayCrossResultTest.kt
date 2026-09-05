@@ -78,4 +78,43 @@ class PayCrossResultTest {
 
         assertTrue(result is PayCrossResult.Cancelled)
     }
+
+    @Test
+    fun `Pending carries the transaction id and the reason`() {
+        val result = PayCrossResult.Pending(
+            transactionId = "abc-123",
+            reason = PendingReason.POLL_TIMEOUT
+        )
+
+        assertEquals("abc-123", result.transactionId)
+        assertEquals(PendingReason.POLL_TIMEOUT, result.reason)
+    }
+
+    @Test
+    fun `Pending can have null transactionId`() {
+        // Nothing to reconcile against, but the outcome is still unknown.
+        assertNull(PayCrossResult.Pending(null, PendingReason.RESULT_LOST).transactionId)
+    }
+
+    @Test
+    fun `Pending is not a Failure`() {
+        // The whole point of the type: merchant code that branches on Failure
+        // must not treat an unknown outcome as a decline.
+        val result: PayCrossResult = PayCrossResult.Pending("abc-123", PendingReason.SERVER_VERIFY)
+
+        assertTrue(result is PayCrossResult.Pending)
+        assertFalse(result is PayCrossResult.Failure)
+    }
+
+    @Test
+    fun `PendingReason wire names match iOS and the Flutter plugin`() {
+        // These strings cross the platform boundary verbatim, so renaming a
+        // member silently changes what a host app receives. The order is pinned
+        // too, but only so the reasons table in docs/DESIGN.md stays in step:
+        // names cross the wire, never ordinals.
+        assertEquals(
+            listOf("poll_timeout", "result_lost", "server_verify"),
+            PendingReason.entries.map { it.wireName }
+        )
+    }
 }

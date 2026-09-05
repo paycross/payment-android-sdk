@@ -9,6 +9,7 @@ import kotlinx.parcelize.Parcelize
  * This sealed class provides exhaustive handling of all possible payment outcomes:
  * - [Success]: Payment completed successfully
  * - [Failure]: Payment failed with a suggested recovery action
+ * - [Pending]: The outcome is unknown; the payment may have succeeded
  * - [Cancelled]: User cancelled the payment flow
  */
 sealed class PayCrossResult : Parcelable {
@@ -47,6 +48,21 @@ sealed class PayCrossResult : Parcelable {
         val recovery: Recovery,
         val recoveryRaw: String? = null
     ) : PayCrossResult()
+
+    /**
+     * The outcome is not known. The payment MAY have succeeded: reconcile
+     * server-side against [transactionId] before charging again.
+     *
+     * Distinct from [Failure] because the two demand opposite handling. A
+     * failure is an observed decline and the shopper can be asked to pay again;
+     * this one was never observed, so asking again risks charging twice.
+     *
+     * @property transactionId The transaction to reconcile against, or null when
+     * the sheet never got one.
+     * @property reason Why the outcome is unknown. See [PendingReason].
+     */
+    @Parcelize
+    data class Pending(val transactionId: String?, val reason: PendingReason) : PayCrossResult()
 
     /**
      * User cancelled the payment flow.

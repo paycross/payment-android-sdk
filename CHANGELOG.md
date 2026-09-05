@@ -9,6 +9,33 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed — source-incompatible, and the next release is a MINOR bump
+
+- `PayCrossResult.Pending(transactionId, reason)` is a new member of the
+  `PayCrossResult` sealed class, so an exhaustive `when (result)` in merchant
+  code needs a branch for it. It means the SDK never learned the outcome: the
+  payment MAY have succeeded, so the transaction must be reconciled
+  server-side against `transactionId` before charging again. Previously this
+  arrived as `Failure(transactionId, Recovery.VERIFY_BEFORE_RETRY)`, which
+  merchant code that branches on `Failure` reads as a decline — the one
+  outcome where treating it as one can charge a shopper twice.
+
+- `Recovery.VERIFY_BEFORE_RETRY` is no longer carried by a `Failure`. The
+  member stays in the enum, and `Recovery.fromString("verify_before_retry")`
+  still returns it, so the wire value parses and round-trips; but no result the
+  SDK produces holds it any more. Both routes to it now end in `Pending`: the
+  SDK's own poll deadline as `PendingReason.POLL_TIMEOUT`, and a failed status
+  carrying `recovery: verify_before_retry` as `PendingReason.SERVER_VERIFY`.
+  Code that matched `Recovery.VERIFY_BEFORE_RETRY` on a `Failure` still
+  compiles and is now dead; move it to the `Pending` branch.
+
+- `PendingReason` is a new public enum: `POLL_TIMEOUT`, `RESULT_LOST`,
+  `SERVER_VERIFY`. Each member's `wireName` is the value that crosses the
+  platform boundary, shared verbatim with the iOS SDK and the Flutter plugin.
+  `RESULT_LOST` is produced only by the Flutter plugin, for a result that was
+  created but lost before it reached the host app; the native SDK never
+  returns it.
+
 ### Fixed
 
 - The payment sheet follows the system dark mode. It drew a light Material

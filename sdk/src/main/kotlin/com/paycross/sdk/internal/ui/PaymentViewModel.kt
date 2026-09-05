@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonParser
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.PendingReason
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.JwtParser
@@ -369,13 +370,15 @@ internal class PaymentViewModel(
             // The deadline says the SDK never learned the outcome, not that the
             // payment failed. A cut network is indistinguishable from a blip, so
             // the loop above swallows both and simply runs out - and the
-            // authorization may well have completed meanwhile. Reporting a retry
-            // here re-collects a payment the customer has already made. The
-            // transaction id is what the merchant resolves it with out of band.
+            // authorization may well have completed meanwhile. Reporting a
+            // failure here invites a retry over a payment the customer has
+            // already made. The transaction id is what the merchant resolves it
+            // with out of band.
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    result = PayCrossResult.Failure(transactionId, Recovery.VERIFY_BEFORE_RETRY)
+                    threeDs = null,
+                    result = PayCrossResult.Pending(transactionId, PendingReason.POLL_TIMEOUT)
                 )
             }
         }
@@ -402,7 +405,22 @@ internal class PaymentViewModel(
             }
             STATUS_FAILED -> {
                 val recovery = Recovery.fromString(status.recovery)
-                if (recovery.isRetryable) {
+                if (recovery == Recovery.VERIFY_BEFORE_RETRY) {
+                    // Checked ahead of the retry branch, not folded into the
+                    // decline branch below: this status says the outcome is
+                    // unknown, so neither re-arming the form nor reporting a
+                    // failure is a correct reading of it.
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            threeDs = null,
+                            result = PayCrossResult.Pending(
+                                transactionId = status.transactionId,
+                                reason = PendingReason.SERVER_VERIFY
+                            )
+                        )
+                    }
+                } else if (recovery.isRetryable) {
                     // Re-arm the form like the checkout page does; only
                     // non-retryable declines end the payment sheet.
                     transactionId = null
