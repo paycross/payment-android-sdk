@@ -1,10 +1,16 @@
 package com.paycross.sdk.internal.ui
 
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.R
@@ -17,6 +23,8 @@ import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.util.UiText
+import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -68,15 +76,12 @@ class SheetIdentifiersTest {
                 sessionData = sessionData(),
                 selectedSavedCardUuid = null,
                 error = UiText.Resource(R.string.paycross_error_payment_failed),
-                googlePayAvailable = true,
                 onSubmit = { _, _ -> }
             )
         }
 
         listOf(
             "paycross.amount",
-            "paycross.walletButton",
-            "paycross.walletDivider",
             "paycross.savedCards",
             "paycross.savedCard.card-1",
             "paycross.savedCard.card-1.delete",
@@ -95,6 +100,31 @@ class SheetIdentifiersTest {
             // needs is that the identifier is there to be found and scrolled to.
             compose.onNodeWithTag(tag).assertExists()
         }
+    }
+
+    @Test
+    fun theWalletIdentifiersAreCarriedWhereGooglePayCanRender() {
+        // Guarded the way GooglePayButtonVisibilityTest guards the same path:
+        // Google's PayButton draws from the wallet AAR, and only a device with
+        // Play services ever reaches this state. Split out rather than folded
+        // into the walk above so that a GMS-less device skips these two ids
+        // instead of skipping the other thirteen with them.
+        val gmsAvailable = GoogleApiAvailability.getInstance()
+            .isGooglePlayServicesAvailable(InstrumentationRegistry.getInstrumentation().targetContext)
+        assumeTrue(gmsAvailable == ConnectionResult.SUCCESS)
+
+        compose.setContent {
+            CardFormScreen(
+                claims = claims,
+                sessionData = sessionData(),
+                selectedSavedCardUuid = null,
+                googlePayAvailable = true,
+                onSubmit = { _, _ -> }
+            )
+        }
+
+        compose.onNodeWithTag("paycross.walletButton").assertExists()
+        compose.onNodeWithTag("paycross.walletDivider").assertExists()
     }
 
     @Test
@@ -134,6 +164,7 @@ class SheetIdentifiersTest {
         compose.onNodeWithTag("paycross.removeDialog").assertIsDisplayed()
         compose.onNodeWithTag("paycross.removeConfirm").assertIsDisplayed()
         compose.onNodeWithTag("paycross.removeDismiss").assertIsDisplayed()
+        assertPublishesItsTags("paycross.removeDialog")
     }
 
     @Test
@@ -145,6 +176,29 @@ class SheetIdentifiersTest {
         compose.onNodeWithTag("paycross.cancelDialog").assertIsDisplayed()
         compose.onNodeWithTag("paycross.cancelConfirm").assertIsDisplayed()
         compose.onNodeWithTag("paycross.cancelDismiss").assertIsDisplayed()
+        assertPublishesItsTags("paycross.cancelDialog")
+    }
+
+    /**
+     * A tag becomes a resource id in a UiAutomator dump only when the flag is
+     * set in the same window, and Compose stops looking at the semantics root it
+     * finds the node under. A dialog is a window of its own, so the sheet's copy
+     * of the flag does not reach it — and nothing else in this suite would
+     * notice, because the Compose test rule reads every window whether the flag
+     * is there or not.
+     *
+     * This asserts the flag, not the dump. Only the rig can see a dump, and the
+     * E2E driver task is where these six ids get exercised for real.
+     */
+    @OptIn(ExperimentalComposeUiApi::class)
+    private fun assertPublishesItsTags(tag: String) {
+        assertEquals(
+            true,
+            compose.onNodeWithTag(tag)
+                .fetchSemanticsNode()
+                .config
+                .getOrNull(SemanticsPropertiesAndroid.TestTagsAsResourceId)
+        )
     }
 
     @Test

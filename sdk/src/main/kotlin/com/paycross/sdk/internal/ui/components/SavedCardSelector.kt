@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
@@ -30,17 +31,17 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.SavedCard
+import com.paycross.sdk.internal.ui.MIN_TOUCH_TARGET
 import com.paycross.sdk.internal.ui.TestTags
+import com.paycross.sdk.internal.ui.rememberPublishTestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalIconTint
 
 private const val UNKNOWN_BRAND = "unknown"
-
-/** Material's minimum touch target, and the floor the sheet holds its controls to. */
-private val DELETE_TOUCH_TARGET = 48.dp
 
 /**
  * The stored-card picker: one selectable row per card, then "Use a new card".
@@ -142,7 +143,7 @@ private fun SavedCardRow(
                 // reads, so the 48dp floor is set here rather than assumed.
                 modifier = Modifier
                     .testTag(TestTags.savedCardDelete(card.uuid))
-                    .size(DELETE_TOUCH_TARGET)
+                    .size(MIN_TOUCH_TARGET)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
@@ -173,6 +174,7 @@ private fun NewCardRow(selected: Boolean, onSelect: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun RemoveCardDialog(
     card: SavedCard,
@@ -180,14 +182,20 @@ private fun RemoveCardDialog(
     onDismiss: () -> Unit
 ) {
     val title = pcStringResource(R.string.paycross_remove_card_title)
+    val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
         // paneTitle rather than a contentDescription: the dialog is a window of
         // its own, and a description here would merge the two buttons into one
         // unreadable node. TalkBack announces a pane by its title when it opens.
+        // Being its own window is also why the resource-id flag is set again:
+        // the one on the sheet's root does not reach across.
         modifier = Modifier
             .testTag(TestTags.REMOVE_DIALOG)
-            .semantics { paneTitle = title },
+            .semantics {
+                paneTitle = title
+                testTagsAsResourceId = publishTestTags
+            },
         title = { Text(title) },
         text = {
             Text(pcStringResource(R.string.paycross_remove_card_message, card.rowTitle()))

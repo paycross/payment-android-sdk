@@ -40,7 +40,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -292,12 +294,8 @@ private fun PaymentScreen(
     // FLAG_SECURE blanks screenshots, so the E2E rig drives the sheet from
     // UiAutomator dumps instead; without this the testTags never reach the view
     // hierarchy as resource ids and nothing in the sheet is addressable there.
-    // Debug builds only: in a merchant's release build these ids would publish
-    // the sheet's structure, and the saved-card tags carry a card uuid, to any
-    // accessibility service on the device.
-    val publishTestTags = remember(context) {
-        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-    }
+    // This covers the sheet's own window only — each dialog sets it again.
+    val publishTestTags = rememberPublishTestTags()
 
     Box(
         modifier = Modifier
@@ -394,10 +392,16 @@ internal fun LoadingOverlay() {
     Surface(
         // One node with a name, rather than a spinner and a caption a screen
         // reader steps through separately while the sheet is blocked anyway.
+        // Announced like the decline banner: the overlay appears under a shopper
+        // who has just tapped Pay, and without a live region they would have to
+        // go exploring to find out the sheet had gone busy.
         modifier = Modifier
             .fillMaxSize()
             .testTag(TestTags.LOADING)
-            .semantics(mergeDescendants = true) { contentDescription = processing },
+            .semantics(mergeDescendants = true) {
+                contentDescription = processing
+                liveRegion = LiveRegionMode.Polite
+            },
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -413,20 +417,26 @@ internal fun LoadingOverlay() {
 // Internal so the instrumented suite can stand it up on its own: a dialog runs
 // in a sub-composition of its own window, which is exactly where a locale
 // carried on LocalContext would have stopped.
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun CancelConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val title = pcStringResource(R.string.paycross_cancel_payment_title)
+    val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
         // paneTitle rather than a contentDescription: a description on a dialog
         // merges its buttons away, while a pane title is what TalkBack reads
-        // when the window opens.
+        // when the window opens. The resource-id flag is set again here because
+        // the dialog is its own window, and the sheet's copy does not reach it.
         modifier = Modifier
             .testTag(TestTags.CANCEL_DIALOG)
-            .semantics { paneTitle = title },
+            .semantics {
+                paneTitle = title
+                testTagsAsResourceId = publishTestTags
+            },
         title = { Text(title) },
         text = { Text(pcStringResource(R.string.paycross_cancel_payment_message)) },
         confirmButton = {

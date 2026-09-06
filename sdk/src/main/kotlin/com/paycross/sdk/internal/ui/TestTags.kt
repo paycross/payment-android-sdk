@@ -1,5 +1,10 @@
 package com.paycross.sdk.internal.ui
 
+import android.content.pm.ApplicationInfo
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+
 /**
  * The identifiers a merchant's UI tests address the sheet by.
  *
@@ -8,10 +13,15 @@ package com.paycross.sdk.internal.ui
  * merchant writes one selector per element for both platforms. Renaming one is a
  * breaking change and belongs in the changelog.
  *
- * They reach a UiAutomator tree only in a debuggable build — `PaymentActivity`
- * gates `testTagsAsResourceId` on `FLAG_DEBUGGABLE`, because a release build
- * would hand the sheet's structure, and a saved card's uuid with it, to any
- * accessibility service on the device.
+ * They reach a UiAutomator tree only in a debuggable build — see
+ * [rememberPublishTestTags] — because a release build would hand the sheet's
+ * structure, and a saved card's uuid with it, to any accessibility service on
+ * the device.
+ *
+ * A tag reaches a dump only if the flag is set in the same window. The sheet
+ * sets it on its root and each dialog sets it on its own; the select field's
+ * dropdown is a third window and sets it nowhere, so a tag attached in that
+ * popup would be addressable from a Compose test and invisible to a dump.
  *
  * Two names in the cross-platform set have nothing to sit on here:
  * `paycross.brand` and `paycross.threeDSCancel`. iOS draws a brand badge beside
@@ -55,7 +65,18 @@ internal object TestTags {
 
     fun savedCardDelete(uuid: String): String = "${savedCard(uuid)}.delete"
 
-    /** One merchant-configured field, named by the group and field the server sent. */
+    /**
+     * One merchant-configured field, named by the group and field the server
+     * sent.
+     *
+     * Joined with dots to match iOS, which builds the same string, so neither
+     * half may contain one: a field called `city.error` in group `billing`
+     * would otherwise produce the identifier of `city`'s error node. A space
+     * would likewise put a space in a resource id. The README says so; the
+     * codebase keys the same pair with a pipe internally
+     * (`FieldGroupInputs.kt`) precisely because a dot is not separator-safe,
+     * and only the cross-platform contract keeps this one on dots.
+     */
     fun field(group: String, name: String): String = "paycross.field.$group.$name"
 
     /**
@@ -64,4 +85,21 @@ internal object TestTags {
      * does not see it at all — there, the field's error state is the signal.
      */
     fun fieldError(group: String, name: String): String = "${field(group, name)}.error"
+}
+
+/**
+ * Whether this build may publish its test tags as resource ids.
+ *
+ * Read per window rather than once for the sheet: Compose walks a node's parents
+ * looking for the flag and stops at the semantics root it is in, and a dialog is
+ * a window with a root of its own — so a flag set only on the sheet leaves every
+ * dialog tag out of a UiAutomator dump while a Compose test, which sees every
+ * window, still finds it. Green tests are not evidence for this one.
+ */
+@Composable
+internal fun rememberPublishTestTags(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    }
 }
