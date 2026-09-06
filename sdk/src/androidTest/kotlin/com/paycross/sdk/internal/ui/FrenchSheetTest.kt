@@ -19,7 +19,6 @@ import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.ui.components.CardNumberField
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
-import com.paycross.sdk.internal.ui.components.savedCardDeleteTag
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -234,7 +233,7 @@ class FrenchSheetTest {
         compose.onNodeWithContentDescription("Supprimer la carte, Visa •••• 0366")
             .assertIsDisplayed()
 
-        compose.onNodeWithTag(savedCardDeleteTag("card-1")).performClick()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-1")).performClick()
 
         compose.onNodeWithText("Supprimer cette carte ?").assertIsDisplayed()
         compose.onNodeWithText(

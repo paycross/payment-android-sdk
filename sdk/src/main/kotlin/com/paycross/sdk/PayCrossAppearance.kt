@@ -65,7 +65,8 @@ data class PayCrossShapes(
  * @property background Falls back to [PayCrossColors.brand].
  * @property textColor Falls back to [PayCrossColors.onBrand].
  * @property cornerRadius Falls back to [PayCrossShapes.buttonCornerRadius].
- * @property height In dp. Defaults to 56.
+ * @property height In dp. Defaults to 56, and is a minimum rather than a fixed
+ * size — the button grows if the label needs more room at large text sizes.
  */
 data class PayCrossPrimaryButton(
     @ColorInt val background: Int? = null,

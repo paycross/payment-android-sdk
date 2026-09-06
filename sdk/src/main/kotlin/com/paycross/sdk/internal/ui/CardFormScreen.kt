@@ -7,16 +7,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
@@ -53,7 +65,21 @@ import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 
-private val PAY_BUTTON_HEIGHT = 56.dp
+/** The Pay button's resting height, and a floor rather than a fixed size. */
+private val PAY_BUTTON_MIN_HEIGHT = 56.dp
+
+/**
+ * The floor under the saved-card CVV box.
+ *
+ * A minimum rather than a fixed width, and the minimum itself is the lesser
+ * half of its job. Given no width at all the field takes
+ * `OutlinedTextFieldDefaults.MinWidth`, 280dp, right across the sheet, because
+ * its `defaultMinSize` applies whenever the incoming minimum is zero. Any
+ * non-zero minimum defeats that and leaves the box to size to its own label and
+ * padding — 132dp at the default text size, and more as the shopper turns their
+ * text up, rather than the 100dp that used to squeeze it.
+ */
+private val SAVED_CARD_CVV_MIN_WIDTH = 100.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
@@ -264,12 +290,20 @@ internal fun CardFormScreen(
     }
 }
 
+/**
+ * The amount is its own label — a contentDescription here could only repeat it,
+ * and would replace it if it ever drifted. What it was missing is the heading
+ * role, which is how a screen reader jumps to the top of the sheet.
+ */
 @Composable
 private fun AmountHeader(amount: String) {
     Text(
         text = amount,
         style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.AMOUNT)
+            .semantics { heading() },
         textAlign = TextAlign.Center
     )
 }
@@ -324,13 +358,27 @@ private fun NewCardForm(
     }
 }
 
+/**
+ * The toggle is on the row, not on the box: a bare [Checkbox] carries no label
+ * of its own, so a screen reader announced an unnamed checkbox beside an inert
+ * sentence. Moving it up merges the two into one control the caption names, and
+ * gives the whole row a fingertip's worth of height.
+ */
 @Composable
 private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = MIN_TOUCH_TARGET)
+            .toggleable(
+                value = checked,
+                role = Role.Checkbox,
+                onValueChange = onCheckedChange
+            )
+            .testTag(TestTags.SAVE_CARD)
     ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Checkbox(checked = checked, onCheckedChange = null)
         Text(pcStringResource(R.string.paycross_save_this_card))
     }
 }
@@ -355,17 +403,43 @@ private fun SavedCardCvvInput(
         cardType = cvvCardType,
         isError = showErrors && !isCvvValid,
         onValueChange = onCvvChange,
-        modifier = Modifier.width(100.dp)
+        modifier = Modifier.widthIn(min = SAVED_CARD_CVV_MIN_WIDTH)
     )
 }
 
+/**
+ * A decline has to reach a shopper who is not looking at the banner and one who
+ * cannot tell the red text from the black. The live region announces it the
+ * moment it appears, without stealing focus from the field being corrected, and
+ * the icon carries the same meaning as the colour for anyone who cannot see it.
+ *
+ * The icon is decorative: the sentence beside it says everything the icon means,
+ * and a description would be read out before it.
+ */
 @Composable
 private fun ErrorMessage(message: UiText) {
-    Text(
-        text = pcStringResource(message),
-        color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodySmall
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.ERROR_BANNER)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Warning,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier
+                .size(16.dp)
+                .testTag(TestTags.ERROR_BANNER_ICON)
+        )
+        Text(
+            text = pcStringResource(message),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
 }
 
 @Composable
@@ -375,6 +449,7 @@ internal fun PayButton(
     onClick: () -> Unit
 ) {
     val button = LocalPayCrossAppearance.current?.primaryButton
+    val label = pcStringResource(R.string.paycross_pay_amount, amount)
     Button(
         onClick = onClick,
         enabled = !isLoading,
@@ -387,9 +462,20 @@ internal fun PayButton(
             disabledContainerColor = button?.disabledBackground ?: Color.Unspecified,
             disabledContentColor = button?.disabledTextColor ?: Color.Unspecified
         ),
+        // A minimum, not a height, and a merchant's own value is read the same
+        // way: at the platform's accessibility font sizes the label needs more
+        // room than 56dp, and a fixed height cropped it instead of growing.
         modifier = Modifier
             .fillMaxWidth()
-            .height(button?.height ?: PAY_BUTTON_HEIGHT)
+            .heightIn(min = button?.height ?: PAY_BUTTON_MIN_HEIGHT)
+            .testTag(TestTags.PAY_BUTTON)
+            // Only while the spinner covers the label, which is otherwise the
+            // only thing that says what the button does. Setting it always
+            // would replace the label with the same words, and would take the
+            // label out of the accessibility tree that the E2E driver reads.
+            .then(
+                if (isLoading) Modifier.semantics { contentDescription = label } else Modifier
+            )
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -397,7 +483,7 @@ internal fun PayButton(
                 color = LocalContentColor.current
             )
         } else {
-            Text(pcStringResource(R.string.paycross_pay_amount, amount))
+            Text(label)
         }
     }
 }

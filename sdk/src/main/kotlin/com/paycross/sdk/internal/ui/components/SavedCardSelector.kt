@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -22,22 +23,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.SavedCard
+import com.paycross.sdk.internal.ui.MIN_TOUCH_TARGET
+import com.paycross.sdk.internal.ui.TestTags
+import com.paycross.sdk.internal.ui.rememberPublishTestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalIconTint
-
-internal const val USE_NEW_CARD_TAG = "paycross.useNewCard"
-
-internal fun savedCardRowTag(uuid: String): String = "paycross.savedCard.$uuid"
-
-internal fun savedCardDeleteTag(uuid: String): String = "paycross.savedCard.$uuid.delete"
 
 private const val UNKNOWN_BRAND = "unknown"
 
@@ -74,7 +76,7 @@ internal fun SavedCardSelector(
     // after a removal completes.
     var pendingRemovalUuid by rememberSaveable { mutableStateOf<String?>(null) }
 
-    Column(modifier = modifier.selectableGroup()) {
+    Column(modifier = modifier.selectableGroup().testTag(TestTags.SAVED_CARDS)) {
         savedCards.forEach { card ->
             SavedCardRow(
                 card = card,
@@ -113,7 +115,7 @@ private fun SavedCardRow(
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .testTag(savedCardRowTag(card.uuid))
+            .testTag(TestTags.savedCard(card.uuid))
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -136,7 +138,12 @@ private fun SavedCardRow(
             IconButton(
                 onClick = onRemoveClick,
                 enabled = removalEnabled,
-                modifier = Modifier.testTag(savedCardDeleteTag(card.uuid))
+                // Material's icon button measures 40dp, and its interactive-size
+                // enforcement does not reach the bounds an accessibility service
+                // reads, so the 48dp floor is set here rather than assumed.
+                modifier = Modifier
+                    .testTag(TestTags.savedCardDelete(card.uuid))
+                    .size(MIN_TOUCH_TARGET)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
@@ -158,7 +165,7 @@ private fun NewCardRow(selected: Boolean, onSelect: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .testTag(USE_NEW_CARD_TAG)
+            .testTag(TestTags.USE_NEW_CARD)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -167,25 +174,45 @@ private fun NewCardRow(selected: Boolean, onSelect: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun RemoveCardDialog(
     card: SavedCard,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = pcStringResource(R.string.paycross_remove_card_title)
+    val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(pcStringResource(R.string.paycross_remove_card_title)) },
+        // paneTitle rather than a contentDescription: the dialog is a window of
+        // its own, and a description here would merge the two buttons into one
+        // unreadable node. TalkBack announces a pane by its title when it opens.
+        // Being its own window is also why the resource-id flag is set again:
+        // the one on the sheet's root does not reach across.
+        modifier = Modifier
+            .testTag(TestTags.REMOVE_DIALOG)
+            .semantics {
+                paneTitle = title
+                testTagsAsResourceId = publishTestTags
+            },
+        title = { Text(title) },
         text = {
             Text(pcStringResource(R.string.paycross_remove_card_message, card.rowTitle()))
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag(TestTags.REMOVE_CONFIRM)
+            ) {
                 Text(pcStringResource(R.string.paycross_remove_card_confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(TestTags.REMOVE_DISMISS)
+            ) {
                 Text(pcStringResource(R.string.paycross_remove_card_keep))
             }
         }

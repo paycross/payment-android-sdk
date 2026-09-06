@@ -16,16 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.wallet.button.ButtonConstants
 import com.google.android.gms.wallet.button.ButtonOptions
 import com.google.android.gms.wallet.button.PayButton
 import com.paycross.sdk.R
+import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
-
-internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
 
 /**
  * The button variant Google pairs with a surface of the given mode: a dark
@@ -82,17 +82,25 @@ internal fun GooglePaySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .testTag(GOOGLE_PAY_BUTTON_TAG)
+                .testTag(TestTags.WALLET_BUTTON)
         )
 
-        OrPayWithCardDivider(modifier = Modifier.padding(top = 16.dp))
+        OrPayWithCardDivider(
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .testTag(TestTags.WALLET_DIVIDER)
+        )
     }
 }
 
 @Composable
 private fun OrPayWithCardDivider(modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        // Merged so the caption names the whole rule rather than leaving three
+        // nodes, two of them decorative, for a screen reader to step through.
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))

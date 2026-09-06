@@ -125,6 +125,35 @@ jobs:
       - name: Public ABI matches the committed dump
         run: ./gradlew :sdk:apiCheck
 
+      # A merchant's UI tests address the sheet by these strings and iOS
+      # publishes the same ones, so a name nobody attached is a promise nobody
+      # keeps. The rendered-sheet test covers the elements a Compose test can
+      # stand up on their own; paycross.sheet and paycross.threeDS live inside
+      # PaymentScreen, which needs a session and a payment in flight.
+      - name: Every test identifier is attached to an element
+        run: |
+          set -euo pipefail
+          status=0
+          tags=sdk/src/main/kotlin/com/paycross/sdk/internal/ui/TestTags.kt
+          names=$(grep -oE 'const val [A-Z_]+' "$tags" | awk '{print $3}')
+          # Without this the loop runs zero times and the step goes green having
+          # checked nothing, which is what a moved or renamed file would do.
+          count=$(echo "$names" | grep -c . || true)
+          if [ "$count" -lt 20 ]; then
+            echo "::error::found $count identifiers in $tags, expected at least 20 - has it moved?"
+            exit 1
+          fi
+          for name in $names; do
+            # Excluding the declaring file: a KDoc reference like [TestTags.SHEET]
+            # inside it must not stand in for an element actually carrying the tag.
+            if ! grep -rq "TestTags\.$name\b" sdk/src/main/kotlin \
+                 --include='*.kt' --exclude=TestTags.kt; then
+              echo "::error::TestTags.$name is declared but attached to nothing"
+              status=1
+            fi
+          done
+          exit $status
+
       # A type that appears in a public signature must arrive on the consumer's
       # compile classpath. ActivityResultContract behind `implementation` is what
       # made PayCrossContract unusable from any external module.

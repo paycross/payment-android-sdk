@@ -4,7 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.internal.ui.components.CardNumberField
@@ -33,10 +33,10 @@ class CardInputTypingTest {
             CardNumberField(value = typed.value, onValueChange = { typed.value = it })
         }
 
-        typeOneKeyAtATime(CARD_NUMBER, "1234567890123456")
+        typeOneKeyAtATime(TestTags.CARD_NUMBER, "1234567890123456")
 
         assertEquals("1234567890123456", typed.value)
-        assertEquals("1234 5678 9012 3456", displayedText(CARD_NUMBER))
+        assertEquals("1234 5678 9012 3456", displayedText(TestTags.CARD_NUMBER))
     }
 
     @Test
@@ -46,10 +46,10 @@ class CardInputTypingTest {
             CardNumberField(value = typed.value, onValueChange = { typed.value = it })
         }
 
-        typeOneKeyAtATime(CARD_NUMBER, "4111111111170000")
+        typeOneKeyAtATime(TestTags.CARD_NUMBER, "4111111111170000")
 
         assertEquals("4111111111170000", typed.value)
-        assertEquals("4111 1111 1117 0000", displayedText(CARD_NUMBER))
+        assertEquals("4111 1111 1117 0000", displayedText(TestTags.CARD_NUMBER))
     }
 
     @Test
@@ -59,10 +59,10 @@ class CardInputTypingTest {
             CardNumberField(value = typed.value, onValueChange = { typed.value = it })
         }
 
-        typeOneKeyAtATime(CARD_NUMBER, "6011111111111111117")
+        typeOneKeyAtATime(TestTags.CARD_NUMBER, "6011111111111111117")
 
         assertEquals("6011111111111111117", typed.value)
-        assertEquals("6011 1111 1111 1111 117", displayedText(CARD_NUMBER))
+        assertEquals("6011 1111 1111 1111 117", displayedText(TestTags.CARD_NUMBER))
     }
 
     @Test
@@ -72,32 +72,26 @@ class CardInputTypingTest {
             ExpiryField(value = typed.value, onValueChange = { typed.value = it })
         }
 
-        typeOneKeyAtATime(EXPIRY, "1228")
+        typeOneKeyAtATime(TestTags.EXPIRY, "1228")
 
         assertEquals("1228", typed.value)
-        assertEquals("12/28", displayedText(EXPIRY))
+        assertEquals("12/28", displayedText(TestTags.EXPIRY))
     }
 
-    private fun typeOneKeyAtATime(contentDescription: String, digits: String) {
+    private fun typeOneKeyAtATime(tag: String, digits: String) {
         digits.forEach { digit ->
-            compose.onNodeWithContentDescription(contentDescription)
-                .performTextInput(digit.toString())
+            compose.onNodeWithTag(tag).performTextInput(digit.toString())
             compose.waitForIdle()
         }
     }
 
     // What TalkBack announces and what a uiautomator dump reports as the node's
     // text, so the grouping has to survive here even though the state is digits.
-    private fun displayedText(contentDescription: String): String =
-        compose.onNodeWithContentDescription(contentDescription)
+    private fun displayedText(tag: String): String =
+        compose.onNodeWithTag(tag)
             .fetchSemanticsNode()
             .config
             .getOrNull(SemanticsProperties.EditableText)
             ?.text
             .orEmpty()
-
-    private companion object {
-        const val CARD_NUMBER = "Card number input"
-        const val EXPIRY = "Expiry date input"
-    }
 }

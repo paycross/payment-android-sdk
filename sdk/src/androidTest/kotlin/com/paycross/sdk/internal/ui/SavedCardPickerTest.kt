@@ -10,9 +10,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
-import com.paycross.sdk.internal.ui.components.USE_NEW_CARD_TAG
-import com.paycross.sdk.internal.ui.components.savedCardDeleteTag
-import com.paycross.sdk.internal.ui.components.savedCardRowTag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -53,9 +50,9 @@ class SavedCardPickerTest {
             )
         }
 
-        compose.onNodeWithTag(savedCardRowTag("card-1")).assertIsDisplayed().assertIsSelected()
-        compose.onNodeWithTag(savedCardRowTag("card-2")).assertIsDisplayed()
-        compose.onNodeWithTag(USE_NEW_CARD_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(TestTags.savedCard("card-1")).assertIsDisplayed().assertIsSelected()
+        compose.onNodeWithTag(TestTags.savedCard("card-2")).assertIsDisplayed()
+        compose.onNodeWithTag(TestTags.USE_NEW_CARD).assertIsDisplayed()
         compose.onNodeWithText("Visa •••• 0366").assertIsDisplayed()
         compose.onNodeWithText("American Express •••• 1007").assertIsDisplayed()
     }
@@ -71,8 +68,8 @@ class SavedCardPickerTest {
             )
         }
 
-        compose.onNodeWithTag(savedCardDeleteTag("card-1")).assertDoesNotExist()
-        compose.onNodeWithTag(savedCardDeleteTag("card-2")).assertDoesNotExist()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-1")).assertDoesNotExist()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-2")).assertDoesNotExist()
     }
 
     @Test
@@ -89,8 +86,8 @@ class SavedCardPickerTest {
 
         // Shown, so the rows do not reflow under the shopper mid-authorization,
         // but dead to a tap.
-        compose.onNodeWithTag(savedCardDeleteTag("card-1")).assertIsDisplayed().assertIsNotEnabled()
-        compose.onNodeWithTag(savedCardDeleteTag("card-2")).assertIsNotEnabled()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-1")).assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-2")).assertIsNotEnabled()
     }
 
     @Test
@@ -107,12 +104,12 @@ class SavedCardPickerTest {
             )
         }
 
-        compose.onNodeWithTag(savedCardDeleteTag("card-2")).performClick()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-2")).performClick()
         // The removal is destructive and irreversible, so the tap alone must not
         // fire it: the dialog stands between the icon and the callback.
         assertNull(removed)
 
-        compose.onNodeWithText("Remove").performClick()
+        compose.onNodeWithTag(TestTags.REMOVE_CONFIRM).performClick()
         assertEquals("card-2", removed)
     }
 
@@ -130,11 +127,11 @@ class SavedCardPickerTest {
             )
         }
 
-        compose.onNodeWithTag(savedCardDeleteTag("card-1")).performClick()
-        compose.onNodeWithText("Keep").performClick()
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-1")).performClick()
+        compose.onNodeWithTag(TestTags.REMOVE_DISMISS).performClick()
 
         assertNull(removed)
-        compose.onNodeWithTag(savedCardRowTag("card-1")).assertIsDisplayed()
+        compose.onNodeWithTag(TestTags.savedCard("card-1")).assertIsDisplayed()
     }
 
     @Test
@@ -149,8 +146,8 @@ class SavedCardPickerTest {
             )
         }
 
-        compose.onNodeWithTag(savedCardRowTag("card-2")).performClick()
-        compose.onNodeWithTag(USE_NEW_CARD_TAG).performClick()
+        compose.onNodeWithTag(TestTags.savedCard("card-2")).performClick()
+        compose.onNodeWithTag(TestTags.USE_NEW_CARD).performClick()
 
         assertEquals(listOf("card-2", null), picked)
     }

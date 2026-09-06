@@ -18,7 +18,49 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   **recompiled** rather than swapped in, and Java callers — which have no default
   arguments — must pass the extra argument.
 
+### Changed — source-compatible, but UI tests that name elements will break
+
+- **Every element in the sheet now carries a `paycross.*` test identifier**, the
+  same string as iOS. The one Android name that existed before,
+  `google_pay_button`, is **gone**; it is `paycross.walletButton`. The saved-card
+  identifiers Train 2 shipped are unchanged. The full list is in the README.
+  No merchant is onboarded, so nothing keeps the old name.
+
+  Three identifiers in the shared scheme have **no Android element behind them**,
+  and a cross-platform test looking for any of them will find nothing here:
+  `paycross.brand`, the brand badge iOS draws beside the card number;
+  `paycross.threeDSCancel`, the Cancel button iOS puts over the 3-D Secure
+  challenge; and `paycross.cancel`, iOS's Cancel button in the sheet chrome. The
+  Android sheet has no close control of its own — it is cancelled with the system
+  back gesture, which the SDK catches to raise the cancel dialog. Press back and
+  use `paycross.cancelConfirm`.
+
+- **The Pay button's height is a minimum rather than a fixed size**, and a height
+  set through `PayCrossAppearance.primaryButton` is read the same way. At the
+  platform's accessibility text sizes the button grows instead of cropping its
+  label. A merchant who pinned a height to keep a long currency string on one
+  line will see the button grow instead.
+
+- **The save-card toggle is the whole row**, not just the checkbox: tapping the
+  caption toggles it, and the row is at least 48dp tall.
+
+- **The saved-card card-removal button is a 48dp touch target**, up from
+  Material's 40dp. The icon it draws is unchanged; only the area that accepts a
+  tap grows, which can make a saved-card row slightly taller.
+
+- **The saved-card CVV box is its own natural width**, around 132dp at the
+  default text size instead of a fixed 100dp that squeezed its label, and it
+  grows with the text size. The 100dp is now a floor rather than a fixed width.
+
 ### Added
+
+- **An accessibility floor**, documented in the README and asserted by the
+  instrumented suite. Every control is named; a decline and a wait are each
+  announced through a polite live region, and the decline carries a warning
+  glyph so colour is not its only signal; a card field speaks its label, its
+  name and its error state as one node; the Pay button keeps its name while the
+  spinner covers its label; the saved-card CVV box grows with the text size;
+  the amount is a heading; every control is at least a 48dp touch target.
 
 - **French.** Every string the sheet draws now lives in
   `res/values/strings.xml`, with a `values-fr` translation. Thirty-three keys,
