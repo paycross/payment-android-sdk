@@ -9,6 +9,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-06
+
 ### Changed — binary-incompatible, and the next release is a MINOR bump
 
 - `PayCross.init` gains a sixth parameter, `locale: String?`, appended with a
@@ -412,7 +414,8 @@ Each entry here names what stops compiling and what to do about it.
   `VisualTransformation` over the raw digits. Pasted and prefilled numbers were
   never affected.
 
-[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/paycross/payment-android-sdk/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/paycross/payment-android-sdk/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/paycross/payment-android-sdk/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/paycross/payment-android-sdk/compare/v0.4.0...v0.5.0
