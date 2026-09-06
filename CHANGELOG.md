@@ -55,6 +55,15 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ### Fixed
 
+- Text the sheet draws without an explicit colour is no longer black in dark
+  mode. Material leaves `LocalContentColor` black until a `Surface` sets it, and
+  the sheet's root was a plain `Box`, so under the dark mode that shipped in
+  0.5.0 the amount header, the saved-card titles, "Use a new card", the
+  save-card label, the CVV prompt, the field-group labels and the processing
+  overlay's text were all painted black on a dark ground. The sheet now draws on
+  a `Surface`, which is also what carries a merchant's `surface` colour to the
+  window rather than leaving it framed by a system-coloured band.
+
 - The Google Pay button follows the sheet's mode. `ButtonTheme.DARK` was
   hardcoded, so under the dark mode that shipped in 0.5.0 the button kept
   Google's dark variant and all but disappeared into the surface behind it.

@@ -706,7 +706,7 @@ before core started publishing the key arrives without it.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `brand_color` | string | `#RRGGBB`, the merchant's brand colour |
+| `brand_color` | string | The merchant's brand colour, as `#RRGGBB` or `#RGB`. The hash is required and eight digits are refused |
 
 The SDK uses it as the sheet's brand colour when the merchant's app passes no
 appearance of its own, so a colour set once in the back office themes the

@@ -133,12 +133,18 @@ internal object AppearanceResolver {
         if (background.luminance() > 0.179f) Color.Black else Color.White
 
     /**
-     * `#RRGGBB` or `#RGB`, with or without the hash and in either case. Anything
-     * else is null: a brand colour the back office cannot express costs the
-     * colour, not the sheet.
+     * `#RRGGBB` or `#RGB`, in either case. The hash is required and eight digits
+     * are refused: core normalises the field to `#RRGGBB` before it reaches the
+     * blob, so anything else is a value nobody meant, and iOS parses the same
+     * two shapes. Alpha has no meaning on a brand colour the sheet fills with.
+     *
+     * Anything unparseable is null, which costs the colour and nothing else.
      */
     fun parseHexColor(hex: String?): Color? {
-        val digits = hex?.trim()?.removePrefix("#") ?: return null
+        val trimmed = hex?.trim() ?: return null
+        if (!trimmed.startsWith("#")) return null
+
+        val digits = trimmed.removePrefix("#")
         if (digits.length != HEX_SHORT && digits.length != HEX_FULL) return null
         if (!digits.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) return null
 

@@ -270,14 +270,29 @@ class AppearanceResolverTest {
     }
 
     @Test
-    fun `hex parsing tolerates case, whitespace and a missing hash`() {
-        assertEquals(Color(0xFF1E88E5), AppearanceResolver.parseHexColor(" 1e88e5 "))
+    fun `hex parsing tolerates case and surrounding whitespace`() {
+        assertEquals(Color(0xFF1E88E5), AppearanceResolver.parseHexColor(" #1e88e5 "))
+    }
+
+    @Test
+    fun `the hash is required`() {
+        assertNull(AppearanceResolver.parseHexColor("1E88E5"))
+        assertNull(AppearanceResolver.parseHexColor("0AF"))
+    }
+
+    @Test
+    fun `eight digits are refused`() {
+        // Core normalises the field to #RRGGBB, and alpha has no meaning on a
+        // colour the sheet fills a button with.
+        assertNull(AppearanceResolver.parseHexColor("#1E88E5FF"))
+        assertNull(AppearanceResolver.parseHexColor("#FF1E88E5"))
     }
 
     @Test
     fun `invalid hex parses to null`() {
         assertNull(AppearanceResolver.parseHexColor(null))
         assertNull(AppearanceResolver.parseHexColor(""))
+        assertNull(AppearanceResolver.parseHexColor("#"))
         assertNull(AppearanceResolver.parseHexColor("#12345"))
         assertNull(AppearanceResolver.parseHexColor("#GGGGGG"))
         assertNull(AppearanceResolver.parseHexColor("rebeccapurple"))

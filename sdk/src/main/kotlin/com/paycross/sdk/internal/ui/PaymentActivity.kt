@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -68,6 +70,8 @@ internal class PaymentActivity : ComponentActivity() {
     private val viewModel: PaymentViewModel by viewModels {
         viewModelFactory { initializer { PaymentViewModel(createSavedStateHandle()) } }
     }
+
+    private val loggedContrastWarnings = mutableSetOf<String>()
 
     // The window background is a resource-qualified theme rather than something
     // Compose draws, so a pinned mode has to reach the resources before the
@@ -107,16 +111,32 @@ internal class PaymentActivity : ComponentActivity() {
             val resolved = remember(appearance, serverBrand, dark) {
                 AppearanceResolver.resolve(appearance, serverBrand, dark)
             }
-            LaunchedEffect(resolved) { warnAboutContrast(resolved) }
+            LaunchedEffect(resolved) {
+                // The window is themed from a resource, so without this the
+                // merchant's surface is framed by a system-coloured band and
+                // shows one before Compose draws its first frame.
+                window.setBackgroundDrawable(
+                    ColorDrawable(resolved.colorScheme.background.toArgb())
+                )
+                warnAboutContrast(resolved)
+            }
 
             PayCrossTheme(appearance = resolved) {
-                PaymentScreen(
-                    viewModel = viewModel,
-                    onCancel = {
-                        finishWithResult(PayCrossResult.Cancelled(viewModel.lastTransactionId))
-                    },
-                    onResult = { finishWithResult(it) }
-                )
+                // Material leaves LocalContentColor black until a Surface sets
+                // it, so this is what any text drawn without an explicit colour
+                // reads from, as well as the sheet's own ground.
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    PaymentScreen(
+                        viewModel = viewModel,
+                        onCancel = {
+                            finishWithResult(PayCrossResult.Cancelled(viewModel.lastTransactionId))
+                        },
+                        onResult = { finishWithResult(it) }
+                    )
+                }
             }
         }
     }
@@ -149,10 +169,16 @@ internal class PaymentActivity : ComponentActivity() {
      * Debug builds of the host app only. A merchant shipping a release build has
      * already made their colour choices and cannot act on a logcat line, while a
      * developer wiring up an appearance can.
+     *
+     * Each warning is logged once per sheet. The appearance resolves twice when
+     * the merchant's back-office colour lands with the session, and a developer
+     * reading logcat should see a new problem rather than the same one again.
      */
     private fun warnAboutContrast(resolved: ResolvedAppearance) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
-        AppearanceResolver.contrastWarnings(resolved).forEach { Log.w(TAG, it) }
+        AppearanceResolver.contrastWarnings(resolved)
+            .filter { loggedContrastWarnings.add(it) }
+            .forEach { Log.w(TAG, it) }
     }
 
     private fun finishWithResult(result: PayCrossResult) {

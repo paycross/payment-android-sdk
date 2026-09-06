@@ -634,7 +634,10 @@ Per role, in this order:
 2. **The merchant's brand colour from the back office**, which core publishes
    into the session blob as `branding.brand_color`. It applies to `brand` only,
    and to both modes, because the branding record holds one colour and no
-   light/dark variants.
+   light/dark variants. It is read as `#RRGGBB` or `#RGB`, hash required, in
+   either case; eight digits are refused, because core normalises the field
+   before it reaches the blob and alpha has no meaning on a colour the sheet
+   fills a button with. iOS parses the same two shapes.
 3. **The platform default**, which is the Material colour the sheet already
    draws.
 
@@ -647,7 +650,7 @@ branded sheet; one who sets both gets what the code says.
 |------|----------------|
 | `brand` | Pay button fill, checkbox and radio selection, the focused field border |
 | `onBrand` | The Pay button's label and spinner. Null derives it from `brand`'s own luminance, so a light brand gets a dark label |
-| `surface` | The sheet's background |
+| `surface` | The sheet's background, and the window behind it, so the sheet is not framed by a system-coloured band. It is also what text drawn without an explicit colour contrasts against |
 | `component` | The input fields' container, and the dialogs' |
 | `componentBorder` | The fields' resting border |
 | `text` | Primary text |
@@ -689,9 +692,10 @@ has no logo slot, and adding one is a layout change.
 ### Contrast
 
 The resolver computes the WCAG ratio for the `brand`/`onBrand` pair and for a
-merchant-set Pay button pair, and anything under 4.5:1 is logged once — only
-when the host app is debuggable, because a merchant shipping a release build
-cannot act on a logcat line. A derived `onBrand` never trips it: black and
+merchant-set Pay button pair, and anything under 4.5:1 is logged once per
+sheet — only when the host app is debuggable, because a merchant shipping a
+release build cannot act on a logcat line. The resolver returns the warnings and
+the sheet logs them, so the rule stays a pure function under unit test. A derived `onBrand` never trips it: black and
 white are chosen at the 0.179 luminance crossover, which guarantees at least
 4.58:1.
 
