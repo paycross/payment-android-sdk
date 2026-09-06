@@ -6,8 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonParser
 import com.paycross.sdk.PayCrossResult
-import com.paycross.sdk.R
 import com.paycross.sdk.PendingReason
+import com.paycross.sdk.R
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.JwtParser

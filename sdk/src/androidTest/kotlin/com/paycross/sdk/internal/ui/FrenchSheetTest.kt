@@ -66,7 +66,9 @@ class FrenchSheetTest {
         }
 
         compose.onNodeWithContentDescription("Saisie du numéro de carte").assertIsDisplayed()
-        compose.onNodeWithText("Numéro de carte").assertIsDisplayed()
+        // Unmerged: the field sets a contentDescription of its own and merges its
+        // descendants, so the label is only its own node before merging.
+        compose.onNodeWithText("Numéro de carte", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
