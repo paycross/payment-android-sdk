@@ -9,11 +9,13 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.PayCross
+import com.paycross.sdk.R
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
+import com.paycross.sdk.internal.util.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -90,7 +92,7 @@ class SavedCardCvvTest {
     fun aRemovalThatFailedLeavesTheCvvAlone() {
         val cards = mutableStateOf(listOf(visa, amex))
         val selected = mutableStateOf<String?>("card-1")
-        val error = mutableStateOf<String?>(null)
+        val error = mutableStateOf<UiText?>(null)
         setContent(cards, selected, error)
 
         compose.onNodeWithContentDescription(CVV).performTextInput("123")
@@ -99,7 +101,7 @@ class SavedCardCvvTest {
         // What a refused removal looks like from the form's side: the banner
         // appears and the form recomposes, but the card is still on the list and
         // still selected. The shopper keeps what they typed.
-        error.value = "Could not remove the card. Try again."
+        error.value = UiText.Resource(R.string.paycross_remove_card_failed)
         compose.waitForIdle()
 
         assertEquals(3, cvvLength())
@@ -123,7 +125,7 @@ class SavedCardCvvTest {
     private fun setContent(
         cards: MutableState<List<SavedCard>>,
         selected: MutableState<String?>,
-        error: MutableState<String?> = mutableStateOf(null)
+        error: MutableState<UiText?> = mutableStateOf(null)
     ) {
         compose.setContent {
             CardFormScreen(
