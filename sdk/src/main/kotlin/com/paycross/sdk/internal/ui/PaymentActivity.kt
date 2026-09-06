@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Bundle
+import android.os.LocaleList
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -26,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -55,6 +59,7 @@ import com.paycross.sdk.internal.ui.theme.AppearanceResolver
 import com.paycross.sdk.internal.ui.theme.PayCrossTheme
 import com.paycross.sdk.internal.ui.theme.ResolvedAppearance
 import com.paycross.sdk.internal.ui.theme.nightUiMode
+import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
@@ -80,7 +85,7 @@ internal class PaymentActivity : ComponentActivity() {
     // window is themed - which is here, not in onCreate. The activity is a plain
     // ComponentActivity, so there is no AppCompat night mode to ask instead.
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(pinnedModeContext(newBase))
+        super.attachBaseContext(pinnedContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,35 +129,78 @@ internal class PaymentActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PaymentScreen(
-                        viewModel = viewModel,
-                        onCancel = {
-                            finishWithResult(PayCrossResult.Cancelled(viewModel.lastTransactionId))
-                        },
-                        onResult = { finishWithResult(it) }
-                    )
+                    CompositionLocalProvider(
+                        LocalPayCrossResources provides sheetResources(viewModel)
+                    ) {
+                        PaymentScreen(
+                            viewModel = viewModel,
+                            onCancel = {
+                                finishWithResult(
+                                    PayCrossResult.Cancelled(viewModel.lastTransactionId)
+                                )
+                            },
+                            onResult = { finishWithResult(it) }
+                        )
+                    }
                 }
             }
         }
     }
 
     /**
-     * [base] with its resources reporting the pinned mode's night bits, or [base]
-     * itself when the mode follows the device.
+     * [base] with its resources reporting whatever the merchant pinned - the
+     * mode's night bits, the override locale, or both - and [base] itself when
+     * they pinned neither.
+     *
+     * Only the merchant's locale is applied here. The session's arrives with the
+     * payload, long after this, and reaches the sheet through
+     * [LocalPayCrossResources] instead. A locale set without a pinned theme has
+     * to survive: the early return used to short-circuit on the theme alone,
+     * which would have dropped it.
      *
      * Takes the context rather than extending it: an Activity is a Context too,
      * and asking the half-built one for resources here would throw. The config is
      * read through the non-throwing accessor because this runs before onCreate
      * has anywhere to report an uninitialized SDK.
      */
-    private fun pinnedModeContext(base: Context): Context {
-        val mode = PayCross.getConfigOrNull()?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
-        if (mode == ThemeMode.SYSTEM) return base
+    private fun pinnedContext(base: Context): Context {
+        val config = PayCross.getConfigOrNull()
+        val mode = config?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
+        val locale = LocaleResolution.match(config?.locale)
+        if (mode == ThemeMode.SYSTEM && locale == null) return base
 
         val configuration = Configuration(base.resources.configuration).apply {
             uiMode = nightUiMode(mode, uiMode)
+            locale?.let { setLocales(LocaleList(it)) }
         }
         return base.createConfigurationContext(configuration)
+    }
+
+    /**
+     * The resources every string in the sheet is read from.
+     *
+     * Recomputed once, when the session lands and its `locale` joins the ladder;
+     * until then it answers with the merchant's override or the device. The
+     * session's language cannot reach [attachBaseContext] - it arrives after
+     * setContent - and recreating the activity to apply it would throw away a
+     * half-filled card form, so it arrives as a composition local instead.
+     */
+    @Composable
+    private fun sheetResources(viewModel: PaymentViewModel): Resources {
+        val sessionLocale by remember {
+            viewModel.uiState.map { it.sessionData?.locale }
+        }.collectAsState(initial = null)
+
+        val context = LocalContext.current
+        val deviceLocale = LocalConfiguration.current.locales[0]
+        val locale = remember(sessionLocale, deviceLocale) {
+            LocaleResolution.resolve(
+                override = PayCross.getConfigOrNull()?.locale,
+                session = sessionLocale,
+                device = deviceLocale
+            )
+        }
+        return remember(context, locale) { context.localizedResources(locale) }
     }
 
     /**

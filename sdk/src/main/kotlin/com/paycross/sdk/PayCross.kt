@@ -12,13 +12,16 @@ import com.paycross.sdk.internal.api.ApiClient
  * @property testCardPrefill Optional card-form prefill for test runs.
  * @property googlePayMerchantId Google Business Console merchant ID for Google Pay.
  * @property appearance How the payment sheet looks.
+ * @property locale BCP 47 tag pinning the sheet's language, or null to follow
+ *   the session and then the device.
  */
 internal data class PayCrossConfig(
     val environment: PayCrossEnvironment,
     @ColorInt val brandColor: Int?,
     val testCardPrefill: TestCardPrefill? = null,
     val googlePayMerchantId: String? = null,
-    val appearance: PayCrossAppearance? = null
+    val appearance: PayCrossAppearance? = null,
+    val locale: String? = null
 ) {
     internal fun effectiveTestPrefill(): TestCardPrefill? =
         testCardPrefill.takeIf { environment != PayCrossEnvironment.PRODUCTION }
@@ -76,13 +79,19 @@ object PayCross {
      * @param appearance How the payment sheet looks: colours per mode, theme mode, shapes,
      *   the Pay button and a size scale. Null keeps the platform defaults, and the merchant's
      *   back-office brand colour still applies underneath.
+     * @param locale BCP 47 language tag pinning the sheet's own copy, e.g. "fr" or "fr-CA".
+     *   Null, the default, follows the payment session's `locale` and then the device.
+     *   A tag the SDK ships no strings for is ignored rather than rejected, and a tag set
+     *   here never disables the merchant's own `paycross_*` string overrides. Applies to
+     *   the sheet's window only; the host app's language is untouched.
      */
     fun init(
         environment: PayCrossEnvironment,
         @ColorInt brandColor: Int? = null,
         testCardPrefill: TestCardPrefill? = null,
         googlePayMerchantId: String? = null,
-        appearance: PayCrossAppearance? = null
+        appearance: PayCrossAppearance? = null,
+        locale: String? = null
     ) {
         // The API client caches its base URL from the config it was built with,
         // so a changed environment has to invalidate it.
@@ -92,7 +101,8 @@ object PayCross {
             brandColor,
             testCardPrefill,
             googlePayMerchantId,
-            appearance
+            appearance,
+            locale
         )
         if (environmentChanged) {
             ApiClient.reset()

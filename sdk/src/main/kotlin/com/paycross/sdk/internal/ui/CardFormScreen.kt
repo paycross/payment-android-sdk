@@ -52,7 +52,6 @@ import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
-import java.util.Locale
 
 private val PAY_BUTTON_HEIGHT = 56.dp
 
@@ -119,7 +118,9 @@ internal fun CardFormScreen(
     val isNewCard = selectedSavedCard == null
     val cardType = CardType.detect(cardNumber)
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
-    val formattedAmount = formatAmount(claims, sessionData?.locale)
+    // The locale the sheet resolved, not the device's: an amount grouped one way
+    // under a label written another reads as two different products.
+    val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcLocale)
 
     // A CVV belongs to the card it was typed for. Switching cards drops it in
     // onCardSelected above; this covers the other way a selection ends, a
@@ -490,11 +491,6 @@ private fun buildFormData(
             saveCard = false
         )
     }
-}
-
-private fun formatAmount(claims: JwtClaims, locale: String?): String {
-    val displayLocale = locale?.let { Locale.forLanguageTag(it) } ?: Locale.getDefault()
-    return Amounts.formatMinor(claims.amount, claims.currency, displayLocale)
 }
 
 private fun flattenValues(values: Map<String, Map<String, String>>): HashMap<String, String> {
