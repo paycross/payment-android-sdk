@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paycross.sdk.PayCross
+import com.paycross.sdk.PayCrossAppearance
 import com.paycross.sdk.PayCrossResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -219,8 +220,8 @@ class DemoViewModel(
             val result = runCatching {
                 PayCross.init(
                     environment = merchant.sdkEnvironment,
-                    brandColor = BRAND_COLOR,
-                    testCardPrefill = scenario.card.toTestCardPrefillOrNull()
+                    testCardPrefill = scenario.card.toTestCardPrefillOrNull(),
+                    appearance = PayCrossAppearance.brand(BRAND_COLOR)
                 )
                 SessionMinter.create(merchant, scenario.requestBody)
             }

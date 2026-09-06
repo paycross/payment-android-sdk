@@ -20,7 +20,8 @@ internal data class SessionData(
     @SerializedName("saved_cards_config") val savedCardsConfig: SavedCardsConfig?,
     val wallets: WalletsAvailability?,
     @SerializedName("account_funding") val accountFunding: Boolean?,
-    @SerializedName("google_pay") val googlePay: GooglePayConfig?
+    @SerializedName("google_pay") val googlePay: GooglePayConfig?,
+    val branding: Branding? = null
 ) {
     /**
      * Whether the sheet may offer to delete a stored card. Both this and
@@ -36,6 +37,17 @@ internal data class SessionData(
     val preselectsSavedCard: Boolean
         get() = savedCardsConfig?.preselect == true
 }
+
+/**
+ * The merchant's back-office branding, as far as a native sheet reads it.
+ *
+ * Defaulted and nullable all the way down: the key arrives only on sessions
+ * minted after core started publishing it, and a colour the back office cannot
+ * express should cost the colour rather than the session.
+ */
+internal data class Branding(
+    @SerializedName("brand_color") val brandColor: String? = null
+)
 
 /**
  * Merchant opt-ins that govern the saved-card picker, carried alongside

@@ -9,6 +9,85 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed — binary-incompatible, and the next release is a MINOR bump
+
+- `PayCross.init` gains a fifth parameter, `appearance: PayCrossAppearance?`,
+  appended with a default. Kotlin source is unaffected: every existing call
+  still compiles, including one that passes `brandColor`. What changes is the
+  ABI and the Java surface. The four-argument descriptor and the old
+  `init$default` are gone, so merchant code compiled against 0.6.0 must be
+  **recompiled** rather than swapped in, and Java callers — which have no
+  default arguments — must pass the extra argument.
+
+### Added
+
+- `PayCrossAppearance` themes the payment sheet: a `PayCrossColors` palette per
+  mode with ten roles (`brand`, `onBrand`, `surface`, `component`,
+  `componentBorder`, `text`, `textSecondary`, `placeholder`, `icon`, `error`), a
+  `ThemeMode` of `SYSTEM`, `LIGHT` or `DARK`, `PayCrossShapes` for the corner
+  radii and the field border width, `PayCrossPrimaryButton` for the Pay button,
+  and a `PayCrossTypography` size scale clamped to 0.8–1.3.
+
+  Every role is nullable and null means the next source down, so an empty
+  appearance changes nothing and one colour is a complete configuration.
+  `PayCrossAppearance.brand(color)` is the one-liner: that colour in both modes,
+  platform defaults for the rest.
+
+  A pinned mode applies to the sheet's own window and never to the host app.
+  Layout, the card fields' internals, the wallet buttons' colours and labels,
+  the 3-D Secure page and the error copy stay fixed by design; a merchant logo
+  and a custom font family are deferred to a later release.
+
+- The sheet picks up the brand colour the merchant set in the back office, with
+  no code at all. Core publishes it into the session blob as
+  `branding.brand_color` and the sheet reads it as the default `brand`. An
+  appearance set in code wins, per role; a colour the SDK cannot parse costs the
+  colour and nothing else; and every session minted before core started
+  publishing the key decodes exactly as it does today.
+
+### Deprecated
+
+- `brandColor` on `PayCross.init`, in favour of
+  `appearance = PayCrossAppearance.brand(color)`, which sets the same colour in
+  both modes and opens the rest of the palette. It still works, still brands the
+  sheet when no appearance is given, and loses to one when both are set. Kotlin
+  cannot mark a single value parameter deprecated, so the parameter's KDoc and
+  this entry are the deprecation; it will be removed a minor release from now.
+
+### Fixed
+
+- A corner radius, height or border width that is not a number no longer
+  crashes the sheet. `Float.NaN` survives both `coerceIn` and the `Dp`
+  constructor, and `Dp.roundToPx` throws on it rather than rounding, which the
+  Google Pay button's radius reached. Every float the appearance accepts is now
+  checked: a radius, height or thickness that is infinite, NaN or negative is
+  ignored, and a size scale that is infinite or NaN falls back to 1 rather than
+  clamping to the end of the range.
+
+- A Pay button given a background and no label colour keeps a readable label.
+  It used to hold whatever colour the brand derived, so a white button drew
+  white text on it. The label is now derived from the button's own background
+  when the merchant does not name one.
+
+- A brand colour written with non-ASCII digits is refused rather than resolved
+  to a colour nobody asked for. `Char.isDigit` is Unicode-wide and
+  `Long.parseLong` reads those digits by value, so `#٣٣٣` used to parse.
+
+- Text the sheet draws without an explicit colour is no longer black in dark
+  mode. Material leaves `LocalContentColor` black until a `Surface` sets it, and
+  the sheet's root was a plain `Box`, so under the dark mode that shipped in
+  0.5.0 the amount header, the saved-card titles, "Use a new card", the
+  save-card label, the CVV prompt, the field-group labels and the processing
+  overlay's text were all painted black on a dark ground. The sheet now draws on
+  a `Surface`, which is also what carries a merchant's `surface` colour to the
+  window rather than leaving it framed by a system-coloured band.
+
+- The Google Pay button follows the sheet's mode. `ButtonTheme.DARK` was
+  hardcoded, so under the dark mode that shipped in 0.5.0 the button kept
+  Google's dark variant and all but disappeared into the surface behind it.
+  Google pairs a dark button with a light surface and a light button with a dark
+  one, which is now what the sheet asks for.
+
 ## [0.6.0] - 2026-09-05
 
 ### Changed — binary-incompatible, and the next release is a MINOR bump

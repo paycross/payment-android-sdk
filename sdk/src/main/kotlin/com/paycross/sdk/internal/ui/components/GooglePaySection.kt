@@ -14,14 +14,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.wallet.button.ButtonConstants
 import com.google.android.gms.wallet.button.ButtonOptions
 import com.google.android.gms.wallet.button.PayButton
+import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
 internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
+
+/**
+ * The button variant Google pairs with a surface of the given mode: a dark
+ * button on a light sheet, a light button on a dark one. The fixed DARK this
+ * replaces left the button invisible against the SDK's dark surface.
+ */
+internal fun googlePayButtonTheme(dark: Boolean): Int =
+    if (dark) ButtonConstants.ButtonTheme.LIGHT else ButtonConstants.ButtonTheme.DARK
 
 /**
  * Google's official Pay button above an "Or pay with card" divider.
@@ -39,20 +49,32 @@ internal fun GooglePaySection(
     onClick: () -> Unit
 ) {
     val currentOnClick by rememberUpdatedState(onClick)
-    val buttonOptions = remember(allowedPaymentMethodsJson) {
+    val appearance = LocalPayCrossAppearance.current
+    val buttonTheme = googlePayButtonTheme(dark = appearance?.dark == true)
+    // The radius is the only property of the wallet button that is ours to set;
+    // its colours and label belong to Google's brand guidelines. It is asked for
+    // in pixels, unlike everything else the sheet draws.
+    val density = LocalDensity.current
+    val cornerRadiusPx = appearance?.shapes?.buttonCornerRadius?.let {
+        with(density) { it.roundToPx() }
+    }
+    val buttonOptions = remember(allowedPaymentMethodsJson, buttonTheme, cornerRadiusPx) {
         ButtonOptions.newBuilder()
             .setButtonType(ButtonConstants.ButtonType.PLAIN)
-            .setButtonTheme(ButtonConstants.ButtonTheme.DARK)
+            .setButtonTheme(buttonTheme)
             .setAllowedPaymentMethods(allowedPaymentMethodsJson)
+            .apply { cornerRadiusPx?.let { setCornerRadius(it) } }
             .build()
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
         AndroidView(
-            factory = { context ->
-                PayButton(context).apply { initialize(buttonOptions) }
-            },
+            factory = { context -> PayButton(context) },
+            // initialize, not just the listener: it clears the view and rebuilds
+            // from the options, so a changed theme repaints instead of keeping
+            // whatever the first composition drew.
             update = { button ->
+                button.initialize(buttonOptions)
                 button.setOnClickListener { currentOnClick() }
             },
             modifier = Modifier
