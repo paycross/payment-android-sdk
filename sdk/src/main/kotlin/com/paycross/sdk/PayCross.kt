@@ -8,18 +8,28 @@ import com.paycross.sdk.internal.api.ApiClient
  * Configuration for the PayCross SDK.
  *
  * @property environment The target environment for API requests.
- * @property brandColor Optional brand color for UI customization (ARGB format).
+ * @property brandColor Deprecated brand color (ARGB format).
  * @property testCardPrefill Optional card-form prefill for test runs.
  * @property googlePayMerchantId Google Business Console merchant ID for Google Pay.
+ * @property appearance How the payment sheet looks.
  */
 internal data class PayCrossConfig(
     val environment: PayCrossEnvironment,
     @ColorInt val brandColor: Int?,
     val testCardPrefill: TestCardPrefill? = null,
-    val googlePayMerchantId: String? = null
+    val googlePayMerchantId: String? = null,
+    val appearance: PayCrossAppearance? = null
 ) {
     internal fun effectiveTestPrefill(): TestCardPrefill? =
         testCardPrefill.takeIf { environment != PayCrossEnvironment.PRODUCTION }
+
+    /**
+     * The appearance the sheet draws with. A merchant still passing the
+     * deprecated [brandColor] gets the same colour through the new model, and
+     * an appearance wins when both are set.
+     */
+    internal fun effectiveAppearance(): PayCrossAppearance? =
+        appearance ?: brandColor?.let(PayCrossAppearance::brand)
 }
 
 /**
@@ -54,22 +64,36 @@ object PayCross {
      * Initializes the PayCross SDK with the specified configuration.
      *
      * @param environment The target environment for API requests.
-     * @param brandColor Optional brand color for UI customization (ARGB format).
+     * @param brandColor **Deprecated.** Use `appearance = PayCrossAppearance.brand(color)`,
+     *   which sets the same colour in both light and dark and opens the rest of the palette.
+     *   Still honoured, and still the sheet's brand when no [appearance] is given; ignored
+     *   when one is. It will be removed a minor release from now. Kotlin cannot mark a single
+     *   parameter deprecated, so this note is the deprecation.
      * @param testCardPrefill Optional card-form prefill for test runs; ignored in production.
      * @param googlePayMerchantId Google Business Console merchant ID. Google requires it in
      *   merchantInfo for PRODUCTION Google Pay requests; the TEST environment works without
      *   one, so it is optional and simply omitted from the request when null.
+     * @param appearance How the payment sheet looks: colours per mode, theme mode, shapes,
+     *   the Pay button and a size scale. Null keeps the platform defaults, and the merchant's
+     *   back-office brand colour still applies underneath.
      */
     fun init(
         environment: PayCrossEnvironment,
         @ColorInt brandColor: Int? = null,
         testCardPrefill: TestCardPrefill? = null,
-        googlePayMerchantId: String? = null
+        googlePayMerchantId: String? = null,
+        appearance: PayCrossAppearance? = null
     ) {
         // The API client caches its base URL from the config it was built with,
         // so a changed environment has to invalidate it.
         val environmentChanged = config?.environment != null && config?.environment != environment
-        config = PayCrossConfig(environment, brandColor, testCardPrefill, googlePayMerchantId)
+        config = PayCrossConfig(
+            environment,
+            brandColor,
+            testCardPrefill,
+            googlePayMerchantId,
+            appearance
+        )
         if (environmentChanged) {
             ApiClient.reset()
         }
@@ -86,10 +110,9 @@ object PayCross {
         )
 
     /**
-     * Returns the current configuration or null if not initialized.
-     * For testing purposes only.
+     * Returns the current configuration or null if not initialized. Read before
+     * the sheet has anywhere to report an error to, and by tests.
      */
-    @VisibleForTesting
     internal fun getConfigOrNull(): PayCrossConfig? = config
 
     /**

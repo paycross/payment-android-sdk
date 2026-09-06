@@ -357,6 +357,56 @@ class ContractSerializationTest {
     }
 
     @Test
+    fun `session response parses the merchant branding colour`() {
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {
+                "locale": "en",
+                "branding": {"brand_color": "#1E88E5"}
+              }
+            }
+        """.trimIndent()
+
+        val data = gson.fromJson(json, SessionResponse::class.java).data!!
+
+        assertEquals("#1E88E5", data.branding?.brandColor)
+    }
+
+    @Test
+    fun `session response without branding leaves the colour null`() {
+        // Every session minted before core started publishing the key, which is
+        // most of them, and every merchant who has not set a colour.
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {"locale": "en"}
+            }
+        """.trimIndent()
+
+        val data = gson.fromJson(json, SessionResponse::class.java).data!!
+
+        assertNull(data.branding)
+    }
+
+    @Test
+    fun `branding survives an empty object and an unknown sibling key`() {
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {"branding": {"logo": "https://example.test/logo.png"}}
+            }
+        """.trimIndent()
+
+        val data = gson.fromJson(json, SessionResponse::class.java).data!!
+
+        assertNull(data.branding?.brandColor)
+    }
+
+    @Test
     fun `session response parses saved_cards_config`() {
         val json = """
             {

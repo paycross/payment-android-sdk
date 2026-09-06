@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalTextStyle
@@ -15,6 +16,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
@@ -24,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
+import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
 // Material's own value for the room a floating label needs above the border. It
 // is a text unit rather than a dp, so it scales with the font scale and has to
@@ -56,9 +59,24 @@ internal fun PayCrossOutlinedTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
+    val appearance = LocalPayCrossAppearance.current
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    val colors = OutlinedTextFieldDefaults.colors()
+    // Unspecified is how Material's own colours() says "leave this one alone",
+    // so an unset role keeps the default rather than painting over it. The
+    // borders are not here: componentBorder reaches the resting border through
+    // the outline slot, and the focused border stays the brand, which is the
+    // only thing left indicating focus once a merchant equalizes the widths.
+    val container = appearance?.component ?: Color.Unspecified
+    val placeholderColor = appearance?.placeholder ?: Color.Unspecified
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = container,
+        unfocusedContainerColor = container,
+        errorContainerColor = container,
+        focusedPlaceholderColor = placeholderColor,
+        unfocusedPlaceholderColor = placeholderColor,
+        errorPlaceholderColor = placeholderColor
+    )
     val textStyle = LocalTextStyle.current
     val textColor = textStyle.color.takeOrElse {
         when {
@@ -119,7 +137,12 @@ internal fun PayCrossOutlinedTextField(
                             isError = isError,
                             interactionSource = interactionSource,
                             colors = colors,
-                            shape = OutlinedTextFieldDefaults.shape
+                            shape = appearance?.shapes?.cornerRadius?.let(::RoundedCornerShape)
+                                ?: OutlinedTextFieldDefaults.shape,
+                            focusedBorderThickness = appearance?.shapes?.borderWidth
+                                ?: OutlinedTextFieldDefaults.FocusedBorderThickness,
+                            unfocusedBorderThickness = appearance?.shapes?.borderWidth
+                                ?: OutlinedTextFieldDefaults.UnfocusedBorderThickness
                         )
                     }
                 )

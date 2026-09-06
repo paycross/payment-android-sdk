@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -28,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
@@ -41,12 +44,15 @@ import com.paycross.sdk.internal.ui.components.ExpiryField
 import com.paycross.sdk.internal.ui.components.FieldGroupsSection
 import com.paycross.sdk.internal.ui.components.GooglePaySection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
+import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 import com.paycross.sdk.internal.util.Amounts
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import java.util.Locale
+
+private val PAY_BUTTON_HEIGHT = 56.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
@@ -363,12 +369,22 @@ internal fun PayButton(
     isLoading: Boolean,
     onClick: () -> Unit
 ) {
+    val button = LocalPayCrossAppearance.current?.primaryButton
     Button(
         onClick = onClick,
         enabled = !isLoading,
+        shape = button?.cornerRadius?.let(::RoundedCornerShape) ?: ButtonDefaults.shape,
+        // Unspecified is Material's own "leave this one alone", so an override
+        // nobody set keeps the brand fill and the derived label colour.
+        colors = ButtonDefaults.buttonColors(
+            containerColor = button?.background ?: Color.Unspecified,
+            contentColor = button?.textColor ?: Color.Unspecified,
+            disabledContainerColor = button?.disabledBackground ?: Color.Unspecified,
+            disabledContentColor = button?.disabledTextColor ?: Color.Unspecified
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(button?.height ?: PAY_BUTTON_HEIGHT)
     ) {
         if (isLoading) {
             CircularProgressIndicator(

@@ -1,6 +1,5 @@
 package com.paycross.sdk.internal.ui.components
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,12 +14,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.wallet.button.ButtonConstants
 import com.google.android.gms.wallet.button.ButtonOptions
 import com.google.android.gms.wallet.button.PayButton
+import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
 internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
 
@@ -48,12 +49,21 @@ internal fun GooglePaySection(
     onClick: () -> Unit
 ) {
     val currentOnClick by rememberUpdatedState(onClick)
-    val buttonTheme = googlePayButtonTheme(isSystemInDarkTheme())
-    val buttonOptions = remember(allowedPaymentMethodsJson, buttonTheme) {
+    val appearance = LocalPayCrossAppearance.current
+    val buttonTheme = googlePayButtonTheme(dark = appearance?.dark == true)
+    // The radius is the only property of the wallet button that is ours to set;
+    // its colours and label belong to Google's brand guidelines. It is asked for
+    // in pixels, unlike everything else the sheet draws.
+    val density = LocalDensity.current
+    val cornerRadiusPx = appearance?.shapes?.buttonCornerRadius?.let {
+        with(density) { it.roundToPx() }
+    }
+    val buttonOptions = remember(allowedPaymentMethodsJson, buttonTheme, cornerRadiusPx) {
         ButtonOptions.newBuilder()
             .setButtonType(ButtonConstants.ButtonType.PLAIN)
             .setButtonTheme(buttonTheme)
             .setAllowedPaymentMethods(allowedPaymentMethodsJson)
+            .apply { cornerRadiusPx?.let { setCornerRadius(it) } }
             .build()
     }
 

@@ -2,6 +2,7 @@ package com.paycross.sdk
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -27,6 +28,48 @@ class PayCrossTest {
         )
         val config = PayCross.getConfigOrNull()
         assertEquals(0xFF1E88E5.toInt(), config?.brandColor)
+    }
+
+    @Test
+    fun `init stores an appearance`() {
+        val appearance = PayCrossAppearance(light = PayCrossColors(brand = 0xFF1E88E5.toInt()))
+        PayCross.init(environment = PayCrossEnvironment.STAGING, appearance = appearance)
+        assertEquals(appearance, PayCross.requireConfig().appearance)
+        assertEquals(appearance, PayCross.requireConfig().effectiveAppearance())
+    }
+
+    @Test
+    fun `a deprecated brandColor becomes an appearance`() {
+        PayCross.init(environment = PayCrossEnvironment.STAGING, brandColor = 0xFF1E88E5.toInt())
+        assertEquals(
+            PayCrossAppearance.brand(0xFF1E88E5.toInt()),
+            PayCross.requireConfig().effectiveAppearance()
+        )
+    }
+
+    @Test
+    fun `an appearance wins over a brandColor`() {
+        val appearance = PayCrossAppearance(light = PayCrossColors(brand = 0xFF00A86B.toInt()))
+        PayCross.init(
+            environment = PayCrossEnvironment.STAGING,
+            brandColor = 0xFF1E88E5.toInt(),
+            appearance = appearance
+        )
+        assertEquals(appearance, PayCross.requireConfig().effectiveAppearance())
+    }
+
+    @Test
+    fun `no colour of any kind leaves the appearance null`() {
+        PayCross.init(environment = PayCrossEnvironment.STAGING)
+        assertNull(PayCross.requireConfig().effectiveAppearance())
+    }
+
+    @Test
+    fun `the brand factory fills both modes`() {
+        val appearance = PayCrossAppearance.brand(0xFF1E88E5.toInt())
+        assertEquals(0xFF1E88E5.toInt(), appearance.light?.brand)
+        assertEquals(0xFF1E88E5.toInt(), appearance.dark?.brand)
+        assertEquals(ThemeMode.SYSTEM, appearance.themeMode)
     }
 
     @Test(expected = IllegalStateException::class)
