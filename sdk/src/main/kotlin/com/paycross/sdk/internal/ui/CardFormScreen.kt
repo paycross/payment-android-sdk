@@ -468,9 +468,13 @@ internal fun PayButton(
             .fillMaxWidth()
             .heightIn(min = button?.height ?: PAY_BUTTON_HEIGHT)
             .testTag(TestTags.PAY_BUTTON)
-            // Named even while the spinner is up: the label is the only thing
-            // that says what the button does, and it is not on screen then.
-            .semantics { contentDescription = label }
+            // Only while the spinner covers the label, which is otherwise the
+            // only thing that says what the button does. Setting it always
+            // would replace the label with the same words, and would take the
+            // label out of the accessibility tree that the E2E driver reads.
+            .then(
+                if (isLoading) Modifier.semantics { contentDescription = label } else Modifier
+            )
     ) {
         if (isLoading) {
             CircularProgressIndicator(

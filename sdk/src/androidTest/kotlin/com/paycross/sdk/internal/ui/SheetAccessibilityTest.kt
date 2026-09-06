@@ -187,6 +187,20 @@ class SheetAccessibilityTest {
     }
 
     @Test
+    fun theRestingPayButtonIsNamedByItsLabelAlone() {
+        // No description over the label: the same words twice would only take
+        // the label out of the tree that a UiAutomator dump reads.
+        compose.setContent { PayButton(amount = "€12.34", isLoading = false, onClick = {}) }
+
+        val config = compose.onNodeWithTag(TestTags.PAY_BUTTON).fetchSemanticsNode().config
+        assertEquals(null, config.getOrNull(SemanticsProperties.ContentDescription))
+        assertTrue(
+            "the label is not on the button",
+            config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text == "Pay €12.34" }
+        )
+    }
+
+    @Test
     fun theLoadingOverlayIsOneNamedNode() {
         compose.setContent { LoadingOverlay() }
 
