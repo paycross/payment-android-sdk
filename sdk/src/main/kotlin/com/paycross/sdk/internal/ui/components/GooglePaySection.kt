@@ -1,5 +1,6 @@
 package com.paycross.sdk.internal.ui.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,14 @@ import com.google.android.gms.wallet.button.PayButton
 internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
 
 /**
+ * The button variant Google pairs with a surface of the given mode: a dark
+ * button on a light sheet, a light button on a dark one. The fixed DARK this
+ * replaces left the button invisible against the SDK's dark surface.
+ */
+internal fun googlePayButtonTheme(dark: Boolean): Int =
+    if (dark) ButtonConstants.ButtonTheme.LIGHT else ButtonConstants.ButtonTheme.DARK
+
+/**
  * Google's official Pay button above an "Or pay with card" divider.
  *
  * The button is the PayButton view from play-services-wallet wrapped in an
@@ -39,20 +48,23 @@ internal fun GooglePaySection(
     onClick: () -> Unit
 ) {
     val currentOnClick by rememberUpdatedState(onClick)
-    val buttonOptions = remember(allowedPaymentMethodsJson) {
+    val buttonTheme = googlePayButtonTheme(isSystemInDarkTheme())
+    val buttonOptions = remember(allowedPaymentMethodsJson, buttonTheme) {
         ButtonOptions.newBuilder()
             .setButtonType(ButtonConstants.ButtonType.PLAIN)
-            .setButtonTheme(ButtonConstants.ButtonTheme.DARK)
+            .setButtonTheme(buttonTheme)
             .setAllowedPaymentMethods(allowedPaymentMethodsJson)
             .build()
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
         AndroidView(
-            factory = { context ->
-                PayButton(context).apply { initialize(buttonOptions) }
-            },
+            factory = { context -> PayButton(context) },
+            // initialize, not just the listener: it clears the view and rebuilds
+            // from the options, so a changed theme repaints instead of keeping
+            // whatever the first composition drew.
             update = { button ->
+                button.initialize(buttonOptions)
                 button.setOnClickListener { currentOnClick() }
             },
             modifier = Modifier
