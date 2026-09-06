@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -37,6 +38,9 @@ import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalIconTint
 
 private const val UNKNOWN_BRAND = "unknown"
+
+/** Material's minimum touch target, and the floor the sheet holds its controls to. */
+private val DELETE_TOUCH_TARGET = 48.dp
 
 /**
  * The stored-card picker: one selectable row per card, then "Use a new card".
@@ -133,7 +137,12 @@ private fun SavedCardRow(
             IconButton(
                 onClick = onRemoveClick,
                 enabled = removalEnabled,
-                modifier = Modifier.testTag(TestTags.savedCardDelete(card.uuid))
+                // Material's icon button measures 40dp, and its interactive-size
+                // enforcement does not reach the bounds an accessibility service
+                // reads, so the 48dp floor is set here rather than assumed.
+                modifier = Modifier
+                    .testTag(TestTags.savedCardDelete(card.uuid))
+                    .size(DELETE_TOUCH_TARGET)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
