@@ -299,6 +299,8 @@ class AppearanceResolverTest {
         )
         assertEquals(1, warnings.size)
         assertTrue(warnings.single(), warnings.single().contains("brand"))
+        // The content colour, then the one behind it, in the order they are read.
+        assertTrue(warnings.single(), warnings.single().contains("#8A8A8A on #767676"))
     }
 
     @Test

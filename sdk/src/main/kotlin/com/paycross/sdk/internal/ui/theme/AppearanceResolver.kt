@@ -5,6 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCrossAppearance
@@ -17,6 +18,7 @@ private const val MIN_CONTRAST = 4.5f
 private const val HEX_SHORT = 3
 private const val HEX_FULL = 6
 private const val OPAQUE = 0xFF000000L
+private const val RGB_MASK = 0xFFFFFF
 
 /**
  * Radii and thickness in dp. Null means Material's own value stands.
@@ -171,9 +173,8 @@ internal object AppearanceResolver {
     }
 
     private fun warning(pair: String, background: Color, content: Color): String =
-        "PayCrossAppearance: the $pair pair " +
-            "#${background.toHex()} on #${content.toHex()} is below the 4.5:1 " +
-            "contrast ratio text needs to stay readable"
+        "PayCrossAppearance: #${content.toHex()} on #${background.toHex()} is below the " +
+            "4.5:1 contrast ratio the $pair needs to stay readable"
 
     private fun contrastRatio(a: Color, b: Color): Float {
         val lighter = maxOf(a.luminance(), b.luminance())
@@ -182,7 +183,7 @@ internal object AppearanceResolver {
     }
 
     private fun Color.toHex(): String =
-        (value shr 32).toString(16).takeLast(HEX_FULL).uppercase()
+        (toArgb() and RGB_MASK).toString(16).padStart(HEX_FULL, '0').uppercase()
 
     private fun resolveShapes(appearance: PayCrossAppearance?): ResolvedShapes {
         val shapes = appearance?.shapes
