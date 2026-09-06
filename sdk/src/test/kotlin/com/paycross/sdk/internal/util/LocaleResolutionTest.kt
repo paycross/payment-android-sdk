@@ -41,7 +41,7 @@ class LocaleResolutionTest {
 
     @Test
     fun `a malformed tag gets English rather than throwing`() {
-        listOf("", "   ", "!!", "fr_CA", "zz-ZZ-", "12345").forEach { tag ->
+        listOf("", "   ", "!!", "français", "zz-ZZ-", "12345").forEach { tag ->
             assertEquals(
                 "malformed tag $tag",
                 Locale.forLanguageTag("en"),
@@ -79,7 +79,7 @@ class LocaleResolutionTest {
 
     @Test
     fun `a blank or malformed override still gives the session and the device their turn`() {
-        listOf(null, "", "   ", "!!", "fr_CA").forEach { override ->
+        listOf(null, "", "   ", "!!", "français").forEach { override ->
             assertEquals(
                 "override '$override' with a French session",
                 Locale.forLanguageTag("fr"),
@@ -189,7 +189,7 @@ class LocaleResolutionTest {
 
     @Test
     fun `an unreadable tag does not get to format the amount`() {
-        listOf("", "   ", "!!", "fr_CA").forEach { junk ->
+        listOf("", "   ", "!!", "français").forEach { junk ->
             assertEquals(
                 "junk tag '$junk'",
                 Locale.US,
@@ -205,7 +205,7 @@ class LocaleResolutionTest {
         // rest — so without a shape check ahead of it, a typo becomes a real
         // locale nobody meant and punctuates the amount for somewhere the shopper
         // has never been. The device supplies the formatting instead.
-        listOf("fr_CA", "f", "frrrr", "1234", "fr-", "en--US", "fr CA", "-fr").forEach { typo ->
+        listOf("f", "français", "frrrr", "1234", "fr-", "en--US", "fr CA", "-fr").forEach { typo ->
             assertEquals(
                 "typo '$typo'",
                 Locale.GERMANY,
@@ -216,7 +216,7 @@ class LocaleResolutionTest {
 
     @Test
     fun `a typo naming no shipped language leaves the words English`() {
-        listOf("fr_CA", "f", "frrrr", "1234", "fr CA", "-fr").forEach { typo ->
+        listOf("f", "français", "frrrr", "1234", "fr CA", "-fr").forEach { typo ->
             assertEquals(
                 "typo '$typo'",
                 Locale.forLanguageTag("en"),
@@ -248,9 +248,43 @@ class LocaleResolutionTest {
             Locale.GERMANY,
             LocaleResolution.formattingLocale(
                 override = null,
-                session = "fr_CA",
+                session = "français",
                 device = Locale.GERMANY
             )
+        )
+    }
+
+    @Test
+    fun `a merchant typo picks neither the words nor the amount`() {
+        // The lead's case: a merchant types the language's name instead of its
+        // tag. The sheet is English because there is no such tag, and the amount
+        // is the handset's because a misshapen tag never formats anything.
+        assertEquals(
+            Locale.forLanguageTag("en"),
+            LocaleResolution.resolve("français", session = null, device = Locale.GERMANY)
+        )
+        assertEquals(
+            Locale.GERMANY,
+            LocaleResolution.formattingLocale("français", session = null, device = Locale.GERMANY)
+        )
+    }
+
+    @Test
+    fun `an underscore reads as a hyphen, for both the words and the amount`() {
+        // Locale.getDefault().toString() gives "fr_FR", which is the obvious
+        // thing for a merchant to hand us and which BCP 47 does not accept.
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve("fr_FR", session = null, device = Locale.US)
+        )
+        assertEquals(
+            Locale.forLanguageTag("fr-FR"),
+            LocaleResolution.formattingLocale("fr_FR", session = null, device = Locale.US)
+        )
+        assertEquals(Locale.forLanguageTag("fr"), LocaleResolution.match("fr_CA"))
+        assertEquals(
+            Locale.forLanguageTag("de-DE"),
+            LocaleResolution.formattingLocale("de_DE", session = null, device = Locale.US)
         )
     }
 

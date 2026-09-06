@@ -89,7 +89,7 @@ internal object LocaleResolution {
      * language at all. Nothing here throws.
      */
     private fun wellShaped(tag: String?): Locale? {
-        val candidate = tag?.trim().orEmpty().ifEmpty { return null }
+        val candidate = normalised(tag) ?: return null
         if (!WELL_SHAPED.matches(candidate)) return null
         return Locale.forLanguageTag(candidate).takeIf { it.language.isNotEmpty() }
     }
@@ -100,7 +100,19 @@ internal object LocaleResolution {
      * `fr`, and a tag that says neither falls through either way.
      */
     private fun parse(tag: String?): Locale? {
-        val candidate = tag?.trim().orEmpty().ifEmpty { return null }
+        val candidate = normalised(tag) ?: return null
         return Locale.forLanguageTag(candidate).takeIf { it.language.isNotEmpty() }
     }
+
+    /**
+     * [tag] trimmed, with underscores read as hyphens, or null when there is
+     * nothing left.
+     *
+     * `Locale.getDefault().toString()` is the obvious thing for a merchant to
+     * hand us and it returns `fr_FR`, which BCP 47 does not accept and
+     * `forLanguageTag` reads as no language at all. Nobody passing that means
+     * anything other than `fr-FR`, so it is not worth failing over.
+     */
+    private fun normalised(tag: String?): String? =
+        tag?.trim()?.replace('_', '-')?.ifEmpty { null }
 }

@@ -778,8 +778,10 @@ Swiss grouping under France's French - the only French the SDK ships. Dropping
 `fr-CH` to `fr` for the number as well would have moved a Swiss shopper onto
 another country's conventions to no purpose.
 
-A candidate must also be *shaped* like a BCP 47 tag - a 2-3 letter language then
-alphanumeric subtags, hyphens only - before it may format anything.
+Underscores are read as hyphens first, everywhere, because
+`Locale.getDefault().toString()` returns `fr_FR` and that is what a merchant will
+reach for. A candidate must then be *shaped* like a BCP 47 tag - a 2-3 letter
+language then alphanumeric subtags, hyphens only - before it may format anything.
 `Locale.forLanguageTag` keeps the well-formed prefix of a bad tag and silently
 drops the rest, so without the check a merchant's typo becomes a real locale
 nobody meant. `match` stays looser on purpose: it only has to decide `en` or

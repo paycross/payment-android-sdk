@@ -62,11 +62,16 @@ moved onto France's on the way to the French strings.
 **A misshapen tag is skipped rather than used.** A candidate has to look like a
 BCP 47 tag — a two or three letter language, then any number of alphanumeric
 subtags, hyphens only — or the amount moves on to the next candidate. So a typo
-in `init(locale = …)` costs nothing: `"fr_CA"` with an underscore neither picks
-the words nor punctuates the amount, and the session or the device supplies the
-formatting instead. Without that check the platform's own parser would keep
-whatever well-formed prefix it could find and format the amount for somewhere
-nobody meant.
+in `init(locale = …)` costs nothing: `"français"` neither picks the words nor
+punctuates the amount, and the session or the device supplies the formatting
+instead. Without that check the platform's own parser would keep whatever
+well-formed prefix it could find and format the amount for somewhere nobody
+meant.
+
+**Underscores are read as hyphens.** `Locale.getDefault().toString()` returns
+`fr_FR`, which is the obvious thing to hand us and which BCP 47 does not accept,
+so `"fr_FR"` is treated as `"fr-FR"` everywhere — for the words and for the
+amount alike.
 
 The strings ladder is deliberately more forgiving, because it only has to decide
 between the two languages the SDK ships. `"fr-"` still draws French words while

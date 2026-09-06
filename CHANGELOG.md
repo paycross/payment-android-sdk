@@ -61,11 +61,16 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 - The amount is formatted with the first locale anyone named that is *shaped*
   like a BCP 47 tag — the override, else the session's `locale`, else the device —
-  and that one is **not** narrowed to the shipped languages. A typo such as
-  `"fr_CA"` is skipped rather than parsed into a locale nobody meant. A German handset draws an English sheet over a `12,34 €`
-  amount, and a `fr-CH` session keeps Swiss grouping under French words. Only the
-  strings are clamped, because the SDK either has the words or it does not, while
-  the platform can format a number for any locale.
+  and that one is **not** narrowed to the shipped languages. A German handset
+  draws an English sheet over a `12,34 €` amount, and a `fr-CH` session keeps
+  Swiss grouping under French words. Only the strings are clamped, because the
+  SDK either has the words or it does not, while the platform can format a number
+  for any locale.
+
+  A typo such as `"français"` is skipped rather than parsed into a locale nobody
+  meant, so it costs neither the words nor the amount. Underscores are read as
+  hyphens throughout, because `Locale.getDefault().toString()` returns `fr_FR`
+  and that is the obvious thing for a merchant to pass.
 
 - Google Pay's own sheet names its total line from `paycross_total` ("Total" /
   "Total"). It was a hardcoded English `"Payment"`. Google draws that string and
