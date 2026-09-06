@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
+import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SessionData
@@ -46,11 +47,11 @@ import com.paycross.sdk.internal.ui.components.GooglePaySection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 import com.paycross.sdk.internal.util.Amounts
+import com.paycross.sdk.internal.util.UiText
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
-import java.util.Locale
 
 private val PAY_BUTTON_HEIGHT = 56.dp
 
@@ -78,7 +79,7 @@ internal fun CardFormScreen(
     modifier: Modifier = Modifier,
     selectedSavedCardUuid: String? = null,
     isLoading: Boolean = false,
-    error: String? = null,
+    error: UiText? = null,
     googlePayAvailable: Boolean = false,
     onSavedCardSelected: (String?) -> Unit = {},
     onSavedCardRemoved: (String) -> Unit = {},
@@ -117,7 +118,10 @@ internal fun CardFormScreen(
     val isNewCard = selectedSavedCard == null
     val cardType = CardType.detect(cardNumber)
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
-    val formattedAmount = formatAmount(claims, sessionData?.locale)
+    // Not the language the words are in: the SDK ships two languages and the
+    // platform formats numbers for all of them, so a shopper whose language is
+    // missing still keeps their own grouping.
+    val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcFormattingLocale)
 
     // A CVV belongs to the card it was typed for. Switching cards drops it in
     // onCardSelected above; this covers the other way a selection ends, a
@@ -166,11 +170,7 @@ internal fun CardFormScreen(
             if (googlePayAvailable) {
                 GooglePaySection(
                     allowedPaymentMethodsJson = remember(claims, sessionData) {
-                        GooglePayRequests.buildPaymentDataRequest(
-                            claims,
-                            sessionData,
-                            PayCross.requireConfig().googlePayMerchantId
-                        ).getAsJsonArray("allowedPaymentMethods").toString()
+                        GooglePayRequests.buildAllowedPaymentMethods(claims, sessionData).toString()
                     },
                     onClick = {
                         showErrors = true
@@ -331,7 +331,7 @@ private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Uni
         modifier = Modifier.fillMaxWidth()
     ) {
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text("Save card for future use")
+        Text(pcStringResource(R.string.paycross_save_this_card))
     }
 }
 
@@ -344,7 +344,12 @@ private fun SavedCardCvvInput(
     isCvvValid: Boolean,
     onCvvChange: (String) -> Unit
 ) {
-    Text("Enter CVV for ${savedCard?.maskedPan}")
+    Text(
+        pcStringResource(
+            R.string.paycross_saved_card_cvv_prompt,
+            savedCard?.maskedPan.orEmpty()
+        )
+    )
     CvvField(
         value = cvv,
         cardType = cvvCardType,
@@ -355,9 +360,9 @@ private fun SavedCardCvvInput(
 }
 
 @Composable
-private fun ErrorMessage(message: String) {
+private fun ErrorMessage(message: UiText) {
     Text(
-        text = message,
+        text = pcStringResource(message),
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodySmall
     )
@@ -392,7 +397,7 @@ internal fun PayButton(
                 color = LocalContentColor.current
             )
         } else {
-            Text("Pay $amount")
+            Text(pcStringResource(R.string.paycross_pay_amount, amount))
         }
     }
 }
@@ -483,11 +488,6 @@ private fun buildFormData(
             saveCard = false
         )
     }
-}
-
-private fun formatAmount(claims: JwtClaims, locale: String?): String {
-    val displayLocale = locale?.let { Locale.forLanguageTag(it) } ?: Locale.getDefault()
-    return Amounts.formatMinor(claims.amount, claims.currency, displayLocale)
 }
 
 private fun flattenValues(values: Map<String, Map<String, String>>): HashMap<String, String> {

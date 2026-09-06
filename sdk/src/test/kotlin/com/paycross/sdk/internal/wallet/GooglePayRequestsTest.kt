@@ -145,7 +145,7 @@ class GooglePayRequestsTest {
 
     @Test
     fun `payment data request uses PAYMENT_GATEWAY tokenization with the JWT merchant`() {
-        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null)
+        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null, TOTAL)
 
         val spec = cardMethod(request).getAsJsonObject("tokenizationSpecification")
         assertEquals("PAYMENT_GATEWAY", spec.get("type").asString)
@@ -161,13 +161,14 @@ class GooglePayRequestsTest {
         val request = GooglePayRequests.buildPaymentDataRequest(
             claims(amount = 12345, currency = "EUR"),
             sessionData(merchantCountry = "GB"),
-            null
+            null,
+            TOTAL
         )
 
         val info = request.getAsJsonObject("transactionInfo")
         assertEquals("FINAL", info.get("totalPriceStatus").asString)
         assertEquals("123.45", info.get("totalPrice").asString)
-        assertEquals("Payment", info.get("totalPriceLabel").asString)
+        assertEquals(TOTAL, info.get("totalPriceLabel").asString)
         assertEquals("EUR", info.get("currencyCode").asString)
         assertEquals("GB", info.get("countryCode").asString)
     }
@@ -177,7 +178,8 @@ class GooglePayRequestsTest {
         val request = GooglePayRequests.buildPaymentDataRequest(
             claims(amount = 5000, currency = "JPY"),
             sessionData(),
-            null
+            null,
+            TOTAL
         )
 
         val info = request.getAsJsonObject("transactionInfo")
@@ -187,13 +189,13 @@ class GooglePayRequestsTest {
 
     @Test
     fun `country code defaults to US when the session has no merchant country`() {
-        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null)
+        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null, TOTAL)
         assertEquals("US", request.getAsJsonObject("transactionInfo").get("countryCode").asString)
     }
 
     @Test
     fun `country code defaults to US when session data is missing entirely`() {
-        val request = GooglePayRequests.buildPaymentDataRequest(claims(), null, null)
+        val request = GooglePayRequests.buildPaymentDataRequest(claims(), null, null, TOTAL)
         assertEquals("US", request.getAsJsonObject("transactionInfo").get("countryCode").asString)
     }
 
@@ -208,7 +210,7 @@ class GooglePayRequestsTest {
         )
 
         val parameters = cardMethod(
-            GooglePayRequests.buildPaymentDataRequest(claims(), requiring, null)
+            GooglePayRequests.buildPaymentDataRequest(claims(), requiring, null, TOTAL)
         ).getAsJsonObject("parameters")
         assertTrue(parameters.get("billingAddressRequired").asBoolean)
         assertEquals(
@@ -228,7 +230,7 @@ class GooglePayRequestsTest {
         )
 
         val parameters = cardMethod(
-            GooglePayRequests.buildPaymentDataRequest(claims(), notRequiring, null)
+            GooglePayRequests.buildPaymentDataRequest(claims(), notRequiring, null, TOTAL)
         ).getAsJsonObject("parameters")
         assertFalse(parameters.has("billingAddressRequired"))
         assertFalse(parameters.has("billingAddressParameters"))
@@ -244,7 +246,7 @@ class GooglePayRequestsTest {
             )
         )
 
-        val request = GooglePayRequests.buildPaymentDataRequest(claims(), data, null)
+        val request = GooglePayRequests.buildPaymentDataRequest(claims(), data, null, TOTAL)
         val merchantInfo = request.getAsJsonObject("merchantInfo")
         assertEquals("Example Shop", merchantInfo.get("merchantName").asString)
         assertFalse(merchantInfo.has("merchantId"))
@@ -255,7 +257,8 @@ class GooglePayRequestsTest {
         val request = GooglePayRequests.buildPaymentDataRequest(
             claims(),
             sessionData(),
-            "BCR2DN4TXXXXXXXX"
+            "BCR2DN4TXXXXXXXX",
+            TOTAL
         )
 
         val merchantInfo = request.getAsJsonObject("merchantInfo")
@@ -265,7 +268,30 @@ class GooglePayRequestsTest {
 
     @Test
     fun `merchant info is omitted when neither name nor id is present`() {
-        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null)
+        val request = GooglePayRequests.buildPaymentDataRequest(claims(), sessionData(), null, TOTAL)
         assertNull(request.get("merchantInfo"))
+    }
+
+    @Test
+    fun `the total line carries whatever label it was handed`() {
+        // Google draws this string to the shopper and does not translate it, so
+        // it arrives already resolved and this object must not second-guess it.
+        val request = GooglePayRequests.buildPaymentDataRequest(
+            claims(),
+            sessionData(),
+            null,
+            "Total"
+        )
+
+        assertEquals(
+            "Total",
+            request.getAsJsonObject("transactionInfo").get("totalPriceLabel").asString
+        )
+    }
+
+    // The English value of paycross_total. The resource itself is resolved by the
+    // sheet, which has a Context; this object is handed the result.
+    private companion object {
+        const val TOTAL = "Total"
     }
 }

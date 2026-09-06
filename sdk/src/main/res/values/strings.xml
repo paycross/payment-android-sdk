@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every paycross_* key here is public API. A merchant declaring the same name in
+  their own app's strings.xml overrides ours through ordinary resource merging,
+  so renaming one silently drops that merchant's copy. The list is documented in
+  LOCALIZATION.md; add keys there in the same commit.
+
+  Format arguments are positional (%1$s) even where there is only one, so a
+  translator can move them.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Card form -->
+    <string name="paycross_card_number">Card Number</string>
+    <string name="paycross_expiry_label">MM/YY</string>
+    <string name="paycross_cvv">CVV</string>
+    <string name="paycross_cardholder_name">Cardholder Name</string>
+    <string name="paycross_save_this_card">Save card for future use</string>
+    <string name="paycross_pay_amount">Pay %1$s</string>
+    <string name="paycross_or_pay_with_card">Or pay with card</string>
+    <!-- Three ASCII dots, not U+2026: the hosted checkout page writes it that way. -->
+    <string name="paycross_processing" tools:ignore="TypographyEllipsis">Processing payment...</string>
+
+    <!-- Google Pay. Names the total line inside Google's own sheet; the
+         card form still draws no Total caption of its own. -->
+    <string name="paycross_total">Total</string>
+
+    <!-- Saved cards -->
+    <string name="paycross_use_a_new_card">Use a new card</string>
+    <string name="paycross_saved_card_expires">Expires %1$s/%2$s</string>
+    <string name="paycross_saved_card_cvv_prompt">Enter CVV for %1$s</string>
+    <string name="paycross_remove_card">Remove card, %1$s</string>
+    <string name="paycross_remove_card_title">Remove this card?</string>
+    <string name="paycross_remove_card_message">%1$s will no longer be offered for future payments.</string>
+    <string name="paycross_remove_card_confirm">Remove</string>
+    <string name="paycross_remove_card_keep">Keep</string>
+    <string name="paycross_remove_card_failed">Could not remove the card. Try again.</string>
+
+    <!-- Cancelling the sheet -->
+    <string name="paycross_cancel_payment_title">Cancel Payment?</string>
+    <string name="paycross_cancel_payment_message">Are you sure you want to cancel this payment?</string>
+    <string name="paycross_cancel_payment_yes">Yes, Cancel</string>
+    <string name="paycross_cancel_payment_continue">Continue Payment</string>
+
+    <!-- Errors -->
+    <string name="paycross_error_invalid_token">Invalid session token</string>
+    <string name="paycross_session_expired">This payment session has expired. Start again.</string>
+    <string name="paycross_error_payment_failed">Payment failed. Please try again.</string>
+    <string name="paycross_error_network">Network error. Please try again.</string>
+    <string name="paycross_error_submission_failed">Payment submission failed</string>
+    <string name="paycross_field_required">%1$s is required</string>
+    <string name="paycross_field_invalid">%1$s is invalid</string>
+
+    <!-- Spoken labels -->
+    <string name="paycross_card_number_field">Card number input</string>
+    <string name="paycross_expiry_field">Expiry date input</string>
+    <string name="paycross_cvv_field">CVV input</string>
+    <string name="paycross_cardholder_name_field">Cardholder name input</string>
+
+</resources>

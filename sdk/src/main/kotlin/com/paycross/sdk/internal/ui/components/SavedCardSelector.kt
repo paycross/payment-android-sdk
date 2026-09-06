@@ -28,7 +28,9 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.SavedCard
+import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalIconTint
 
 internal const val USE_NEW_CARD_TAG = "paycross.useNewCard"
@@ -119,12 +121,18 @@ private fun SavedCardRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(card.rowTitle())
             Text(
-                "Expires ${card.expireMonth}/${card.expireYear.takeLast(2)}",
+                pcStringResource(
+                    R.string.paycross_saved_card_expires,
+                    card.expireMonth,
+                    card.expireYear.takeLast(2)
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (allowRemoval) {
+            val removeDescription =
+                pcStringResource(R.string.paycross_remove_card, card.rowTitle())
             IconButton(
                 onClick = onRemoveClick,
                 enabled = removalEnabled,
@@ -132,7 +140,7 @@ private fun SavedCardRow(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove ${card.rowTitle()}",
+                    contentDescription = removeDescription,
                     // Unspecified while disabled, so the icon keeps the greyed
                     // content colour IconButton hands it rather than a merchant
                     // colour that would make a dead control look live.
@@ -155,7 +163,7 @@ private fun NewCardRow(selected: Boolean, onSelect: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(selected = selected, onClick = null)
-        Text("Use a new card")
+        Text(pcStringResource(R.string.paycross_use_a_new_card))
     }
 }
 
@@ -167,10 +175,20 @@ private fun RemoveCardDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Remove this card?") },
-        text = { Text("${card.rowTitle()} will no longer be offered at checkout.") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Remove") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Keep") } }
+        title = { Text(pcStringResource(R.string.paycross_remove_card_title)) },
+        text = {
+            Text(pcStringResource(R.string.paycross_remove_card_message, card.rowTitle()))
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(pcStringResource(R.string.paycross_remove_card_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(pcStringResource(R.string.paycross_remove_card_keep))
+            }
+        }
     )
 }
 

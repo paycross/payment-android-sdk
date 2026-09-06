@@ -49,15 +49,30 @@ internal object GooglePayRequests {
         add("allowedPaymentMethods", JsonArray().apply { add(baseCardMethod()) })
     }
 
+    /**
+     * The allowed payment methods on their own, for the Google Pay button, which
+     * needs them to decide what it may draw. Built without the rest of the
+     * request because the button has no total to name and no merchant to
+     * identify, and asking for those would mean resolving a string it never uses.
+     */
+    fun buildAllowedPaymentMethods(claims: JwtClaims, sessionData: SessionData?): JsonArray =
+        JsonArray().apply { add(cardMethodWithTokenization(claims, sessionData)) }
+
+    /**
+     * @param totalPriceLabel What Google's own sheet names the total line. Drawn
+     *   to the shopper, so it arrives already translated: this object has no
+     *   Context and Google localizes its chrome but not a merchant's strings.
+     */
     fun buildPaymentDataRequest(
         claims: JwtClaims,
         sessionData: SessionData?,
-        googlePayMerchantId: String?
+        googlePayMerchantId: String?,
+        totalPriceLabel: String
     ): JsonObject = JsonObject().apply {
         addProperty("apiVersion", API_VERSION)
         addProperty("apiVersionMinor", API_VERSION_MINOR)
-        add("allowedPaymentMethods", JsonArray().apply { add(cardMethodWithTokenization(claims, sessionData)) })
-        add("transactionInfo", transactionInfo(claims, sessionData))
+        add("allowedPaymentMethods", buildAllowedPaymentMethods(claims, sessionData))
+        add("transactionInfo", transactionInfo(claims, sessionData, totalPriceLabel))
         merchantInfo(sessionData, googlePayMerchantId)?.let { add("merchantInfo", it) }
     }
 
@@ -98,11 +113,15 @@ internal object GooglePayRequests {
         return method
     }
 
-    private fun transactionInfo(claims: JwtClaims, sessionData: SessionData?): JsonObject =
+    private fun transactionInfo(
+        claims: JwtClaims,
+        sessionData: SessionData?,
+        totalPriceLabel: String
+    ): JsonObject =
         JsonObject().apply {
             addProperty("totalPriceStatus", "FINAL")
             addProperty("totalPrice", Amounts.toMajorString(claims.amount, claims.currency))
-            addProperty("totalPriceLabel", "Payment")
+            addProperty("totalPriceLabel", totalPriceLabel)
             addProperty("currencyCode", claims.currency)
             addProperty("countryCode", sessionData?.merchantCountry ?: "US")
         }

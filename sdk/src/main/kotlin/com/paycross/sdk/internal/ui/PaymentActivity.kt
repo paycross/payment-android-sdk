@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.LocaleList
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -49,11 +50,13 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.R
 import com.paycross.sdk.ThemeMode
 import com.paycross.sdk.internal.ui.theme.AppearanceResolver
 import com.paycross.sdk.internal.ui.theme.PayCrossTheme
 import com.paycross.sdk.internal.ui.theme.ResolvedAppearance
 import com.paycross.sdk.internal.ui.theme.nightUiMode
+import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
@@ -79,7 +82,7 @@ internal class PaymentActivity : ComponentActivity() {
     // window is themed - which is here, not in onCreate. The activity is a plain
     // ComponentActivity, so there is no AppCompat night mode to ask instead.
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(pinnedModeContext(newBase))
+        super.attachBaseContext(pinnedContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,6 +106,7 @@ internal class PaymentActivity : ComponentActivity() {
 
         setContent {
             val appearance = remember { PayCross.requireConfig().effectiveAppearance() }
+            val merchantLocale = remember { PayCross.getConfigOrNull()?.locale }
             // Mapped rather than collected whole: the brand changes once, when the
             // session lands, and the theme has no business recomposing on every
             // form keystroke.
@@ -123,33 +127,56 @@ internal class PaymentActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PaymentScreen(
-                        viewModel = viewModel,
-                        onCancel = {
-                            finishWithResult(PayCrossResult.Cancelled(viewModel.lastTransactionId))
-                        },
-                        onResult = { finishWithResult(it) }
-                    )
+                    // Mapped rather than collected whole, like the brand above:
+                    // the locale changes once, when the session lands.
+                    val sessionLocale by remember {
+                        viewModel.uiState.map { it.sessionData?.locale }
+                    }.collectAsState(initial = null)
+
+                    PayCrossLocalization(
+                        sessionLocale = sessionLocale,
+                        merchantLocale = merchantLocale
+                    ) {
+                        PaymentScreen(
+                            viewModel = viewModel,
+                            onCancel = {
+                                finishWithResult(
+                                    PayCrossResult.Cancelled(viewModel.lastTransactionId)
+                                )
+                            },
+                            onResult = { finishWithResult(it) }
+                        )
+                    }
                 }
             }
         }
     }
 
     /**
-     * [base] with its resources reporting the pinned mode's night bits, or [base]
-     * itself when the mode follows the device.
+     * [base] with its resources reporting whatever the merchant pinned - the
+     * mode's night bits, the override locale, or both - and [base] itself when
+     * they pinned neither.
+     *
+     * Only the merchant's locale is applied here. The session's arrives with the
+     * payload, long after this, and reaches the sheet through
+     * [LocalPayCrossResources] instead. A locale set without a pinned theme has
+     * to survive: the early return used to short-circuit on the theme alone,
+     * which would have dropped it.
      *
      * Takes the context rather than extending it: an Activity is a Context too,
      * and asking the half-built one for resources here would throw. The config is
      * read through the non-throwing accessor because this runs before onCreate
      * has anywhere to report an uninitialized SDK.
      */
-    private fun pinnedModeContext(base: Context): Context {
-        val mode = PayCross.getConfigOrNull()?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
-        if (mode == ThemeMode.SYSTEM) return base
+    private fun pinnedContext(base: Context): Context {
+        val config = PayCross.getConfigOrNull()
+        val mode = config?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
+        val locale = LocaleResolution.match(config?.locale)
+        if (mode == ThemeMode.SYSTEM && locale == null) return base
 
         val configuration = Configuration(base.resources.configuration).apply {
             uiMode = nightUiMode(mode, uiMode)
+            locale?.let { setLocales(LocaleList(it)) }
         }
         return base.createConfigurationContext(configuration)
     }
@@ -220,6 +247,8 @@ private fun PaymentScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
+    // Google's sheet draws this one, so it is resolved here and handed over.
+    val totalLabel = pcStringResource(R.string.paycross_total)
 
     BackHandler {
         showCancelDialog = true
@@ -307,7 +336,8 @@ private fun PaymentScreen(
                                 client = paymentsClient,
                                 claims = claims,
                                 sessionData = uiState.sessionData,
-                                googlePayMerchantId = PayCross.requireConfig().googlePayMerchantId
+                                googlePayMerchantId = PayCross.requireConfig().googlePayMerchantId,
+                                totalPriceLabel = totalLabel
                             ).addOnCompleteListener(googlePayLauncher::launch)
                         }
                     },
@@ -359,29 +389,32 @@ private fun LoadingOverlay() {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Processing payment...")
+                Text(pcStringResource(R.string.paycross_processing))
             }
         }
     }
 }
 
+// Internal so the instrumented suite can stand it up on its own: a dialog runs
+// in a sub-composition of its own window, which is exactly where a locale
+// carried on LocalContext would have stopped.
 @Composable
-private fun CancelConfirmationDialog(
+internal fun CancelConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Cancel Payment?") },
-        text = { Text("Are you sure you want to cancel this payment?") },
+        title = { Text(pcStringResource(R.string.paycross_cancel_payment_title)) },
+        text = { Text(pcStringResource(R.string.paycross_cancel_payment_message)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Yes, Cancel")
+                Text(pcStringResource(R.string.paycross_cancel_payment_yes))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Continue Payment")
+                Text(pcStringResource(R.string.paycross_cancel_payment_continue))
             }
         }
     )

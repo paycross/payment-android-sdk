@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.PendingReason
+import com.paycross.sdk.R
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.models.BrowserInfo
 import com.paycross.sdk.internal.api.models.SavedCard
@@ -17,6 +18,7 @@ import com.paycross.sdk.internal.api.models.SubmitCardResponse
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import com.paycross.sdk.internal.repository.PaymentRepository
 import com.paycross.sdk.internal.repository.RemoveSavedCardResult
+import com.paycross.sdk.internal.util.UiText
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -567,7 +569,7 @@ class PaymentViewModelTest {
         vm.submitGooglePay(context, "not json")
         advanceTimeBy(FORM_SETTLE_MS)
 
-        assertEquals("Payment failed. Please try again.", vm.uiState.value.error)
+        assertEquals(resource(R.string.paycross_error_payment_failed), vm.uiState.value.error)
         assertFalse(vm.uiState.value.isLoading)
         assertNull(vm.uiState.value.result)
         coVerify(exactly = 0) { repository.submitCard(any(), any()) }
@@ -584,7 +586,7 @@ class PaymentViewModelTest {
 
         vm.onGooglePayFailed()
 
-        assertEquals("Payment failed. Please try again.", vm.uiState.value.error)
+        assertEquals(resource(R.string.paycross_error_payment_failed), vm.uiState.value.error)
         assertNull(vm.uiState.value.result)
     }
 
@@ -708,7 +710,7 @@ class PaymentViewModelTest {
             val state = vm.uiState.value
             assertEquals(listOf("card-1"), state.sessionData?.savedCards?.map { it.uuid })
             assertEquals("card-1", state.selectedSavedCardUuid)
-            assertEquals("Could not remove the card. Try again.", state.error)
+            assertEquals(resource(R.string.paycross_remove_card_failed), state.error)
         }
     }
 
@@ -847,6 +849,104 @@ class PaymentViewModelTest {
         assertNull((vm.uiState.value.result as PayCrossResult.Success).savedCardToken)
     }
 
+    // --- Errors name a string rather than carrying one ---
+
+    @Test
+    fun `an unparseable token names the invalid-token string`() = runTest(dispatcher.scheduler) {
+        val vm = viewModel()
+        vm.initialize("not-a-jwt")
+        advanceUntilIdle()
+
+        assertEquals(resource(R.string.paycross_error_invalid_token), vm.uiState.value.error)
+        assertEquals(Recovery.RESTART, (vm.uiState.value.result as PayCrossResult.Failure).recovery)
+    }
+
+    @Test
+    fun `a token already past its exp names the session-expired string`() =
+        runTest(dispatcher.scheduler) {
+            // exp is 1800 virtual seconds in, and the virtual clock starts there
+            // once time has been advanced past it.
+            val vm = viewModel(clock = { 4_000_000L })
+            vm.initialize(shortLivedToken)
+            advanceUntilIdle()
+
+            assertEquals(resource(R.string.paycross_session_expired), vm.uiState.value.error)
+        }
+
+    @Test
+    fun `a network failure on submit names the network string`() = runTest(dispatcher.scheduler) {
+        coEvery { repository.getSession(any(), any()) } returns
+            sessionResponse(status = "open", latestTransactionId = null)
+        coEvery { repository.submitCard(any(), any()) } throws IOException("down")
+
+        val vm = viewModel()
+        vm.initialize(token)
+        advanceTimeBy(FORM_SETTLE_MS)
+        vm.submitCard(context, newCard(), emptyMap())
+        advanceTimeBy(FORM_SETTLE_MS)
+
+        assertEquals(resource(R.string.paycross_error_network), vm.uiState.value.error)
+    }
+
+    @Test
+    fun `an http failure on submit names the submission-failed string`() =
+        runTest(dispatcher.scheduler) {
+            coEvery { repository.getSession(any(), any()) } returns
+                sessionResponse(status = "open", latestTransactionId = null)
+            coEvery { repository.submitCard(any(), any()) } throws httpException(500)
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceTimeBy(FORM_SETTLE_MS)
+            vm.submitCard(context, newCard(), emptyMap())
+            advanceTimeBy(FORM_SETTLE_MS)
+
+            assertEquals(
+                resource(R.string.paycross_error_submission_failed),
+                vm.uiState.value.error
+            )
+        }
+
+    @Test
+    fun `a rejected submit shows the server's own sentence untranslated`() =
+        runTest(dispatcher.scheduler) {
+            // The server writes this one, in whatever language the server chose.
+            // Passing it through the string table would either lose it or claim a
+            // translation the SDK does not have.
+            coEvery { repository.getSession(any(), any()) } returns
+                sessionResponse(status = "open", latestTransactionId = null)
+            coEvery { repository.submitCard(any(), any()) } returns
+                SubmitCardResponse(false, null, null, "Carte refusée par l'émetteur", null)
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceTimeBy(FORM_SETTLE_MS)
+            vm.submitCard(context, newCard(), emptyMap())
+            advanceTimeBy(FORM_SETTLE_MS)
+
+            assertEquals(UiText.Raw("Carte refusée par l'émetteur"), vm.uiState.value.error)
+        }
+
+    @Test
+    fun `a rejected submit with no server sentence falls back to the string`() =
+        runTest(dispatcher.scheduler) {
+            coEvery { repository.getSession(any(), any()) } returns
+                sessionResponse(status = "open", latestTransactionId = null)
+            coEvery { repository.submitCard(any(), any()) } returns
+                SubmitCardResponse(false, null, null, null, null)
+
+            val vm = viewModel()
+            vm.initialize(token)
+            advanceTimeBy(FORM_SETTLE_MS)
+            vm.submitCard(context, newCard(), emptyMap())
+            advanceTimeBy(FORM_SETTLE_MS)
+
+            assertEquals(
+                resource(R.string.paycross_error_submission_failed),
+                vm.uiState.value.error
+            )
+        }
+
     private fun sessionResponse(status: String, latestTransactionId: String?) =
         SessionResponse("session-123", status, latestTransactionId, null)
 
@@ -939,4 +1039,9 @@ class PaymentViewModelTest {
 
     private fun httpException(code: Int) =
         HttpException(Response.error<Any>(code, "".toResponseBody()))
+
+    // The view model has no Context, so it names its copy rather than building
+    // it: asserting the id keeps these tests off the resource table and lets the
+    // sheet draw the sentence in whichever language it resolved.
+    private fun resource(id: Int, vararg args: String) = UiText.Resource(id, args.toList())
 }

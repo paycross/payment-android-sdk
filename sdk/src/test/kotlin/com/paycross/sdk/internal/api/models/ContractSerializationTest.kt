@@ -300,6 +300,43 @@ class ContractSerializationTest {
     }
 
     @Test
+    fun `session locale is decoded verbatim, region and all`() {
+        // The tag is carried as the server wrote it. Narrowing fr-CA to fr is the
+        // resolver's job, and it needs the region to be there to decide.
+        val json = """
+            {"session_id": "550e8400-e29b-41d4-a716-446655440000", "data": {"locale": "fr-CA"}}
+        """.trimIndent()
+
+        assertEquals("fr-CA", gson.fromJson(json, SessionResponse::class.java).data?.locale)
+    }
+
+    @Test
+    fun `a locale the SDK cannot read does not cost the session`() {
+        // A malformed or unknown tag is one field, and the sheet can still take a
+        // payment in English. Failing the whole payload over it cannot be right.
+        listOf("\"de-DE\"", "\"not a tag\"", "\"\"", "null").forEach { value ->
+            val json = """
+                {
+                  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "data": {"locale": $value, "merchant_country": "GB"}
+                }
+            """.trimIndent()
+
+            val data = gson.fromJson(json, SessionResponse::class.java).data!!
+            assertEquals("locale $value", "GB", data.merchantCountry)
+        }
+    }
+
+    @Test
+    fun `a session with no locale at all parses`() {
+        val json = """
+            {"session_id": "550e8400-e29b-41d4-a716-446655440000", "data": {"merchant_country": "FR"}}
+        """.trimIndent()
+
+        assertNull(gson.fromJson(json, SessionResponse::class.java).data?.locale)
+    }
+
+    @Test
     fun `status response parses optional fields`() {
         val json = """
             {

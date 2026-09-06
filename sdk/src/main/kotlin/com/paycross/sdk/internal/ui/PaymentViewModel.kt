@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonParser
 import com.paycross.sdk.PayCrossResult
 import com.paycross.sdk.PendingReason
+import com.paycross.sdk.R
 import com.paycross.sdk.Recovery
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.JwtParser
@@ -22,6 +23,7 @@ import com.paycross.sdk.internal.repository.PaymentRepository
 import com.paycross.sdk.internal.repository.RemoveSavedCardResult
 import com.paycross.sdk.internal.util.BrowserInfoProvider
 import com.paycross.sdk.internal.util.IdempotencyKey
+import com.paycross.sdk.internal.util.UiText
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +43,8 @@ import java.util.concurrent.ConcurrentHashMap
  * UI state for the payment flow.
  *
  * @property isLoading Whether an operation is in progress
- * @property error User-facing error message, if any
+ * @property error User-facing error, named rather than built: this class has
+ *   no Context, so the sheet resolves the string in the language it drew in
  * @property sessionData Session data from the server
  * @property claims Parsed JWT claims from the session token
  * @property threeDs 3DS step requiring a WebView, if any
@@ -56,7 +59,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal data class PaymentUiState(
     val isLoading: Boolean = true,
-    val error: String? = null,
+    val error: UiText? = null,
     val sessionData: SessionData? = null,
     val claims: JwtClaims? = null,
     val threeDs: ThreeDsUi? = null,
@@ -142,12 +145,12 @@ internal class PaymentViewModel(
             val claims = try {
                 JwtParser.parse(token)
             } catch (e: IllegalArgumentException) {
-                failInitialization("Invalid session token")
+                failInitialization(UiText.Resource(R.string.paycross_error_invalid_token))
                 return@launch
             }
 
             if (claims.isExpired(clock() / 1000)) {
-                failInitialization("Session expired")
+                failInitialization(UiText.Resource(R.string.paycross_session_expired))
                 return@launch
             }
 
@@ -195,7 +198,7 @@ internal class PaymentViewModel(
         }
     }
 
-    private fun failInitialization(message: String) {
+    private fun failInitialization(message: UiText) {
         _uiState.update {
             it.copy(
                 isLoading = false,
@@ -344,7 +347,7 @@ internal class PaymentViewModel(
 
     /** Surfaces the generic error after a non-cancel sheet failure; the form stays armed. */
     fun onGooglePayFailed() {
-        _uiState.update { it.copy(isLoading = false, error = "Payment failed. Please try again.") }
+        _uiState.update { it.copy(isLoading = false, error = PAYMENT_FAILED) }
     }
 
     /**
@@ -369,7 +372,7 @@ internal class PaymentViewModel(
             }
             if (paymentMethodData == null) {
                 _uiState.update {
-                    it.copy(isLoading = false, error = "Payment failed. Please try again.")
+                    it.copy(isLoading = false, error = PAYMENT_FAILED)
                 }
                 return@launch
             }
@@ -397,12 +400,15 @@ internal class PaymentViewModel(
                 repository.submitCard(idempotencyKey, request)
             } catch (e: IOException) {
                 _uiState.update {
-                    it.copy(isLoading = false, error = "Network error. Please try again.")
+                    it.copy(
+                        isLoading = false,
+                        error = UiText.Resource(R.string.paycross_error_network)
+                    )
                 }
                 return
             } catch (e: HttpException) {
                 _uiState.update {
-                    it.copy(isLoading = false, error = "Payment submission failed")
+                    it.copy(isLoading = false, error = SUBMISSION_FAILED)
                 }
                 return
             }
@@ -418,7 +424,10 @@ internal class PaymentViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = response.error ?: "Payment submission failed"
+                            // The server's own sentence wins when there is
+                            // one: it is more specific than anything here, and it
+                            // is not the SDK's to translate.
+                            error = response.error?.let(UiText::Raw) ?: SUBMISSION_FAILED
                         )
                     }
                     return
@@ -427,7 +436,7 @@ internal class PaymentViewModel(
         }
 
         _uiState.update {
-            it.copy(isLoading = false, error = "Payment submission failed")
+            it.copy(isLoading = false, error = SUBMISSION_FAILED)
         }
     }
 
@@ -520,7 +529,7 @@ internal class PaymentViewModel(
                         it.copy(
                             isLoading = false,
                             threeDs = null,
-                            error = "Payment failed. Please try again."
+                            error = PAYMENT_FAILED
                         )
                     }
                 } else {
@@ -619,7 +628,9 @@ internal class PaymentViewModel(
         // PAYMENT_CHALLENGE_POLL_INTERVAL in paymentConfig.js).
         private const val POLL_INTERVAL_MS = 2000L
 
-        private const val REMOVE_CARD_ERROR = "Could not remove the card. Try again."
+        private val REMOVE_CARD_ERROR = UiText.Resource(R.string.paycross_remove_card_failed)
+        private val PAYMENT_FAILED = UiText.Resource(R.string.paycross_error_payment_failed)
+        private val SUBMISSION_FAILED = UiText.Resource(R.string.paycross_error_submission_failed)
 
         private const val STATUS_SUCCESS = "success"
         private const val STATUS_AUTHORIZED = "authorized"

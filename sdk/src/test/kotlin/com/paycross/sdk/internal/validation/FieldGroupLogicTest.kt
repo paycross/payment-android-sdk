@@ -1,9 +1,11 @@
 package com.paycross.sdk.internal.validation
 
+import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.FieldCondition
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
 import com.paycross.sdk.internal.api.models.FieldValidation
+import com.paycross.sdk.internal.util.UiText
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -77,6 +79,94 @@ class FieldGroupLogicTest {
         assertEquals(2, errors.size)
         assertEquals("line1", errors[0].fieldName)
         assertEquals("country", errors[1].fieldName)
+    }
+
+    @Test
+    fun `a field with no server message names the SDK's own string`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "billing_address",
+                label = null,
+                fields = listOf(
+                    field("line1", required = true),
+                    field(
+                        "post_code",
+                        validation = FieldValidation(pattern = "^[0-9]+$", maxLength = 8, messages = null)
+                    )
+                )
+            )
+        )
+
+        val errors = FieldGroupLogic.validate(
+            groups,
+            mapOf("billing_address" to mapOf("post_code" to "not digits"))
+        )
+
+        // The label is a format argument, so the sentence can be built the other
+        // way round in another language.
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_required, listOf("line1")),
+            errors[0].message
+        )
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_invalid, listOf("post_code")),
+            errors[1].message
+        )
+    }
+
+    @Test
+    fun `a server-supplied message is passed through untranslated`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "billing_address",
+                label = null,
+                fields = listOf(
+                    field(
+                        "country",
+                        required = true,
+                        validation = FieldValidation(
+                            pattern = "^[A-Z]{2}$",
+                            maxLength = 2,
+                            messages = mapOf(
+                                "required" to "Pays obligatoire",
+                                "pattern" to "Code pays sur deux lettres"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val missing = FieldGroupLogic.validate(groups, emptyMap())
+        assertEquals(UiText.Raw("Pays obligatoire"), missing.single().message)
+
+        val badPattern = FieldGroupLogic.validate(
+            groups,
+            mapOf("billing_address" to mapOf("country" to "germany"))
+        )
+        assertEquals(UiText.Raw("Code pays sur deux lettres"), badPattern.single().message)
+    }
+
+    @Test
+    fun `a field with no label falls back to its wire name`() {
+        val unlabelled = FieldDefinition(
+            name = "vat_id",
+            type = "text",
+            label = null,
+            placeholder = null,
+            required = true,
+            readonly = false,
+            value = null,
+            condition = null,
+            options = null,
+            validation = null
+        )
+        val groups = listOf(FieldGroup(key = "billing_address", label = null, fields = listOf(unlabelled)))
+
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_required, listOf("vat_id")),
+            FieldGroupLogic.validate(groups, emptyMap()).single().message
+        )
     }
 
     @Test

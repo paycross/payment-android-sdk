@@ -21,6 +21,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.wallet.button.ButtonConstants
 import com.google.android.gms.wallet.button.ButtonOptions
 import com.google.android.gms.wallet.button.PayButton
+import com.paycross.sdk.R
+import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
 internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
@@ -95,7 +97,7 @@ private fun OrPayWithCardDivider(modifier: Modifier = Modifier) {
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))
         Text(
-            text = "Or pay with card",
+            text = pcStringResource(R.string.paycross_or_pay_with_card),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 12.dp)
