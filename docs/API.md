@@ -602,7 +602,7 @@ polling for that transaction instead of re-arming the form.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `locale` | string | Locale code (e.g., `en`), controls label/message language |
+| `locale` | string | BCP 47 tag (e.g. `en`, `fr-CA`). The native sheets read it as the second candidate in their language ladder, after a merchant override and before the device; a tag the SDK ships no strings for falls through rather than failing. See `LOCALIZATION.md`. |
 | `return_url` | string | URL the checkout returns to on cancel/failure |
 | `success_url` | string | URL the checkout redirects to on success |
 | `merchant_country` | string | Merchant's country code (omitted when unset) |

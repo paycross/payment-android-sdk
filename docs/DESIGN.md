@@ -29,10 +29,11 @@ object PayCross {
         @ColorInt brandColor: Int? = null,
         testCardPrefill: TestCardPrefill? = null,
         googlePayMerchantId: String? = null,
-        appearance: PayCrossAppearance? = null
+        appearance: PayCrossAppearance? = null,
+        locale: String? = null
     ) {
         config = PayCrossConfig(
-            environment, brandColor, testCardPrefill, googlePayMerchantId, appearance
+            environment, brandColor, testCardPrefill, googlePayMerchantId, appearance, locale
         )
     }
 
@@ -380,6 +381,7 @@ paycross-android-sdk/
 │   │   │   ├── PaymentActivity.kt
 │   │   │   ├── PaymentViewModel.kt
 │   │   │   ├── CardFormScreen.kt   # Compose
+│   │   │   ├── PayCrossResources.kt # Locale-aware string lookup
 │   │   │   ├── WebViewFragment.kt
 │   │   │   └── components/         # Compose components
 │   │   │
@@ -389,11 +391,15 @@ paycross-android-sdk/
 │   │   │
 │   │   └── util/
 │   │       ├── BrowserInfoProvider.kt
+│   │       ├── LocaleResolution.kt # Which language the sheet draws in
+│   │       ├── UiText.kt           # A named string, or a server's own sentence
 │   │       └── IdempotencyKey.kt
 │   │
 │   └── res/
 │       ├── layout/                 # WebView only
-│       └── values/
+│       ├── values/                 # English strings, themes
+│       ├── values-fr/              # French strings
+│       └── values-night/
 │
 ├── build.gradle.kts
 ├── proguard-rules.pro
@@ -707,6 +713,61 @@ the sheet logs them, so the rule stays a pure function under unit test. A derive
 `onBrand` never trips it: black and
 white are chosen at the 0.179 luminance crossover, which guarantees at least
 4.58:1.
+
+## Localization
+
+The sheet ships English and French. Every key, what it paints, and how a merchant
+overrides one is in `LOCALIZATION.md`; this section is the mechanism.
+
+### The ladder
+
+`LocaleResolution.resolve` takes the merchant's `locale`, the session's `locale`
+and the device's, and answers with one of the shipped languages. Each candidate
+is matched on its own - the whole tag, then its primary subtag - and one that
+matches nothing falls through to the next rather than ending the ladder. Nothing
+throws: a tag the SDK cannot parse is a tag it does not ship, and both answers
+are "try the next one". This is the hosted checkout page's `matchSupportedLocale`
+rule, so a shopper moving between the page and the sheet reads one language.
+
+### Why the session locale does not go through the context
+
+The merchant's override is known at `init`, so it reaches the window in
+`attachBaseContext` through the same `createConfigurationContext` the pinned
+theme mode already uses. Its early return had to be relaxed: it used to
+short-circuit whenever the theme followed the device, which would have dropped a
+locale set without a pinned theme.
+
+The session's `locale` arrives with the payload, after `setContent`. Recreating
+the activity to apply it would throw away a half-filled card form, so it travels
+as a composition local, `LocalPayCrossResources`, holding a `Resources` built for
+the resolved language. Every string site reads it through `pcStringResource`.
+
+Deliberately **not** an override of `LocalContext`: a Compose `Dialog` runs in a
+sub-composition against its own window and re-provides `LocalContext` from it, so
+the cancel and remove-card dialogs would have stayed in the old language, and the
+3-D Secure `WebView` needs the real Activity anyway. A local of our own crosses
+into a dialog's sub-composition, which `FrenchSheetTest` asserts on a device.
+
+`AppCompatDelegate.setApplicationLocales` is not used either: it is process-wide
+and would repaint the merchant's own app.
+
+### Strings from places with no Context
+
+The view model and `FieldGroupLogic` both produce shopper-facing text and neither
+can reach resources. They emit `UiText` instead: `Resource(id, args)` for the
+SDK's own copy, resolved and translated where it is drawn, and `Raw(text)` for
+the three places where the server sends a sentence of its own - a rejected
+submit, and a field group's `required` and `pattern` messages. A server's
+sentence is never translated, because there is no way to know what language it is
+already in.
+
+Material's `default_error_message`, borrowed for the invalid-field announcement,
+stays borrowed. Compose ships it in about forty languages; this SDK ships two.
+
+### The amount
+
+`Amounts.formatMinor` is given the resolved locale, so the grouping and the
+symbol's position match the label above them rather than the device's settings.
 
 ### Deprecated
 

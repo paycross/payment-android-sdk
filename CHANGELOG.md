@@ -9,6 +9,75 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed — binary-incompatible, and the next release is a MINOR bump
+
+- `PayCross.init` gains a sixth parameter, `locale: String?`, appended with a
+  default. Kotlin source is unaffected: every existing call still compiles. What
+  changes is the ABI and the Java surface. The five-argument descriptor and the
+  old `init$default` are gone, so merchant code compiled against 0.7.0 must be
+  **recompiled** rather than swapped in, and Java callers — which have no default
+  arguments — must pass the extra argument.
+
+### Added
+
+- **French.** Every string the sheet draws now lives in
+  `res/values/strings.xml`, with a `values-fr` translation. Thirty-two keys, all
+  named `paycross_*` and all public API: declaring the same key in your own app
+  overrides ours through ordinary resource merging. Setting a locale does **not**
+  turn those overrides off — the locale picks which of your `values-*` folders is
+  read, and your string still wins inside it. Every key, what it paints and how
+  to add a language are listed in the new `LOCALIZATION.md`.
+
+- **A locale rule.** The sheet's language is the first of these the SDK ships
+  strings for: `PayCross.init(locale = …)`, then the payment session's `locale`,
+  then the device, then English. Each candidate is matched on its own — the whole
+  tag, then its primary subtag, so `fr-CA` reaches French — and one that matches
+  nothing falls through to the next rather than ending the ladder. Nothing
+  throws on a malformed tag. Same rule as the hosted checkout page.
+
+  The merchant's override reaches the sheet's window before it is built. The
+  session's locale arrives with the payload and is applied without recreating the
+  activity, so a half-filled card form survives it, and it reaches both dialogs.
+  Neither touches the host app's language.
+
+- **A README**, which this repo did not have.
+
+### Changed
+
+- Three strings change their English. The keys do not: a key is public API
+  through the string override, so renaming one would silently drop a merchant's
+  copy.
+
+  | Key | Was | Now |
+  |---|---|---|
+  | `paycross_remove_card_message` | `%1$s will no longer be offered at checkout.` | `%1$s will no longer be offered for future payments.` |
+  | `paycross_remove_card` | `Remove %1$s` | `Remove card, %1$s` |
+  | `paycross_session_expired` | `Session expired` | `This payment session has expired. Start again.` |
+
+  The last of those is one sentence under one key on both platforms now. The
+  short `Session expired` read like a developer message, and iOS already showed
+  the sentence. `paycross_error_session_expired` does not exist.
+
+- The amount is formatted in the language the sheet resolved rather than the
+  device's, so the number under a French label is grouped the French way. A
+  shopper whose device is in a language the SDK does not ship sees the amount
+  formatted in English where it was previously formatted for their device.
+
+- A rejected submit's own error sentence, and a merchant field group's own
+  `required` and `pattern` messages, are shown exactly as the server wrote them.
+  They were before too; this is now explicit rather than incidental, because the
+  SDK has no way to know what language a server's sentence is in and never
+  translates one.
+
+### Not changed, deliberately
+
+- **Android still has no `Total` caption over the amount, and iOS still does.**
+  The two sheets stay asymmetric this release rather than growing a label nobody
+  asked for.
+- The invalid-field announcement on a card field is still Material's own
+  `default_error_message`. Compose ships it in about forty languages; this SDK
+  ships two, so borrowing it keeps more shoppers hearing their own.
+
 ## [0.7.0] - 2026-09-06
 
 ### Changed — binary-incompatible, and the next release is a MINOR bump
