@@ -142,7 +142,7 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [0.5.0] - 2026-09-05
 
-### Changed — binary-incompatible, and the next release is a MINOR bump
+### Changed — source-incompatible, and the next release is a MINOR bump
 
 - `PayCrossResult.Pending(transactionId, reason)` is a new member of the
   `PayCrossResult` sealed class, so an exhaustive `when (result)` in merchant

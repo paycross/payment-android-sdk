@@ -2,7 +2,8 @@
 
 ## Overview
 
-Drop-in payment UI for Android apps. Merchant passes session token, SDK handles card entry, 3DS, and status polling.
+Drop-in payment UI for Android apps. Merchant passes session token, SDK handles card
+entry, 3DS, and status polling.
 
 **Approach:** Pre-built UI (like iOS SDK) with WebView for 3DS challenges.
 
@@ -540,7 +541,9 @@ BrowserInfo(
 )
 ```
 
-**Note:** `browser_info.ip_address` is not collected or sent. The submit-card API derives it from the connection (`CF-Connecting-IP`, falling back to the API Gateway source IP) whenever the client omits it, so the SDK contacts no third-party host.
+**Note:** `browser_info.ip_address` is not collected or sent. The submit-card API
+derives it from the connection (`CF-Connecting-IP`, falling back to the API Gateway
+source IP) whenever the client omits it, so the SDK contacts no third-party host.
 
 ## Testing
 
@@ -696,10 +699,12 @@ has no logo slot, and adding one is a layout change.
 ### Contrast
 
 The resolver computes the WCAG ratio for the `brand`/`onBrand` pair, for
-`surface` against the text drawn on it, and for a merchant-set Pay button pair, and anything under 4.5:1 is logged once per
+`surface` against the text drawn on it, and for a merchant-set Pay button pair, and
+anything under 4.5:1 is logged once per
 sheet — only when the host app is debuggable, because a merchant shipping a
 release build cannot act on a logcat line. The resolver returns the warnings and
-the sheet logs them, so the rule stays a pure function under unit test. A derived `onBrand` never trips it: black and
+the sheet logs them, so the rule stays a pure function under unit test. A derived
+`onBrand` never trips it: black and
 white are chosen at the 0.179 luminance crossover, which guarantees at least
 4.58:1.
 
