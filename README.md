@@ -145,7 +145,12 @@ platforms.
 
 `<uuid>` is the saved card's `uuid` as the session sends it. iOS exposes the same
 value as `card.id`, so one identifier addresses the same card on both platforms.
-`<group>` and `<name>` are the group key and field name from the session.
+
+`<group>` and `<name>` are the group key and field name from the session, joined
+with dots because iOS builds the same string. **Neither may contain a dot or a
+space**: a field called `city.error` in group `billing` would produce the
+identifier of `city`'s error node, and a space would put a space in a resource
+id. Field keys are yours to choose in the back office, so choose them without.
 
 Two identifiers in the shared scheme have no Android element behind them:
 `paycross.brand` and `paycross.threeDSCancel`. iOS draws a brand badge beside the
@@ -189,9 +194,9 @@ The sheet holds to a floor, and the instrumented suite asserts each line of it:
   while the spinner is up, when the label is not on screen. Names come from the
   same `paycross_*` resources as everything else, so overriding a string changes
   what is spoken too.
-- **A decline is announced.** The error banner is a polite live region: a screen
-  reader reads it when it appears, without interrupting a shopper who is
-  mid-correction in a field.
+- **A decline is announced, and so is a wait.** The error banner and the busy
+  overlay are both polite live regions: a screen reader reads each when it
+  appears, without interrupting a shopper who is mid-correction in a field.
 - **Colour is never the only signal.** The banner draws a warning glyph beside
   the message.
 - **A field speaks its label, its name and its error together**, as one node,

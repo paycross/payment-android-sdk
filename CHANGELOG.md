@@ -53,11 +53,12 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 ### Added
 
 - **An accessibility floor**, documented in the README and asserted by the
-  instrumented suite. Every control is named; a decline is announced through a
-  polite live region and carries a warning glyph so colour is not its only
-  signal; a card field speaks its label, its name and its error state as one
-  node; the Pay button keeps its name while the spinner covers its label; the
-  saved-card CVV box grows with the text size; the amount is a heading.
+  instrumented suite. Every control is named; a decline and a wait are each
+  announced through a polite live region, and the decline carries a warning
+  glyph so colour is not its only signal; a card field speaks its label, its
+  name and its error state as one node; the Pay button keeps its name while the
+  spinner covers its label; the saved-card CVV box grows with the text size;
+  the amount is a heading; every control is at least a 48dp touch target.
 
 - **French.** Every string the sheet draws now lives in
   `res/values/strings.xml`, with a `values-fr` translation. Thirty-three keys,

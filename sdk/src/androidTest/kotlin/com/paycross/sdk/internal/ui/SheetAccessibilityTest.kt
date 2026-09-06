@@ -13,7 +13,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.R
@@ -32,6 +36,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.Locale
 
 /**
  * The accessibility floor, asserted where it is set rather than described.
@@ -46,6 +51,13 @@ class SheetAccessibilityTest {
     @get:Rule
     val compose = createComposeRule()
 
+    // Provided rather than inherited, and read back through the same keys the
+    // sheet draws from: the assertions then survive both a change of emulator
+    // language and a rewording of the copy.
+    private val english = InstrumentationRegistry.getInstrumentation()
+        .targetContext
+        .localizedResources(Locale.ENGLISH)
+
     private val claims = JwtClaims(
         sessionId = "session-123",
         merchantId = "merchant-456",
@@ -55,6 +67,14 @@ class SheetAccessibilityTest {
         currency = "EUR",
         expiresAt = null
     )
+
+    private fun setContent(content: @Composable () -> Unit) {
+        compose.setContent {
+            CompositionLocalProvider(LocalPayCrossResources provides english, content = content)
+        }
+    }
+
+    private fun string(id: Int, vararg args: Any): String = english.getString(id, *args)
 
     private val visa = SavedCard(
         uuid = "card-1",
@@ -72,7 +92,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun everyControlIsAtLeastAFingertipTall() {
-        compose.setContent {
+        setContent {
             CardFormScreen(
                 claims = claims,
                 sessionData = SessionData(
@@ -100,7 +120,7 @@ class SheetAccessibilityTest {
     fun theDeleteButtonIsAtLeastAFingertipTall() {
         // Its own screen: the delete icon needs a session that permits removal,
         // and the picker stands up without the rest of the form.
-        compose.setContent {
+        setContent {
             SavedCardSelector(
                 savedCards = listOf(visa),
                 selectedCard = null,
@@ -116,7 +136,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun anInvalidCardFieldSpeaksItsLabelAndItsErrorTogether() {
-        compose.setContent {
+        setContent {
             CardNumberField(value = "4", isError = true, onValueChange = {})
         }
 
@@ -126,14 +146,14 @@ class SheetAccessibilityTest {
         // the decoration box underneath it. All three on one node is what the
         // merge buys: without it the description would be read instead of them.
         assertEquals(
-            listOf("Card number input"),
+            listOf(string(R.string.paycross_card_number_field)),
             config.getOrNull(SemanticsProperties.ContentDescription)
         )
         assertTrue(
             "label missing from the merged node",
             config.getOrNull(SemanticsProperties.Text)
                 .orEmpty()
-                .any { it.text == "Card Number" }
+                .any { it.text == string(R.string.paycross_card_number) }
         )
         assertNotNull(
             "error state missing from the merged node",
@@ -143,7 +163,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun aValidCardFieldCarriesNoErrorState() {
-        compose.setContent {
+        setContent {
             CardNumberField(value = "4532015112830366", isError = false, onValueChange = {})
         }
 
@@ -153,7 +173,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun theErrorBannerAnnouncesItselfAndDrawsAShapeAsWellAsAColour() {
-        compose.setContent {
+        setContent {
             CardFormScreen(
                 claims = claims,
                 sessionData = null,
@@ -174,7 +194,7 @@ class SheetAccessibilityTest {
             "the message is not on the announced node",
             config.getOrNull(SemanticsProperties.Text)
                 .orEmpty()
-                .any { it.text == "Payment failed. Please try again." }
+                .any { it.text == string(R.string.paycross_error_payment_failed) }
         )
 
         // Colour alone fails anyone who cannot see it, so the banner draws a
@@ -185,7 +205,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun theSaveCardRowIsOneNamedToggleRatherThanACheckboxBesideASentence() {
-        compose.setContent {
+        setContent {
             CardFormScreen(
                 claims = claims,
                 sessionData = SessionData(
@@ -211,7 +231,7 @@ class SheetAccessibilityTest {
             "the toggle is unnamed",
             toggle.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)
                 .orEmpty()
-                .any { it.text == "Save card for future use" }
+                .any { it.text == string(R.string.paycross_save_this_card) }
         )
 
         // Tapping the caption, not the box: the whole row is the control now.
@@ -221,7 +241,7 @@ class SheetAccessibilityTest {
 
     @Test
     fun theAmountIsAHeadingAScreenReaderCanJumpTo() {
-        compose.setContent {
+        setContent {
             CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
         }
 
@@ -236,11 +256,11 @@ class SheetAccessibilityTest {
     fun thePayButtonKeepsItsNameWhileTheSpinnerIsUp() {
         // The label is the only thing on the button that says what it does, and
         // loading swaps it for a spinner.
-        compose.setContent { PayButton(amount = "€12.34", isLoading = true, onClick = {}) }
+        compose.setContent { PayButton(amount = AMOUNT, isLoading = true, onClick = {}) }
 
         val config = compose.onNodeWithTag(TestTags.PAY_BUTTON).fetchSemanticsNode().config
         assertEquals(
-            listOf("Pay €12.34"),
+            listOf(string(R.string.paycross_pay_amount, AMOUNT)),
             config.getOrNull(SemanticsProperties.ContentDescription)
         )
     }
@@ -249,13 +269,15 @@ class SheetAccessibilityTest {
     fun theRestingPayButtonIsNamedByItsLabelAlone() {
         // No description over the label: the same words twice would only take
         // the label out of the tree that a UiAutomator dump reads.
-        compose.setContent { PayButton(amount = "€12.34", isLoading = false, onClick = {}) }
+        compose.setContent { PayButton(amount = AMOUNT, isLoading = false, onClick = {}) }
 
         val config = compose.onNodeWithTag(TestTags.PAY_BUTTON).fetchSemanticsNode().config
         assertEquals(null, config.getOrNull(SemanticsProperties.ContentDescription))
         assertTrue(
             "the label is not on the button",
-            config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text == "Pay €12.34" }
+            config.getOrNull(SemanticsProperties.Text)
+                .orEmpty()
+                .any { it.text == string(R.string.paycross_pay_amount, AMOUNT) }
         )
     }
 
@@ -265,7 +287,7 @@ class SheetAccessibilityTest {
 
         val config = compose.onNodeWithTag(TestTags.LOADING).fetchSemanticsNode().config
         assertEquals(
-            listOf("Processing payment..."),
+            listOf(string(R.string.paycross_processing)),
             config.getOrNull(SemanticsProperties.ContentDescription)
         )
     }
@@ -276,7 +298,7 @@ class SheetAccessibilityTest {
 
         val config = compose.onNodeWithTag(TestTags.CANCEL_DIALOG).fetchSemanticsNode().config
         assertEquals(
-            "Cancel Payment?",
+            string(R.string.paycross_cancel_payment_title),
             config.getOrNull(SemanticsProperties.PaneTitle)
         )
     }
@@ -284,5 +306,8 @@ class SheetAccessibilityTest {
     private companion object {
         /** Material's minimum touch target, and the README's promise. */
         val MIN_TOUCH_TARGET = 48.dp
+
+        /** Passed in already formatted, the way the card form hands it over. */
+        const val AMOUNT = "€12.34"
     }
 }

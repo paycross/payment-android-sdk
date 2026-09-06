@@ -65,13 +65,8 @@ import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 
-private val PAY_BUTTON_HEIGHT = 56.dp
-
-/**
- * Material's minimum touch target, and the floor this sheet holds every control
- * to. Applied where a control would otherwise be smaller than a fingertip.
- */
-private val MIN_TOUCH_TARGET = 48.dp
+/** The Pay button's resting height, and a floor rather than a fixed size. */
+private val PAY_BUTTON_MIN_HEIGHT = 56.dp
 
 /**
  * The floor under the saved-card CVV box.
@@ -472,7 +467,7 @@ internal fun PayButton(
         // room than 56dp, and a fixed height cropped it instead of growing.
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = button?.height ?: PAY_BUTTON_HEIGHT)
+            .heightIn(min = button?.height ?: PAY_BUTTON_MIN_HEIGHT)
             .testTag(TestTags.PAY_BUTTON)
             // Only while the spinner covers the label, which is otherwise the
             // only thing that says what the button does. Setting it always

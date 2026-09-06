@@ -689,6 +689,10 @@ back to `cornerRadius`. Dialogs keep Material's own radius.
 stay in sp, so it composes with the device's font scale rather than replacing
 it.
 
+`PayCrossPrimaryButton.height` is a **minimum**, not a fixed size. The button
+draws at the height you give it and grows past it when the shopper's text size
+needs more room, rather than cropping its own label.
+
 A radius, height or thickness that is negative, infinite or not a number is
 ignored, and so is a scale that is infinite or not a number. Zero is a real
 value: it squares the corners and removes the border.
