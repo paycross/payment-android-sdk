@@ -3,6 +3,8 @@ package com.paycross.sdk.internal.ui
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -10,14 +12,18 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SaveCardConfig
+import com.paycross.sdk.internal.api.models.SavedCard
+import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.ui.components.CardNumberField
+import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.util.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -50,9 +56,62 @@ class SheetAccessibilityTest {
         expiresAt = null
     )
 
+    private val visa = SavedCard(
+        uuid = "card-1",
+        maskedPan = "453201******0366",
+        cardBrand = "visa",
+        expireMonth = "12",
+        expireYear = "2030",
+        cardholderName = "JOHN DOE"
+    )
+
     @Before
     fun setUp() {
         PayCross.init(environment = PayCrossEnvironment.STAGING)
+    }
+
+    @Test
+    fun everyControlIsAtLeastAFingertipTall() {
+        compose.setContent {
+            CardFormScreen(
+                claims = claims,
+                sessionData = SessionData(
+                    locale = null,
+                    returnUrl = null,
+                    successUrl = null,
+                    fieldGroups = null,
+                    merchantCountry = null,
+                    saveCardConfig = SaveCardConfig(usage = "optional"),
+                    savedCards = null,
+                    savedCardsConfig = null,
+                    wallets = null,
+                    accountFunding = null,
+                    googlePay = null
+                ),
+                onSubmit = { _, _ -> }
+            )
+        }
+
+        compose.onNodeWithTag(TestTags.PAY_BUTTON).assertHeightIsAtLeast(MIN_TOUCH_TARGET)
+        compose.onNodeWithTag(TestTags.SAVE_CARD).assertHeightIsAtLeast(MIN_TOUCH_TARGET)
+    }
+
+    @Test
+    fun theDeleteButtonIsAtLeastAFingertipTall() {
+        // Its own screen: the delete icon needs a session that permits removal,
+        // and the picker stands up without the rest of the form.
+        compose.setContent {
+            SavedCardSelector(
+                savedCards = listOf(visa),
+                selectedCard = null,
+                allowRemoval = true,
+                onCardSelected = {}
+            )
+        }
+
+        compose.onNodeWithTag(TestTags.savedCardDelete("card-1"))
+            .assertHeightIsAtLeast(MIN_TOUCH_TARGET)
+            .assertWidthIsAtLeast(MIN_TOUCH_TARGET)
     }
 
     @Test
@@ -220,5 +279,10 @@ class SheetAccessibilityTest {
             "Cancel Payment?",
             config.getOrNull(SemanticsProperties.PaneTitle)
         )
+    }
+
+    private companion object {
+        /** Material's minimum touch target, and the README's promise. */
+        val MIN_TOUCH_TARGET = 48.dp
     }
 }
