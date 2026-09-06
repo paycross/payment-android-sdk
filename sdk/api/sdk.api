@@ -1,8 +1,8 @@
 public final class com/paycross/sdk/PayCross {
 	public static final field $stable I
 	public static final field INSTANCE Lcom/paycross/sdk/PayCross;
-	public final fun init (Lcom/paycross/sdk/PayCrossEnvironment;Ljava/lang/Integer;Lcom/paycross/sdk/TestCardPrefill;Ljava/lang/String;Lcom/paycross/sdk/PayCrossAppearance;)V
-	public static synthetic fun init$default (Lcom/paycross/sdk/PayCross;Lcom/paycross/sdk/PayCrossEnvironment;Ljava/lang/Integer;Lcom/paycross/sdk/TestCardPrefill;Ljava/lang/String;Lcom/paycross/sdk/PayCrossAppearance;ILjava/lang/Object;)V
+	public final fun init (Lcom/paycross/sdk/PayCrossEnvironment;Ljava/lang/Integer;Lcom/paycross/sdk/TestCardPrefill;Ljava/lang/String;Lcom/paycross/sdk/PayCrossAppearance;Ljava/lang/String;)V
+	public static synthetic fun init$default (Lcom/paycross/sdk/PayCross;Lcom/paycross/sdk/PayCrossEnvironment;Ljava/lang/Integer;Lcom/paycross/sdk/TestCardPrefill;Ljava/lang/String;Lcom/paycross/sdk/PayCrossAppearance;Ljava/lang/String;ILjava/lang/Object;)V
 }
 
 public final class com/paycross/sdk/PayCrossAppearance {

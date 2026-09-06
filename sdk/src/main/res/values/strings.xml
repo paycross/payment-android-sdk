@@ -8,7 +8,7 @@
   Format arguments are positional (%1$s) even where there is only one, so a
   translator can move them.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Card form -->
     <string name="paycross_card_number">Card Number</string>
@@ -18,7 +18,8 @@
     <string name="paycross_save_this_card">Save card for future use</string>
     <string name="paycross_pay_amount">Pay %1$s</string>
     <string name="paycross_or_pay_with_card">Or pay with card</string>
-    <string name="paycross_processing">Processing payment...</string>
+    <!-- Three ASCII dots, not U+2026: the hosted checkout page writes it that way. -->
+    <string name="paycross_processing" tools:ignore="TypographyEllipsis">Processing payment...</string>
 
     <!-- Saved cards -->
     <string name="paycross_use_a_new_card">Use a new card</string>
