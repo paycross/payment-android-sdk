@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Vouvoiement, sentence case, and a plain space before ? and : — the register the
+  hosted checkout page already ships, so the sheet and the page read as one
+  product. Values are the copy sheet's verbatim; do not reword one here.
+-->
+<resources>
+
+    <!-- Card form -->
+    <string name="paycross_card_number">Numéro de carte</string>
+    <string name="paycross_expiry_label">MM/AA</string>
+    <string name="paycross_cvv">CVV</string>
+    <string name="paycross_cardholder_name">Nom du titulaire</string>
+    <string name="paycross_save_this_card">Enregistrer la carte pour une utilisation future</string>
+    <string name="paycross_pay_amount">Payer %1$s</string>
+    <string name="paycross_or_pay_with_card">Ou payer par carte</string>
+    <string name="paycross_processing">Traitement du paiement...</string>
+
+    <!-- Saved cards -->
+    <string name="paycross_use_a_new_card">Utiliser une nouvelle carte</string>
+    <string name="paycross_saved_card_expires">Expire %1$s/%2$s</string>
+    <string name="paycross_saved_card_cvv_prompt">Entrez le CVV de la carte %1$s</string>
+    <string name="paycross_remove_card">Supprimer la carte, %1$s</string>
+    <string name="paycross_remove_card_title">Supprimer cette carte ?</string>
+    <string name="paycross_remove_card_message">La carte %1$s ne sera plus proposée pour vos prochains paiements.</string>
+    <string name="paycross_remove_card_confirm">Supprimer</string>
+    <string name="paycross_remove_card_keep">Conserver</string>
+    <string name="paycross_remove_card_failed">Impossible de supprimer la carte. Veuillez réessayer.</string>
+
+    <!-- Cancelling the sheet -->
+    <string name="paycross_cancel_payment_title">Annuler le paiement ?</string>
+    <string name="paycross_cancel_payment_message">Voulez-vous vraiment annuler ce paiement ?</string>
+    <string name="paycross_cancel_payment_yes">Oui, annuler</string>
+    <string name="paycross_cancel_payment_continue">Continuer le paiement</string>
+
+    <!-- Errors -->
+    <string name="paycross_error_invalid_token">Jeton de session invalide</string>
+    <string name="paycross_session_expired">Votre session de paiement a expiré. Veuillez recommencer.</string>
+    <string name="paycross_error_payment_failed">Le paiement a échoué. Veuillez réessayer.</string>
+    <string name="paycross_error_network">Erreur réseau. Veuillez réessayer.</string>
+    <string name="paycross_error_submission_failed">Échec de l\'envoi du paiement</string>
+    <string name="paycross_field_required">Champ obligatoire : %1$s</string>
+    <string name="paycross_field_invalid">Champ non valide : %1$s</string>
+
+    <!-- Spoken labels -->
+    <string name="paycross_card_number_field">Saisie du numéro de carte</string>
+    <string name="paycross_expiry_field">Saisie de la date d\'expiration</string>
+    <string name="paycross_cvv_field">Saisie du CVV</string>
+    <string name="paycross_cardholder_name_field">Saisie du nom du titulaire</string>
+
+</resources>
