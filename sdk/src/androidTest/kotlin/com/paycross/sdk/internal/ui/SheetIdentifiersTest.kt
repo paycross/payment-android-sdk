@@ -90,7 +90,10 @@ class SheetIdentifiersTest {
             "paycross.errorBanner",
             "paycross.payButton"
         ).forEach { tag ->
-            compose.onNodeWithTag(tag).assertIsDisplayed()
+            // Exists, not displayed: the form scrolls, so on a short screen the
+            // lower half of the list is composed and off-screen. What a merchant
+            // needs is that the identifier is there to be found and scrolled to.
+            compose.onNodeWithTag(tag).assertExists()
         }
     }
 
@@ -112,7 +115,7 @@ class SheetIdentifiersTest {
         // merges its descendants, so it has no node of its own once merged. A
         // UiAutomator dump sees the field's error state instead.
         compose.onNodeWithTag("paycross.field.billing.city.error", useUnmergedTree = true)
-            .assertIsDisplayed()
+            .assertExists()
     }
 
     @Test

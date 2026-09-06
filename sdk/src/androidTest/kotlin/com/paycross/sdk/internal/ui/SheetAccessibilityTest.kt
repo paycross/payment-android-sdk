@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
@@ -155,7 +156,7 @@ class SheetAccessibilityTest {
         )
 
         // Tapping the caption, not the box: the whole row is the control now.
-        toggle.performClick()
+        toggle.performScrollTo().performClick()
         compose.onNodeWithTag(TestTags.SAVE_CARD).assertIsOn()
     }
 

@@ -14,6 +14,7 @@ import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -110,7 +111,7 @@ class FontScaleTest {
         // belongs to is the design, and only the font scale may widen it.
         val width = compose.onNodeWithTag(TestTags.CVV).fetchSemanticsNode().size.width
         val resting = with(compose.density) { 100.dp.roundToPx() }
-        assertTrue("CVV box was $width px, expected $resting px", width == resting)
+        assertEquals(resting, width)
     }
 
     @Composable
