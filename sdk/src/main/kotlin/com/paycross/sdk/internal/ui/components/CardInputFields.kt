@@ -18,9 +18,16 @@ import com.paycross.sdk.internal.validation.CardType
 private const val MAX_CARD_NUMBER_LENGTH = 19
 private const val EXPIRY_LENGTH = 4
 
-/** The spoken label and the identifier, on the field's own node. */
+/**
+ * The spoken label and the identifier, on the node that merges the field.
+ *
+ * The merge is stated here rather than left to [PayCrossOutlinedTextField]'s
+ * label branch because this is where it matters: a contentDescription on an
+ * unmerged field would speak instead of the label and the error the decoration
+ * box sets, not alongside them.
+ */
 private fun Modifier.fieldSemantics(description: String, tag: String): Modifier =
-    this.testTag(tag).semantics { contentDescription = description }
+    this.testTag(tag).semantics(mergeDescendants = true) { contentDescription = description }
 
 @Composable
 internal fun CardNumberField(

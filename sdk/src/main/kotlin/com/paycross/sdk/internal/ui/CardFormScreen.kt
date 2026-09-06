@@ -7,16 +7,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,6 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
@@ -55,6 +66,12 @@ import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 
 private val PAY_BUTTON_HEIGHT = 56.dp
+
+/**
+ * Material's minimum touch target, and the floor this sheet holds every control
+ * to. Applied where a control would otherwise be smaller than a fingertip.
+ */
+private val MIN_TOUCH_TARGET = 48.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
@@ -265,6 +282,11 @@ internal fun CardFormScreen(
     }
 }
 
+/**
+ * The amount is its own label — a contentDescription here could only repeat it,
+ * and would replace it if it ever drifted. What it was missing is the heading
+ * role, which is how a screen reader jumps to the top of the sheet.
+ */
 @Composable
 private fun AmountHeader(amount: String) {
     Text(
@@ -272,7 +294,8 @@ private fun AmountHeader(amount: String) {
         style = MaterialTheme.typography.headlineMedium,
         modifier = Modifier
             .fillMaxWidth()
-            .testTag(TestTags.AMOUNT),
+            .testTag(TestTags.AMOUNT)
+            .semantics { heading() },
         textAlign = TextAlign.Center
     )
 }
@@ -327,15 +350,27 @@ private fun NewCardForm(
     }
 }
 
+/**
+ * The toggle is on the row, not on the box: a bare [Checkbox] carries no label
+ * of its own, so a screen reader announced an unnamed checkbox beside an inert
+ * sentence. Moving it up merges the two into one control the caption names, and
+ * gives the whole row a fingertip's worth of height.
+ */
 @Composable
 private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = MIN_TOUCH_TARGET)
+            .toggleable(
+                value = checked,
+                role = Role.Checkbox,
+                onValueChange = onCheckedChange
+            )
             .testTag(TestTags.SAVE_CARD)
     ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Checkbox(checked = checked, onCheckedChange = null)
         Text(pcStringResource(R.string.paycross_save_this_card))
     }
 }
@@ -364,14 +399,39 @@ private fun SavedCardCvvInput(
     )
 }
 
+/**
+ * A decline has to reach a shopper who is not looking at the banner and one who
+ * cannot tell the red text from the black. The live region announces it the
+ * moment it appears, without stealing focus from the field being corrected, and
+ * the icon carries the same meaning as the colour for anyone who cannot see it.
+ *
+ * The icon is decorative: the sentence beside it says everything the icon means,
+ * and a description would be read out before it.
+ */
 @Composable
 private fun ErrorMessage(message: UiText) {
-    Text(
-        text = pcStringResource(message),
-        color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.testTag(TestTags.ERROR_BANNER)
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.ERROR_BANNER)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Warning,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier
+                .size(16.dp)
+                .testTag(TestTags.ERROR_BANNER_ICON)
+        )
+        Text(
+            text = pcStringResource(message),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
 }
 
 @Composable
@@ -381,6 +441,7 @@ internal fun PayButton(
     onClick: () -> Unit
 ) {
     val button = LocalPayCrossAppearance.current?.primaryButton
+    val label = pcStringResource(R.string.paycross_pay_amount, amount)
     Button(
         onClick = onClick,
         enabled = !isLoading,
@@ -397,6 +458,9 @@ internal fun PayButton(
             .fillMaxWidth()
             .height(button?.height ?: PAY_BUTTON_HEIGHT)
             .testTag(TestTags.PAY_BUTTON)
+            // Named even while the spinner is up: the label is the only thing
+            // that says what the button does, and it is not on screen then.
+            .semantics { contentDescription = label }
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -404,7 +468,7 @@ internal fun PayButton(
                 color = LocalContentColor.current
             )
         } else {
-            Text(pcStringResource(R.string.paycross_pay_amount, amount))
+            Text(label)
         }
     }
 }

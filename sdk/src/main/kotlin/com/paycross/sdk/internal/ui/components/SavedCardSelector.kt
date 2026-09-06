@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.SavedCard
@@ -168,10 +170,16 @@ private fun RemoveCardDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = pcStringResource(R.string.paycross_remove_card_title)
     AlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.testTag(TestTags.REMOVE_DIALOG),
-        title = { Text(pcStringResource(R.string.paycross_remove_card_title)) },
+        // paneTitle rather than a contentDescription: the dialog is a window of
+        // its own, and a description here would merge the two buttons into one
+        // unreadable node. TalkBack announces a pane by its title when it opens.
+        modifier = Modifier
+            .testTag(TestTags.REMOVE_DIALOG)
+            .semantics { paneTitle = title },
+        title = { Text(title) },
         text = {
             Text(pcStringResource(R.string.paycross_remove_card_message, card.rowTitle()))
         },

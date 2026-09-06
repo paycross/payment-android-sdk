@@ -33,6 +33,13 @@ internal object TestTags {
     const val CARDHOLDER_NAME = "paycross.cardholderName"
     const val SAVE_CARD = "paycross.saveCard"
     const val ERROR_BANNER = "paycross.errorBanner"
+
+    /**
+     * The banner's warning glyph. Not in the cross-platform set — it exists so a
+     * test can prove the icon is drawn, since a decorative image carries no
+     * semantics of its own to find it by.
+     */
+    const val ERROR_BANNER_ICON = "paycross.errorBanner.icon"
     const val PAY_BUTTON = "paycross.payButton"
     const val LOADING = "paycross.loading"
     const val THREE_DS = "paycross.threeDS"

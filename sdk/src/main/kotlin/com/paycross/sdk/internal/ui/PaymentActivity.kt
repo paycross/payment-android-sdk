@@ -40,6 +40,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
@@ -388,17 +390,21 @@ private fun PaymentScreen(
 // network and a payment in flight.
 @Composable
 internal fun LoadingOverlay() {
+    val processing = pcStringResource(R.string.paycross_processing)
     Surface(
+        // One node with a name, rather than a spinner and a caption a screen
+        // reader steps through separately while the sheet is blocked anyway.
         modifier = Modifier
             .fillMaxSize()
-            .testTag(TestTags.LOADING),
+            .testTag(TestTags.LOADING)
+            .semantics(mergeDescendants = true) { contentDescription = processing },
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(pcStringResource(R.string.paycross_processing))
+                Text(processing)
             }
         }
     }
@@ -412,10 +418,16 @@ internal fun CancelConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = pcStringResource(R.string.paycross_cancel_payment_title)
     AlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.testTag(TestTags.CANCEL_DIALOG),
-        title = { Text(pcStringResource(R.string.paycross_cancel_payment_title)) },
+        // paneTitle rather than a contentDescription: a description on a dialog
+        // merges its buttons away, while a pane title is what TalkBack reads
+        // when the window opens.
+        modifier = Modifier
+            .testTag(TestTags.CANCEL_DIALOG)
+            .semantics { paneTitle = title },
+        title = { Text(title) },
         text = { Text(pcStringResource(R.string.paycross_cancel_payment_message)) },
         confirmButton = {
             TextButton(
