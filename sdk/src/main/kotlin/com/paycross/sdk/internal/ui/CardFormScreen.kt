@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,6 +72,13 @@ private val PAY_BUTTON_HEIGHT = 56.dp
  * to. Applied where a control would otherwise be smaller than a fingertip.
  */
 private val MIN_TOUCH_TARGET = 48.dp
+
+/**
+ * The saved-card CVV box at the default font scale. A minimum rather than a
+ * width: the box is narrow on purpose, and a fixed one clips three digits the
+ * moment the shopper turns their font size up.
+ */
+private val SAVED_CARD_CVV_MIN_WIDTH = 100.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
@@ -395,7 +402,7 @@ private fun SavedCardCvvInput(
         cardType = cvvCardType,
         isError = showErrors && !isCvvValid,
         onValueChange = onCvvChange,
-        modifier = Modifier.width(100.dp)
+        modifier = Modifier.widthIn(min = SAVED_CARD_CVV_MIN_WIDTH)
     )
 }
 
@@ -454,9 +461,12 @@ internal fun PayButton(
             disabledContainerColor = button?.disabledBackground ?: Color.Unspecified,
             disabledContentColor = button?.disabledTextColor ?: Color.Unspecified
         ),
+        // A minimum, not a height, and a merchant's own value is read the same
+        // way: at the platform's accessibility font sizes the label needs more
+        // room than 56dp, and a fixed height cropped it instead of growing.
         modifier = Modifier
             .fillMaxWidth()
-            .height(button?.height ?: PAY_BUTTON_HEIGHT)
+            .heightIn(min = button?.height ?: PAY_BUTTON_HEIGHT)
             .testTag(TestTags.PAY_BUTTON)
             // Named even while the spinner is up: the label is the only thing
             // that says what the button does, and it is not on screen then.
