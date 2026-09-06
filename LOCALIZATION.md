@@ -59,6 +59,20 @@ So a German shopper reads an English sheet over an amount written the way they
 expect, and a Swiss session keeps Switzerland's conventions rather than being
 moved onto France's on the way to the French strings.
 
+**A misshapen tag is skipped rather than used.** A candidate has to look like a
+BCP 47 tag — a two or three letter language, then any number of alphanumeric
+subtags, hyphens only — or the amount moves on to the next candidate. So a typo
+in `init(locale = …)` costs nothing: `"fr_CA"` with an underscore neither picks
+the words nor punctuates the amount, and the session or the device supplies the
+formatting instead. Without that check the platform's own parser would keep
+whatever well-formed prefix it could find and format the amount for somewhere
+nobody meant.
+
+The strings ladder is deliberately more forgiving, because it only has to decide
+between the two languages the SDK ships. `"fr-"` still draws French words while
+leaving the amount to the device. Being eager about which of two languages to
+print is harmless; being eager about how to punctuate a number is not.
+
 ## Overriding a string
 
 Every `paycross_*` key below is public API. Declare the same name in your own

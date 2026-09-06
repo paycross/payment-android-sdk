@@ -108,7 +108,11 @@ class FrenchSheetTest {
             }
         }
 
-        compose.onNodeWithText("Pay 12,34 €").assertIsDisplayed()
+        // Substring, and stopping before the currency symbol: CLDR separates the
+        // number from the euro sign with a no-break space whose width has moved
+        // between ICU releases, and which one it is today is not what this test
+        // is about. "Pay" is the English word; "12,34" is the German comma.
+        compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
     }
 
     @Test

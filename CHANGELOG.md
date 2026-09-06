@@ -59,9 +59,10 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   short `Session expired` read like a developer message, and iOS already showed
   the sentence. `paycross_error_session_expired` does not exist.
 
-- The amount is formatted with the first locale anyone named — the override, else
-  the session's `locale`, else the device — and that one is **not** narrowed to
-  the shipped languages. A German handset draws an English sheet over a `12,34 €`
+- The amount is formatted with the first locale anyone named that is *shaped*
+  like a BCP 47 tag — the override, else the session's `locale`, else the device —
+  and that one is **not** narrowed to the shipped languages. A typo such as
+  `"fr_CA"` is skipped rather than parsed into a locale nobody meant. A German handset draws an English sheet over a `12,34 €`
   amount, and a `fr-CH` session keeps Swiss grouping under French words. Only the
   strings are clamped, because the SDK either has the words or it does not, while
   the platform can format a number for any locale.

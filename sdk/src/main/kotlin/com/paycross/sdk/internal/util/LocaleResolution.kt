@@ -69,12 +69,35 @@ internal object LocaleResolution {
      * quietly move a Swiss shopper onto France's conventions.
      */
     fun formattingLocale(override: String?, session: String?, device: Locale?): Locale =
-        parse(override) ?: parse(session) ?: device ?: Locale.getDefault()
+        wellShaped(override) ?: wellShaped(session) ?: device ?: Locale.getDefault()
 
     /**
-     * [tag] as a locale, or null when it names no language. `forLanguageTag`
-     * drops everything from the first ill-formed subtag on, so a tag it cannot
-     * read at all leaves the language empty rather than raising anything.
+     * A tag shaped like BCP 47: a 2-3 letter language, then any number of
+     * alphanumeric subtags, hyphens only.
+     *
+     * `Locale.forLanguageTag` is far more forgiving — it keeps the well-formed
+     * prefix of a tag and silently drops the rest — so a merchant's typo would
+     * otherwise become a real locale nobody meant and format the amount with the
+     * conventions of somewhere the shopper has never been. It is a shape check,
+     * not a check that the language exists: this decides how a number is
+     * punctuated, and being wrong about it is not worth a table lookup.
+     */
+    private val WELL_SHAPED = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$")
+
+    /**
+     * [tag] as a locale, or null when it is blank, misshapen, or names no
+     * language at all. Nothing here throws.
+     */
+    private fun wellShaped(tag: String?): Locale? {
+        val candidate = tag?.trim().orEmpty().ifEmpty { return null }
+        if (!WELL_SHAPED.matches(candidate)) return null
+        return Locale.forLanguageTag(candidate).takeIf { it.language.isNotEmpty() }
+    }
+
+    /**
+     * [tag] as a locale, or null when it names no language. Deliberately looser
+     * than [wellShaped]: this one only has to decide whether the tag says `en` or
+     * `fr`, and a tag that says neither falls through either way.
      */
     private fun parse(tag: String?): Locale? {
         val candidate = tag?.trim().orEmpty().ifEmpty { return null }

@@ -199,6 +199,73 @@ class LocaleResolutionTest {
     }
 
     @Test
+    fun `a misshapen override does not get to format the amount`() {
+        // A typo in init(locale = …) should cost nothing. forLanguageTag is
+        // forgiving — it keeps whatever well-formed prefix it finds and drops the
+        // rest — so without a shape check ahead of it, a typo becomes a real
+        // locale nobody meant and punctuates the amount for somewhere the shopper
+        // has never been. The device supplies the formatting instead.
+        listOf("fr_CA", "f", "frrrr", "1234", "fr-", "en--US", "fr CA", "-fr").forEach { typo ->
+            assertEquals(
+                "typo '$typo'",
+                Locale.GERMANY,
+                LocaleResolution.formattingLocale(typo, session = null, device = Locale.GERMANY)
+            )
+        }
+    }
+
+    @Test
+    fun `a typo naming no shipped language leaves the words English`() {
+        listOf("fr_CA", "f", "frrrr", "1234", "fr CA", "-fr").forEach { typo ->
+            assertEquals(
+                "typo '$typo'",
+                Locale.forLanguageTag("en"),
+                LocaleResolution.resolve(typo, session = null, device = Locale.GERMANY)
+            )
+        }
+    }
+
+    @Test
+    fun `the words are read more forgivingly than the amount is`() {
+        // "fr-" is misshapen, so it does not format the amount, but it still
+        // draws French words: forLanguageTag reads its well-formed prefix, and
+        // the strings ladder only has to decide between the two languages the
+        // SDK ships. Being eager about the words is harmless; being eager about
+        // a number's punctuation is not.
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve("fr-", session = null, device = Locale.GERMANY)
+        )
+        assertEquals(
+            Locale.GERMANY,
+            LocaleResolution.formattingLocale("fr-", session = null, device = Locale.GERMANY)
+        )
+    }
+
+    @Test
+    fun `a misshapen session locale leaves the amount to the device too`() {
+        assertEquals(
+            Locale.GERMANY,
+            LocaleResolution.formattingLocale(
+                override = null,
+                session = "fr_CA",
+                device = Locale.GERMANY
+            )
+        )
+    }
+
+    @Test
+    fun `a well-shaped tag still formats the amount, script and region and all`() {
+        listOf("fr-CA", "zh-Hans-CN", "de-AT", "pt-BR", "en-GB").forEach { tag ->
+            assertEquals(
+                "well-shaped tag '$tag'",
+                Locale.forLanguageTag(tag),
+                LocaleResolution.formattingLocale(tag, session = null, device = Locale.US)
+            )
+        }
+    }
+
+    @Test
     fun `the amount falls back to the platform default when nothing names a locale`() {
         assertEquals(
             Locale.getDefault(),
