@@ -1,7 +1,9 @@
 package com.paycross.sdk.internal.validation
 
+import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
+import com.paycross.sdk.internal.util.UiText
 
 internal data class FieldState(
     val visible: Boolean,
@@ -12,13 +14,17 @@ internal data class FieldState(
 internal data class FieldGroupError(
     val groupKey: String,
     val fieldName: String,
-    val message: String
+    val message: UiText
 )
 
 /**
  * Mirrors the checkout page's field-group semantics: a field's condition is
  * evaluated against sibling values in the same group, and only visible
  * required/pattern rules are enforced on submit.
+ *
+ * Errors name a string rather than carrying one: this is a plain object with no
+ * Context, and the field's own server-supplied message - which is never ours to
+ * translate - has to survive alongside the SDK's translated fallback.
  */
 internal object FieldGroupLogic {
 
@@ -67,7 +73,11 @@ internal object FieldGroupLogic {
                         groupKey = group.key,
                         fieldName = field.name,
                         message = field.validation?.messages?.get("required")
-                            ?: "${field.label ?: field.name} is required"
+                            ?.let(UiText::Raw)
+                            ?: UiText.Resource(
+                                R.string.paycross_field_required,
+                                listOf(field.label ?: field.name)
+                            )
                     )
                     continue
                 }
@@ -78,7 +88,11 @@ internal object FieldGroupLogic {
                         groupKey = group.key,
                         fieldName = field.name,
                         message = field.validation.messages?.get("pattern")
-                            ?: "${field.label ?: field.name} is invalid"
+                            ?.let(UiText::Raw)
+                            ?: UiText.Resource(
+                                R.string.paycross_field_invalid,
+                                listOf(field.label ?: field.name)
+                            )
                     )
                 }
             }

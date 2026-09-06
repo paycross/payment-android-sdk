@@ -1,0 +1,88 @@
+package com.paycross.sdk.internal.ui
+
+import android.content.Context
+import android.content.res.Configuration
+import android.content.res.Resources
+import android.os.LocaleList
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import com.paycross.sdk.internal.util.UiText
+import java.util.Locale
+
+/**
+ * The resources the sheet reads its own strings from, or null to read the
+ * activity's.
+ *
+ * The session's locale arrives with the payload, long after the activity has
+ * attached its base context, and recreating the activity to apply it would throw
+ * away a half-filled card form. So the language reaches the sheet as a
+ * composition local instead. Not by overriding [LocalContext]: a Compose
+ * `Dialog` re-provides that from its own window, which would leave the cancel and
+ * remove-card dialogs in the old language, and the 3-D Secure WebView needs the
+ * real Activity anyway. A local of our own crosses into a dialog's
+ * sub-composition and nothing else reads it.
+ */
+internal val LocalPayCrossResources = compositionLocalOf<Resources?> { null }
+
+/**
+ * [id] in the language the sheet resolved, falling back to the activity's own
+ * resources before anything has been provided.
+ *
+ * Every SDK string site goes through this rather than through Compose's
+ * `stringResource`, which reads the activity's resources and so would miss a
+ * session or merchant locale entirely. The one deliberate exception is Material's
+ * borrowed `default_error_message`, which is not ours and ships in far more
+ * languages than this SDK does.
+ */
+@Composable
+@ReadOnlyComposable
+internal fun pcStringResource(@StringRes id: Int): String =
+    (LocalPayCrossResources.current ?: activityResources()).getString(id)
+
+@Composable
+@ReadOnlyComposable
+internal fun pcStringResource(@StringRes id: Int, vararg formatArgs: Any): String =
+    (LocalPayCrossResources.current ?: activityResources()).getString(id, *formatArgs)
+
+/** [text] as a sentence: SDK copy translated, a server's own message untouched. */
+@Composable
+@ReadOnlyComposable
+internal fun pcStringResource(text: UiText): String = when (text) {
+    is UiText.Raw -> text.text
+    is UiText.Resource -> pcStringResource(text.id, *text.args.toTypedArray())
+}
+
+/**
+ * The locale the sheet's strings are being drawn in, so the amount is formatted
+ * in the same language as the label above it.
+ */
+internal val pcLocale: Locale
+    @Composable
+    @ReadOnlyComposable
+    get() = (LocalPayCrossResources.current ?: activityResources())
+        .configuration.locales[0]
+
+/**
+ * [this] re-read in [locale]. Built from the context rather than from a bare
+ * Resources so the density, font scale and night bits the sheet is already
+ * running under all carry over — only the language changes.
+ */
+internal fun Context.localizedResources(locale: Locale): Resources {
+    val configuration = Configuration(resources.configuration).apply {
+        setLocales(LocaleList(locale))
+    }
+    return createConfigurationContext(configuration).resources
+}
+
+// Read through LocalConfiguration the way Compose's own stringResource does, so
+// a configuration change invalidates the call rather than leaving stale text.
+@Composable
+@ReadOnlyComposable
+private fun activityResources(): Resources {
+    LocalConfiguration.current
+    return LocalContext.current.resources
+}

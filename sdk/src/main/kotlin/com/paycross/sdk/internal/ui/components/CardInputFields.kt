@@ -9,6 +9,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.paycross.sdk.R
+import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.validation.CardType
 
 private const val MAX_CARD_NUMBER_LENGTH = 19
@@ -21,6 +23,7 @@ internal fun CardNumberField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
+    val description = pcStringResource(R.string.paycross_card_number_field)
     PayCrossOutlinedTextField(
         // Raw digits in, grouping drawn on top: formatting the value itself
         // leaves the caret behind the group separator and the next keystroke
@@ -32,7 +35,7 @@ internal fun CardNumberField(
                 onValueChange(digitsOnly)
             }
         },
-        label = { Text("Card Number") },
+        label = { Text(pcStringResource(R.string.paycross_card_number)) },
         isError = isError,
         visualTransformation = CardNumberVisualTransformation,
         // NumberPassword, not Number: the framework treats the password variation
@@ -43,7 +46,7 @@ internal fun CardNumberField(
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Card number input" }
+            .semantics { contentDescription = description }
     )
 }
 
@@ -54,6 +57,7 @@ internal fun ExpiryField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
+    val description = pcStringResource(R.string.paycross_expiry_field)
     PayCrossOutlinedTextField(
         value = value,
         onValueChange = { newValue ->
@@ -62,12 +66,12 @@ internal fun ExpiryField(
                 onValueChange(digitsOnly)
             }
         },
-        label = { Text("MM/YY") },
+        label = { Text(pcStringResource(R.string.paycross_expiry_label)) },
         isError = isError,
         visualTransformation = ExpiryVisualTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
-        modifier = modifier.semantics { contentDescription = "Expiry date input" }
+        modifier = modifier.semantics { contentDescription = description }
     )
 }
 
@@ -79,6 +83,7 @@ internal fun CvvField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
+    val description = pcStringResource(R.string.paycross_cvv_field)
     PayCrossOutlinedTextField(
         value = value,
         onValueChange = { newValue ->
@@ -87,12 +92,12 @@ internal fun CvvField(
                 onValueChange(digitsOnly)
             }
         },
-        label = { Text("CVV") },
+        label = { Text(pcStringResource(R.string.paycross_cvv)) },
         isError = isError,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
-        modifier = modifier.semantics { contentDescription = "CVV input" }
+        modifier = modifier.semantics { contentDescription = description }
     )
 }
 
@@ -103,16 +108,17 @@ internal fun CardholderNameField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
+    val description = pcStringResource(R.string.paycross_cardholder_name_field)
     PayCrossOutlinedTextField(
         // The state is already uppercased on the way in; uppercasing it again on
         // the way out only risks the field editing text it never handed back.
         value = value,
         onValueChange = { onValueChange(it.uppercase()) },
-        label = { Text("Cardholder Name") },
+        label = { Text(pcStringResource(R.string.paycross_cardholder_name)) },
         isError = isError,
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Cardholder name input" }
+            .semantics { contentDescription = description }
     )
 }

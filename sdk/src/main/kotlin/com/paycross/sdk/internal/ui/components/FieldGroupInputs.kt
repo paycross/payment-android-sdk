@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
+import com.paycross.sdk.internal.ui.pcStringResource
+import com.paycross.sdk.internal.util.UiText
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 
 /**
@@ -30,7 +32,7 @@ import com.paycross.sdk.internal.validation.FieldGroupLogic
 internal fun FieldGroupsSection(
     groups: List<FieldGroup>,
     values: Map<String, Map<String, String>>,
-    errors: Map<String, String>,
+    errors: Map<String, UiText>,
     modifier: Modifier = Modifier,
     onValueChange: (group: String, field: String, value: String) -> Unit
 ) {
@@ -50,7 +52,7 @@ internal fun FieldGroupsSection(
 private fun FieldGroupCard(
     group: FieldGroup,
     groupValues: Map<String, String>,
-    errors: Map<String, String>,
+    errors: Map<String, UiText>,
     onValueChange: (field: String, value: String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -89,7 +91,7 @@ private fun TextInputField(
     field: FieldDefinition,
     value: String,
     readonly: Boolean,
-    error: String?,
+    error: UiText?,
     onValueChange: (String) -> Unit
 ) {
     PayCrossOutlinedTextField(
@@ -99,7 +101,7 @@ private fun TextInputField(
         placeholder = field.placeholder?.let { { Text(it) } },
         readOnly = readonly,
         isError = error != null,
-        supportingText = error?.let { { Text(it) } },
+        supportingText = error?.let { { Text(pcStringResource(it)) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardTypeFor(field.type)),
         modifier = Modifier.fillMaxWidth()
@@ -112,7 +114,7 @@ private fun SelectField(
     field: FieldDefinition,
     value: String,
     readonly: Boolean,
-    error: String?,
+    error: UiText?,
     onValueChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -129,7 +131,7 @@ private fun SelectField(
             readOnly = true,
             label = { Text(field.label ?: field.name) },
             isError = error != null,
-            supportingText = error?.let { { Text(it) } },
+            supportingText = error?.let { { Text(pcStringResource(it)) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()

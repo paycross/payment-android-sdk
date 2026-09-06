@@ -49,6 +49,7 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossResult
+import com.paycross.sdk.R
 import com.paycross.sdk.ThemeMode
 import com.paycross.sdk.internal.ui.theme.AppearanceResolver
 import com.paycross.sdk.internal.ui.theme.PayCrossTheme
@@ -359,29 +360,32 @@ private fun LoadingOverlay() {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Processing payment...")
+                Text(pcStringResource(R.string.paycross_processing))
             }
         }
     }
 }
 
+// Internal so the instrumented suite can stand it up on its own: a dialog runs
+// in a sub-composition of its own window, which is exactly where a locale
+// carried on LocalContext would have stopped.
 @Composable
-private fun CancelConfirmationDialog(
+internal fun CancelConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Cancel Payment?") },
-        text = { Text("Are you sure you want to cancel this payment?") },
+        title = { Text(pcStringResource(R.string.paycross_cancel_payment_title)) },
+        text = { Text(pcStringResource(R.string.paycross_cancel_payment_message)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Yes, Cancel")
+                Text(pcStringResource(R.string.paycross_cancel_payment_yes))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Continue Payment")
+                Text(pcStringResource(R.string.paycross_cancel_payment_continue))
             }
         }
     )

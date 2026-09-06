@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
+import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SessionData
@@ -46,6 +47,7 @@ import com.paycross.sdk.internal.ui.components.GooglePaySection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 import com.paycross.sdk.internal.util.Amounts
+import com.paycross.sdk.internal.util.UiText
 import com.paycross.sdk.internal.validation.CardType
 import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
@@ -78,7 +80,7 @@ internal fun CardFormScreen(
     modifier: Modifier = Modifier,
     selectedSavedCardUuid: String? = null,
     isLoading: Boolean = false,
-    error: String? = null,
+    error: UiText? = null,
     googlePayAvailable: Boolean = false,
     onSavedCardSelected: (String?) -> Unit = {},
     onSavedCardRemoved: (String) -> Unit = {},
@@ -331,7 +333,7 @@ private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Uni
         modifier = Modifier.fillMaxWidth()
     ) {
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text("Save card for future use")
+        Text(pcStringResource(R.string.paycross_save_this_card))
     }
 }
 
@@ -344,7 +346,12 @@ private fun SavedCardCvvInput(
     isCvvValid: Boolean,
     onCvvChange: (String) -> Unit
 ) {
-    Text("Enter CVV for ${savedCard?.maskedPan}")
+    Text(
+        pcStringResource(
+            R.string.paycross_saved_card_cvv_prompt,
+            savedCard?.maskedPan.orEmpty()
+        )
+    )
     CvvField(
         value = cvv,
         cardType = cvvCardType,
@@ -355,9 +362,9 @@ private fun SavedCardCvvInput(
 }
 
 @Composable
-private fun ErrorMessage(message: String) {
+private fun ErrorMessage(message: UiText) {
     Text(
-        text = message,
+        text = pcStringResource(message),
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodySmall
     )
@@ -392,7 +399,7 @@ internal fun PayButton(
                 color = LocalContentColor.current
             )
         } else {
-            Text("Pay $amount")
+            Text(pcStringResource(R.string.paycross_pay_amount, amount))
         }
     }
 }
