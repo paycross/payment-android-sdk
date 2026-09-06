@@ -1,6 +1,10 @@
 package com.paycross.sdk.internal.ui
 
+import android.content.res.Configuration
+import android.os.LocaleList
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -154,15 +158,48 @@ class FrenchSheetTest {
 
     @Test
     fun aSessionLanguageTheSdkCannotSpeakDrawsEnglishThroughTheRealWiring() {
+        // The device rung is pinned to Japanese rather than inherited from the
+        // emulator, so the English here is the ladder's last resort and not the
+        // language the machine happened to be in.
         compose.setContent {
-            PayCrossLocalization(sessionLocale = "de", merchantLocale = null) {
-                CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
+            WithDeviceLanguages(Locale.JAPAN) {
+                PayCrossLocalization(sessionLocale = "de", merchantLocale = null) {
+                    CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
+                }
             }
         }
 
         // English words, and the amount punctuated the German way the session
         // asked for, which is the split the two locals exist to make.
         compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun aSecondDevicePreferenceIsReachedThroughTheRealWiring() {
+        // A handset set to German first and French second has asked for French
+        // over English, and reading only the first entry answered it with
+        // English. This is that fix, end to end on a device.
+        compose.setContent {
+            WithDeviceLanguages(Locale.GERMANY, Locale.FRANCE) {
+                PayCrossLocalization(sessionLocale = null, merchantLocale = null) {
+                    PayButton(amount = "12,34 €", isLoading = false, onClick = {})
+                }
+            }
+        }
+
+        compose.onNodeWithText("Payer 12,34 €").assertIsDisplayed()
+    }
+
+    /**
+     * Runs [content] as though the shopper had listed [languages], in that order,
+     * so a test does not inherit whichever language the emulator is in.
+     */
+    @Composable
+    private fun WithDeviceLanguages(vararg languages: Locale, content: @Composable () -> Unit) {
+        val configuration = Configuration(LocalConfiguration.current).apply {
+            setLocales(LocaleList(*languages))
+        }
+        CompositionLocalProvider(LocalConfiguration provides configuration, content = content)
     }
 
     @Test

@@ -3,6 +3,17 @@ package com.paycross.sdk.internal.util
 import java.util.Locale
 
 /**
+ * The two answers the sheet needs at once: the language to draw, and the locale
+ * to punctuate the amount with.
+ *
+ * @property strings The language the sheet's own copy is drawn in, always one the
+ *   SDK ships.
+ * @property amount The locale the amount is punctuated with, which is whatever
+ *   the shopper named and not narrowed to the shipped languages.
+ */
+internal data class SheetLocales(val strings: Locale, val amount: Locale)
+
+/**
  * Picks the language the payment sheet draws in, and the locale it formats the
  * amount with. They are not always the same one.
  *
@@ -21,14 +32,6 @@ import java.util.Locale
  *
  * Nothing here throws. A tag that cannot be parsed is not an answer.
  */
-/**
- * @property strings The language the sheet's own copy is drawn in, always one the
- *   SDK ships.
- * @property amount The locale the amount is punctuated with, which is whatever
- *   the shopper named and not narrowed to the shipped languages.
- */
-internal data class SheetLocales(val strings: Locale, val amount: Locale)
-
 internal object LocaleResolution {
 
     /**
