@@ -14,7 +14,6 @@ import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -76,7 +75,7 @@ class FontScaleTest {
     }
 
     @Test
-    fun theSavedCardCvvBoxGrowsPastItsRestingWidth() {
+    fun theSavedCardCvvBoxGrowsPastItsFloor() {
         compose.setContent {
             AtThreeTimesTheTextSize {
                 CardFormScreen(
@@ -89,15 +88,14 @@ class FontScaleTest {
         }
 
         val width = compose.onNodeWithTag(TestTags.CVV).fetchSemanticsNode().size.width
-        val resting = with(compose.density) { 100.dp.roundToPx() }
-        assertTrue(
-            "CVV box was $width px, still pinned to its resting $resting px",
-            width > resting
-        )
+        val floor = with(compose.density) { 100.dp.roundToPx() }
+        // A fixed width(100.dp), which is what this replaced, would measure
+        // exactly the floor at every text size.
+        assertTrue("CVV box was $width px, still pinned to $floor px", width > floor)
     }
 
     @Test
-    fun theSavedCardCvvBoxKeepsItsRestingWidthAtTheDefaultTextSize() {
+    fun theSavedCardCvvBoxSizesToItsContentRatherThanMaterialsDefault() {
         compose.setContent {
             CardFormScreen(
                 claims = claims,
@@ -107,11 +105,17 @@ class FontScaleTest {
             )
         }
 
-        // The minimum is also the resting width: a narrow box beside the card it
-        // belongs to is the design, and only the font scale may widen it.
+        // Between the two: never under the floor, and never Material's 280dp
+        // default width, which is what a field with no width modifier at all
+        // would take right across the sheet.
         val width = compose.onNodeWithTag(TestTags.CVV).fetchSemanticsNode().size.width
-        val resting = with(compose.density) { 100.dp.roundToPx() }
-        assertEquals(resting, width)
+        val floor = with(compose.density) { 100.dp.roundToPx() }
+        val materialDefault = with(compose.density) { 280.dp.roundToPx() }
+        assertTrue("CVV box was $width px, under the $floor px floor", width >= floor)
+        assertTrue(
+            "CVV box was $width px, Material's default $materialDefault px",
+            width < materialDefault
+        )
     }
 
     @Composable

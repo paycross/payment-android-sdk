@@ -74,9 +74,15 @@ private val PAY_BUTTON_HEIGHT = 56.dp
 private val MIN_TOUCH_TARGET = 48.dp
 
 /**
- * The saved-card CVV box at the default font scale. A minimum rather than a
- * width: the box is narrow on purpose, and a fixed one clips three digits the
- * moment the shopper turns their font size up.
+ * The floor under the saved-card CVV box.
+ *
+ * A minimum rather than a fixed width, and the minimum itself is the lesser
+ * half of its job. Given no width at all the field takes
+ * `OutlinedTextFieldDefaults.MinWidth`, 280dp, right across the sheet, because
+ * its `defaultMinSize` applies whenever the incoming minimum is zero. Any
+ * non-zero minimum defeats that and leaves the box to size to its own label and
+ * padding — 132dp at the default text size, and more as the shopper turns their
+ * text up, rather than the 100dp that used to squeeze it.
  */
 private val SAVED_CARD_CVV_MIN_WIDTH = 100.dp
 

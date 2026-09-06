@@ -35,6 +35,10 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 - **The save-card toggle is the whole row**, not just the checkbox: tapping the
   caption toggles it, and the row is at least 48dp tall.
 
+- **The saved-card CVV box is its own natural width**, around 132dp at the
+  default text size instead of a fixed 100dp that squeezed its label, and it
+  grows with the text size. The 100dp is now a floor rather than a fixed width.
+
 ### Added
 
 - **An accessibility floor**, documented in the README and asserted by the
