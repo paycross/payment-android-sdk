@@ -74,7 +74,7 @@ internal class PaymentActivity : ComponentActivity() {
     // window is themed - which is here, not in onCreate. The activity is a plain
     // ComponentActivity, so there is no AppCompat night mode to ask instead.
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(newBase.withPinnedMode())
+        super.attachBaseContext(pinnedModeContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -122,23 +122,27 @@ internal class PaymentActivity : ComponentActivity() {
     }
 
     /**
-     * A context whose resources report the pinned mode's night bits, or the one
-     * given when the mode follows the device. Read through the non-throwing
-     * accessor: this runs before onCreate can report an uninitialized SDK.
+     * [base] with its resources reporting the pinned mode's night bits, or [base]
+     * itself when the mode follows the device.
+     *
+     * Takes the context rather than extending it: an Activity is a Context too,
+     * and asking the half-built one for resources here would throw. The config is
+     * read through the non-throwing accessor because this runs before onCreate
+     * has anywhere to report an uninitialized SDK.
      */
-    private fun Context.withPinnedMode(): Context {
+    private fun pinnedModeContext(base: Context): Context {
         val mode = PayCross.getConfigOrNull()?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
-        if (mode == ThemeMode.SYSTEM) return this
+        if (mode == ThemeMode.SYSTEM) return base
 
         val night = if (mode == ThemeMode.DARK) {
             Configuration.UI_MODE_NIGHT_YES
         } else {
             Configuration.UI_MODE_NIGHT_NO
         }
-        val configuration = Configuration(resources.configuration).apply {
+        val configuration = Configuration(base.resources.configuration).apply {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or night
         }
-        return createConfigurationContext(configuration)
+        return base.createConfigurationContext(configuration)
     }
 
     /**
