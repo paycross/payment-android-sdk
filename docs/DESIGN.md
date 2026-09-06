@@ -25,9 +25,14 @@ object PayCross {
 
     fun init(
         environment: PayCrossEnvironment,
-        brandColor: Color? = null
+        @ColorInt brandColor: Int? = null,
+        testCardPrefill: TestCardPrefill? = null,
+        googlePayMerchantId: String? = null,
+        appearance: PayCrossAppearance? = null
     ) {
-        config = PayCrossConfig(environment, brandColor)
+        config = PayCrossConfig(
+            environment, brandColor, testCardPrefill, googlePayMerchantId, appearance
+        )
     }
 
     internal fun requireConfig(): PayCrossConfig =
@@ -41,7 +46,7 @@ object PayCross {
 // In Application.onCreate()
 PayCross.init(
     environment = PayCrossEnvironment.STAGING,
-    brandColor = Color(0xFF1E88E5)  // optional
+    appearance = PayCrossAppearance.brand(0xFF1E88E5.toInt())  // optional
 )
 ```
 
@@ -603,19 +608,102 @@ made with a card that was already stored.
 
 ## UI Customization
 
-Minimal for v1 (extendable later):
+`PayCrossAppearance` themes the sheet. Every role is nullable and null means
+"the next source down", so an empty appearance changes nothing and one colour
+is a complete configuration.
 
 ```kotlin
 PayCross.init(
-    environment = PayCrossEnvironment.STAGING,
-    brandColor = Color(0xFF1E88E5)  // Used for buttons and accents
+    environment = PayCrossEnvironment.PRODUCTION,
+    appearance = PayCrossAppearance(
+        light = PayCrossColors(brand = 0xFF1E88E5.toInt(), surface = 0xFFFFFFFF.toInt()),
+        dark = PayCrossColors(brand = 0xFF64B5F6.toInt(), surface = 0xFF121212.toInt()),
+        themeMode = ThemeMode.SYSTEM,
+        shapes = PayCrossShapes(cornerRadius = 16f, buttonCornerRadius = 28f),
+        primaryButton = PayCrossPrimaryButton(height = 64f),
+        typography = PayCrossTypography(sizeScaleFactor = 1.1f)
+    )
 )
 ```
+
+### Precedence
+
+Per role, in this order:
+
+1. **The appearance set in code**, for the mode in force.
+2. **The merchant's brand colour from the back office**, which core publishes
+   into the session blob as `branding.brand_color`. It applies to `brand` only,
+   and to both modes, because the branding record holds one colour and no
+   light/dark variants.
+3. **The platform default**, which is the Material colour the sheet already
+   draws.
+
+So a merchant who sets a colour in the back office and writes no Kotlin gets a
+branded sheet; one who sets both gets what the code says.
+
+### Colour roles
+
+| Role | Where it lands |
+|------|----------------|
+| `brand` | Pay button fill, checkbox and radio selection, the focused field border |
+| `onBrand` | The Pay button's label and spinner. Null derives it from `brand`'s own luminance, so a light brand gets a dark label |
+| `surface` | The sheet's background |
+| `component` | The input fields' container, and the dialogs' |
+| `componentBorder` | The fields' resting border |
+| `text` | Primary text |
+| `textSecondary` | Labels, hints and supporting text |
+| `placeholder` | Empty-input placeholder text |
+| `icon` | The picker's delete glyph. Defaults to `textSecondary` |
+| `error` | Error text and invalid field borders |
+
+The focused border stays `brand` even when `componentBorder` is set. Once a
+merchant sets one `borderWidth` for both states, colour is the only thing left
+indicating focus.
+
+### Theme mode
+
+`ThemeMode.SYSTEM` follows the device. `LIGHT` and `DARK` pin the sheet, and
+only the sheet: the mode is applied to the payment Activity's own configuration
+in `attachBaseContext`, which is early enough for the resource-qualified window
+theme and late enough that the host app never sees it.
+
+### Shapes and type
+
+`cornerRadius` and `borderWidth` are in dp and reach the input fields;
+`buttonCornerRadius` reaches the Pay button and the Google Pay button, falling
+back to `cornerRadius`. Dialogs keep Material's own radius.
+
+`sizeScaleFactor` multiplies every type size and is clamped to 0.8–1.3. Sizes
+stay in sp, so it composes with the device's font scale rather than replacing
+it.
+
+### Fixed by design
+
+Layout and spacing, the card fields' internals, the wallet buttons' own colours
+and labels (Apple and Google's brand guidelines allow only the radius), the
+3-D Secure page's content, and the error copy.
+
+A merchant logo in the sheet and a custom font family are deferred: the sheet
+has no logo slot, and adding one is a layout change.
+
+### Contrast
+
+The resolver computes the WCAG ratio for the `brand`/`onBrand` pair and for a
+merchant-set Pay button pair, and anything under 4.5:1 is logged once — only
+when the host app is debuggable, because a merchant shipping a release build
+cannot act on a logcat line. A derived `onBrand` never trips it: black and
+white are chosen at the 0.179 luminance crossover, which guarantees at least
+4.58:1.
+
+### Deprecated
+
+`brandColor` still works and still brands the sheet when no appearance is
+given. It maps to `PayCrossAppearance.brand(color)`, an appearance wins when
+both are set, and it will be removed a minor release from now.
 
 ## Future Extensions
 
 - Local card caching
-- Full UI theming (fonts, colors, labels)
-- Google Pay support
+- A custom font family, and a merchant logo slot in the sheet
 - Card scanning via camera
 - Compose-only mode (no WebView Fragment)

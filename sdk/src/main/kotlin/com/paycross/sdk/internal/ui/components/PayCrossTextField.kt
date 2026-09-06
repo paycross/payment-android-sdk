@@ -1,5 +1,6 @@
 package com.paycross.sdk.internal.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.defaultMinSize
@@ -43,6 +44,13 @@ private val LABEL_TOP_PADDING = 8.sp
  * the error semantics, the minimum size, the cursor brush, the selection colours
  * and the merged text style — is reproduced here rather than inherited.
  */
+// PrivateResource: default_error_message is the string Material's own
+// OutlinedTextField announces on an invalid field, and Compose ships it
+// translated while this SDK ships no translations at all - so borrowing it is
+// what keeps a non-English shopper hearing their own language. It is a
+// compile-time reference, so a Compose release that drops it fails the build
+// rather than degrading the sheet quietly.
+@SuppressLint("PrivateResource")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PayCrossOutlinedTextField(

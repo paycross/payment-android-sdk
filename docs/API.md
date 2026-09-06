@@ -553,6 +553,9 @@ Fetch session data for checkout form prefill, field requirements, and saved card
     },
     "save_card_config": {
       "usage": "card_on_file"
+    },
+    "branding": {
+      "brand_color": "#1E88E5"
     }
   }
 }
@@ -607,6 +610,7 @@ polling for that transaction instead of re-arming the form.
 | `saved_cards` | array | Customer's saved cards, most-recently-used first (empty array if none) |
 | `saved_cards_config` | object | Saved-card behaviour opt-ins (omitted unless the merchant set one) |
 | `save_card_config` | object | Card saving options (only present if configured on session) |
+| `branding` | object | Merchant branding (omitted unless the merchant set a brand colour) |
 
 ### Field Group Object
 
@@ -693,6 +697,25 @@ object means both are off.
 Preselection is opt-in because a preselected card is one unnoticed tap from a
 charge. What makes it safe is that the CVV stays mandatory for a stored card:
 issuer rules require it, and the SDK enforces it, so the tap alone cannot pay.
+
+### Branding Object
+
+The merchant's back-office branding, as far as a native sheet reads it. The
+object and every key in it are omitted when unset, and every session minted
+before core started publishing the key arrives without it.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `brand_color` | string | `#RRGGBB`, the merchant's brand colour |
+
+The SDK uses it as the sheet's brand colour when the merchant's app passes no
+appearance of its own, so a colour set once in the back office themes the
+hosted checkout and the native sheets together. An appearance set in code wins,
+per role. A value the SDK cannot parse costs the colour, not the session.
+
+The `branding` claim in the session JWT is a different thing: it is the id of a
+JavaScript file on a CDN, for the hosted checkout. Neither native SDK fetches
+it, and neither should.
 
 ### Remove a Saved Card
 
