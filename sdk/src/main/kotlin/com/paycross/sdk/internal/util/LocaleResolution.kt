@@ -85,8 +85,13 @@ internal object LocaleResolution {
     fun formattingLocale(override: String?, session: String?, device: List<Locale>): Locale =
         wellShaped(override)
             ?: wellShaped(session)
+            // The device's own locale object, region and all, not a language-only
+            // tag built from it: de-CH punctuates money differently from de, and
+            // that difference is the shopper's, not ours to round off.
             ?: device.firstOrNull()
-            ?: Locale.getDefault()
+            // Only when there is no device list at all. Category.FORMAT is what
+            // NumberFormat itself would consult.
+            ?: Locale.getDefault(Locale.Category.FORMAT)
 
     /**
      * Both answers at once, which is what the sheet actually needs: the language

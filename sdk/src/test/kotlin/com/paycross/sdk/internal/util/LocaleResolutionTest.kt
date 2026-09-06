@@ -1,6 +1,7 @@
 package com.paycross.sdk.internal.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Locale
@@ -302,9 +303,35 @@ class LocaleResolutionTest {
     @Test
     fun `the amount falls back to the platform default when nothing names a locale`() {
         assertEquals(
-            Locale.getDefault(),
+            Locale.getDefault(Locale.Category.FORMAT),
             LocaleResolution.formattingLocale(null, null, emptyList())
         )
+    }
+
+    @Test
+    fun `the device rung keeps its region, which changes how money is written`() {
+        // 0.7.0 formatted with the platform's own locale object. Narrowing the
+        // device rung to a language-only tag would silently move a Swiss shopper
+        // onto Germany's punctuation, so the object is passed through whole.
+        val swiss = Locale.forLanguageTag("de-CH")
+        val resolved = LocaleResolution.formattingLocale(null, null, listOf(swiss))
+
+        assertEquals(swiss, resolved)
+        assertEquals("CH", resolved.country)
+        assertNotEquals(
+            Amounts.formatMinor(123450, "EUR", Locale.forLanguageTag("de")),
+            Amounts.formatMinor(123450, "EUR", resolved)
+        )
+    }
+
+    @Test
+    fun `the device rung is used whole even when the words fall back to English`() {
+        val austrian = Locale.forLanguageTag("de-AT")
+        val locales = LocaleResolution.sheetLocales(null, null, listOf(austrian))
+
+        assertEquals(Locale.forLanguageTag("en"), locales.strings)
+        assertEquals(austrian, locales.amount)
+        assertEquals("AT", locales.amount.country)
     }
 
     @Test
