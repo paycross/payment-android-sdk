@@ -118,9 +118,10 @@ internal fun CardFormScreen(
     val isNewCard = selectedSavedCard == null
     val cardType = CardType.detect(cardNumber)
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
-    // The locale the sheet resolved, not the device's: an amount grouped one way
-    // under a label written another reads as two different products.
-    val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcLocale)
+    // Not the language the words are in: the SDK ships two languages and the
+    // platform formats numbers for all of them, so a shopper whose language is
+    // missing still keeps their own grouping.
+    val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcFormattingLocale)
 
     // A CVV belongs to the card it was typed for. Switching cards drops it in
     // onCardSelected above; this covers the other way a selection ends, a
@@ -148,6 +149,9 @@ internal fun CardFormScreen(
         cardholderName = cardholderName,
         cvvCardType = cvvCardType
     )
+    // Google draws this inside its own sheet, so it has to be resolved out here
+    // where there are resources to resolve it from.
+    val totalLabel = pcStringResource(R.string.paycross_total)
     val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat) {
         FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat))
             .associate { "${it.groupKey}|${it.fieldName}" to it.message }
@@ -168,11 +172,12 @@ internal fun CardFormScreen(
 
             if (googlePayAvailable) {
                 GooglePaySection(
-                    allowedPaymentMethodsJson = remember(claims, sessionData) {
+                    allowedPaymentMethodsJson = remember(claims, sessionData, totalLabel) {
                         GooglePayRequests.buildPaymentDataRequest(
                             claims,
                             sessionData,
-                            PayCross.requireConfig().googlePayMerchantId
+                            PayCross.requireConfig().googlePayMerchantId,
+                            totalLabel
                         ).getAsJsonArray("allowedPaymentMethods").toString()
                     },
                     onClick = {

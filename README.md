@@ -55,11 +55,16 @@ The sheet's own copy ships in:
 | English | `en` |
 | French | `fr` |
 
-The first of these that names a language at all decides: the merchant's
-override, then the payment session's `locale`, then the device. A tag with a
-region falls back to its primary subtag, so `fr-CA` gets French. A tag naming a
-language the SDK does not ship gets English rather than passing the question to
-the next one down, so `locale = "de"` draws English even on a French handset.
+The language is the first of these the SDK ships strings for: the merchant's
+override, then the payment session's `locale`, then the device, then English.
+Each is matched on its own — the whole tag, then its primary subtag, so `fr-CA`
+gets French — and one that matches nothing falls through to the next rather than
+ending the ladder.
+
+The **amount** is formatted separately, with the first locale anyone named,
+whichever language that is. A German handset reads an English sheet over a
+`12,34 €` amount rather than losing its own number formatting to a language the
+SDK has no words for.
 
 Pin it yourself when your app already knows the shopper's language:
 

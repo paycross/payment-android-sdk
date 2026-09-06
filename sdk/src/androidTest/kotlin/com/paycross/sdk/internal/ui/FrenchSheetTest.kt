@@ -9,10 +9,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.paycross.sdk.PayCross
+import com.paycross.sdk.PayCrossEnvironment
+import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.ui.components.CardNumberField
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.ui.components.savedCardDeleteTag
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +41,16 @@ class FrenchSheetTest {
     private val french = InstrumentationRegistry.getInstrumentation().targetContext
         .localizedResources(Locale.FRENCH)
 
+    private val claims = JwtClaims(
+        sessionId = "session-123",
+        merchantId = "merchant-456",
+        customerId = "customer-1",
+        brandingId = null,
+        amount = 1234,
+        currency = "EUR",
+        expiresAt = null
+    )
+
     private val visa = SavedCard(
         uuid = "card-1",
         maskedPan = "453201******0366",
@@ -45,6 +59,11 @@ class FrenchSheetTest {
         expireYear = "2030",
         cardholderName = "JOHN DOE"
     )
+
+    @Before
+    fun setUp() {
+        PayCross.init(environment = PayCrossEnvironment.STAGING)
+    }
 
     @Test
     fun payButtonIsFrenchUnderAFrenchLocale() {
@@ -77,6 +96,19 @@ class FrenchSheetTest {
         compose.setContent { PayButton(amount = "€12.34", isLoading = false, onClick = {}) }
 
         compose.onNodeWithText("Pay €12.34").assertIsDisplayed()
+    }
+
+    @Test
+    fun aLanguageTheSdkCannotSpeakStillFormatsTheAmountItsOwnWay() {
+        // The point of keeping the amount's locale separate from the strings':
+        // German words do not exist here, German number formatting does.
+        compose.setContent {
+            CompositionLocalProvider(LocalPayCrossFormattingLocale provides Locale.GERMANY) {
+                CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
+            }
+        }
+
+        compose.onNodeWithText("Pay 12,34 €").assertIsDisplayed()
     }
 
     @Test

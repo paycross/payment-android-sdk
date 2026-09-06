@@ -3,21 +3,23 @@ package com.paycross.sdk.internal.util
 import java.util.Locale
 
 /**
- * Picks the language the payment sheet draws in.
+ * Picks the language the payment sheet draws in, and the locale it formats the
+ * amount with. They are not always the same one.
  *
- * The first rung that answers decides. The merchant's override is asked first,
- * then the session's `locale`, then the device; whichever of those first names a
- * language at all is the one that is matched, and if it names one the SDK does
- * not ship, the answer is English rather than the next rung down. So an override
- * of `de` over a French session draws English: the merchant said German, and
- * quietly showing French because the handset is French would be the SDK
- * inventing an answer nobody gave it.
+ * [resolve] answers with a language the SDK actually ships strings for. The
+ * merchant's override, the session's `locale` and the device are each matched on
+ * their own — the whole tag first, then its primary subtag, so `fr-CA` reaches
+ * the French strings — and one that matches nothing falls through to the next
+ * rather than ending the ladder. That is the hosted checkout page's
+ * `matchSupportedLocale` / `resolveLanguage` rule exactly, so a shopper who
+ * bounces between the page and a native sheet reads one language.
  *
- * Matching is the whole tag first, then its primary subtag, so `fr-CA` reaches
- * the French strings. A blank tag is not an answer and does not stop the ladder.
+ * [formattingLocale] answers with the first locale anyone actually named,
+ * whether or not the SDK has words for it. Number formatting works for every
+ * locale on the platform, so clamping it to the shipped set would take a German
+ * shopper's `12,34 €` away to no purpose.
  *
- * Nothing here throws. A tag the SDK cannot parse is a tag it does not ship, and
- * both answers are English.
+ * Nothing here throws. A tag that cannot be parsed is not an answer.
  */
 internal object LocaleResolution {
 
@@ -38,13 +40,7 @@ internal object LocaleResolution {
      * which is also the answer for a null, blank or malformed tag.
      */
     fun match(tag: String?): Locale? {
-        val candidate = tag?.trim().orEmpty().ifEmpty { return null }
-        val parsed = Locale.forLanguageTag(candidate)
-        // forLanguageTag drops everything from the first ill-formed subtag on,
-        // so a tag it cannot read at all leaves the language empty rather than
-        // raising anything.
-        if (parsed.language.isEmpty()) return null
-
+        val parsed = parse(tag) ?: return null
         val exact = parsed.toLanguageTag()
         val supported = SUPPORTED_TAGS.firstOrNull { it.equals(exact, ignoreCase = true) }
             ?: SUPPORTED_TAGS.firstOrNull { it.equals(parsed.language, ignoreCase = true) }
@@ -53,13 +49,35 @@ internal object LocaleResolution {
     }
 
     /**
+     * The language the sheet's strings are drawn in.
+     *
      * @param override The merchant's `PayCross.init(locale = …)`.
      * @param session The session payload's `locale`.
      * @param device The device's own locale, or null when there is none to read.
      */
-    fun resolve(override: String?, session: String?, device: Locale?): Locale {
-        val asked = listOfNotNull(override, session, device?.toLanguageTag())
-            .firstOrNull { it.isNotBlank() }
-        return match(asked) ?: DEFAULT
+    fun resolve(override: String?, session: String?, device: Locale?): Locale =
+        match(override) ?: match(session) ?: match(device?.toLanguageTag()) ?: DEFAULT
+
+    /**
+     * The locale the amount is formatted with: the first of [override], [session]
+     * and [device] that names a language at all, kept whole and **not** narrowed
+     * to the shipped set.
+     *
+     * So a German handset reads English words over a German-formatted amount,
+     * and a `fr-CH` session gets Swiss-French grouping under French words. The
+     * region is what carries the formatting, and dropping it to reach `fr` would
+     * quietly move a Swiss shopper onto France's conventions.
+     */
+    fun formattingLocale(override: String?, session: String?, device: Locale?): Locale =
+        parse(override) ?: parse(session) ?: device ?: Locale.getDefault()
+
+    /**
+     * [tag] as a locale, or null when it names no language. `forLanguageTag`
+     * drops everything from the first ill-formed subtag on, so a tag it cannot
+     * read at all leaves the language empty rather than raising anything.
+     */
+    private fun parse(tag: String?): Locale? {
+        val candidate = tag?.trim().orEmpty().ifEmpty { return null }
+        return Locale.forLanguageTag(candidate).takeIf { it.language.isNotEmpty() }
     }
 }

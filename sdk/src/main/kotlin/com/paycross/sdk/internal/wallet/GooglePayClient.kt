@@ -67,9 +67,15 @@ internal object GooglePayClient {
         client: PaymentsClient,
         claims: JwtClaims,
         sessionData: SessionData?,
-        googlePayMerchantId: String?
+        googlePayMerchantId: String?,
+        totalPriceLabel: String
     ): Task<PaymentData> {
-        val json = GooglePayRequests.buildPaymentDataRequest(claims, sessionData, googlePayMerchantId)
+        val json = GooglePayRequests.buildPaymentDataRequest(
+            claims,
+            sessionData,
+            googlePayMerchantId,
+            totalPriceLabel
+        )
         return client.loadPaymentData(PaymentDataRequest.fromJson(json.toString()))
     }
 }

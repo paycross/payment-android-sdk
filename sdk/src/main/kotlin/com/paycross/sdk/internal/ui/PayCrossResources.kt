@@ -63,14 +63,21 @@ internal fun pcStringResource(text: UiText): String = when (text) {
 }
 
 /**
- * The locale the sheet's strings are being drawn in, so the amount is formatted
- * in the same language as the label above it.
+ * The locale the amount is formatted with, or null to use the device's.
+ *
+ * Separate from [LocalPayCrossResources] on purpose: the strings are clamped to
+ * the two languages the SDK ships, while a number can be formatted for any
+ * locale on the platform. A German shopper reads English words over a German
+ * amount rather than losing their own grouping to a language gap.
  */
-internal val pcLocale: Locale
+internal val LocalPayCrossFormattingLocale = compositionLocalOf<Locale?> { null }
+
+/** The locale the amount is formatted with. */
+internal val pcFormattingLocale: Locale
     @Composable
     @ReadOnlyComposable
-    get() = (LocalPayCrossResources.current ?: activityResources())
-        .configuration.locales[0]
+    get() = LocalPayCrossFormattingLocale.current
+        ?: LocalConfiguration.current.locales[0]
 
 /**
  * [this] re-read in [locale]. Built from the context rather than from a bare

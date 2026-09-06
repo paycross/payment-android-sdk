@@ -51,45 +51,58 @@ class LocaleResolutionTest {
     }
 
     @Test
-    fun `an unsupported override is English, not the session's language`() {
-        // The first rung that answers decides. The merchant said German; the SDK
-        // has no German, so the shopper gets English. Falling through to the
-        // French session here would have the SDK answer a question the merchant
-        // had already answered differently.
+    fun `an unsupported override falls through to the session`() {
+        // Each candidate is matched on its own, exactly as the hosted page's
+        // resolveLanguage does, so a merchant asking for a language the SDK does
+        // not ship still leaves the session's own locale in play.
         assertEquals(
-            Locale.forLanguageTag("en"),
+            Locale.forLanguageTag("fr"),
             LocaleResolution.resolve(override = "de", session = "fr", device = Locale.US)
         )
     }
 
     @Test
-    fun `an unsupported session locale is English, not the device's language`() {
+    fun `an override and a device the SDK cannot speak land on English`() {
         assertEquals(
             Locale.forLanguageTag("en"),
+            LocaleResolution.resolve(override = "de", session = null, device = Locale.GERMANY)
+        )
+    }
+
+    @Test
+    fun `an override with a region falls back to its primary subtag`() {
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve(override = "fr-CA", session = null, device = Locale.US)
+        )
+    }
+
+    @Test
+    fun `a blank or malformed override still gives the session and the device their turn`() {
+        listOf(null, "", "   ", "!!", "fr_CA").forEach { override ->
+            assertEquals(
+                "override '$override' with a French session",
+                Locale.forLanguageTag("fr"),
+                LocaleResolution.resolve(override, session = "fr", device = Locale.US)
+            )
+            assertEquals(
+                "override '$override' with a French device",
+                Locale.forLanguageTag("fr"),
+                LocaleResolution.resolve(override, session = null, device = Locale.CANADA_FRENCH)
+            )
+        }
+    }
+
+    @Test
+    fun `an unsupported session locale falls through to the device`() {
+        assertEquals(
+            Locale.forLanguageTag("fr"),
             LocaleResolution.resolve(
                 override = null,
                 session = "de",
                 device = Locale.CANADA_FRENCH
             )
         )
-    }
-
-    @Test
-    fun `a blank tag is not an answer and does not stop the ladder`() {
-        // A session minted with an empty locale has said nothing, so the device
-        // still gets its turn. The hosted page treats an empty tag the same way,
-        // because an empty string is falsy there.
-        listOf("", "   ").forEach { blank ->
-            assertEquals(
-                "blank tag '$blank'",
-                Locale.forLanguageTag("fr"),
-                LocaleResolution.resolve(
-                    override = blank,
-                    session = blank,
-                    device = Locale.CANADA_FRENCH
-                )
-            )
-        }
     }
 
     @Test
@@ -121,6 +134,76 @@ class LocaleResolutionTest {
     fun `match is case-insensitive and tolerates surrounding whitespace`() {
         assertEquals(Locale.forLanguageTag("fr"), LocaleResolution.match(" FR-ca "))
         assertEquals(Locale.forLanguageTag("en"), LocaleResolution.match("EN"))
+    }
+
+    // --- The amount's locale, which is not clamped to the shipped languages ---
+
+    @Test
+    fun `a device the SDK cannot speak still formats the amount its own way`() {
+        // The words go English because there are no German ones; the number does
+        // not have to follow them, because every locale can format a number.
+        assertEquals(
+            Locale.forLanguageTag("en"),
+            LocaleResolution.resolve(override = null, session = null, device = Locale.GERMANY)
+        )
+        assertEquals(
+            Locale.GERMANY,
+            LocaleResolution.formattingLocale(
+                override = null,
+                session = null,
+                device = Locale.GERMANY
+            )
+        )
+    }
+
+    @Test
+    fun `the amount keeps the region the strings drop`() {
+        // fr-CH words are France's French, because that is all the SDK ships,
+        // but Swiss grouping is not France's and the amount keeps it.
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve(override = null, session = "fr-CH", device = Locale.US)
+        )
+        assertEquals(
+            Locale.forLanguageTag("fr-CH"),
+            LocaleResolution.formattingLocale(
+                override = null,
+                session = "fr-CH",
+                device = Locale.US
+            )
+        )
+    }
+
+    @Test
+    fun `the amount follows the override first, then the session, then the device`() {
+        assertEquals(
+            Locale.forLanguageTag("de-AT"),
+            LocaleResolution.formattingLocale("de-AT", "fr-CA", Locale.US)
+        )
+        assertEquals(
+            Locale.forLanguageTag("fr-CA"),
+            LocaleResolution.formattingLocale(null, "fr-CA", Locale.US)
+        )
+        assertEquals(Locale.US, LocaleResolution.formattingLocale(null, null, Locale.US))
+    }
+
+    @Test
+    fun `an unreadable tag does not get to format the amount`() {
+        listOf("", "   ", "!!", "fr_CA").forEach { junk ->
+            assertEquals(
+                "junk tag '$junk'",
+                Locale.US,
+                LocaleResolution.formattingLocale(junk, junk, Locale.US)
+            )
+        }
+    }
+
+    @Test
+    fun `the amount falls back to the platform default when nothing names a locale`() {
+        assertEquals(
+            Locale.getDefault(),
+            LocaleResolution.formattingLocale(null, null, null)
+        )
     }
 
     @Test

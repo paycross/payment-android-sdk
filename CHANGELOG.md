@@ -30,12 +30,11 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 - **A locale rule.** The sheet's language is the first of these the SDK ships
   strings for: `PayCross.init(locale = …)`, then the payment session's `locale`,
-  then the device, then English. The first of those that names a language at all
-  is the one matched — the whole tag, then its primary subtag, so `fr-CA` reaches
-  French — and one naming a language the SDK does not ship resolves to English
-  rather than passing the question down, so an override of `de` draws English
-  even on a French handset. A blank tag is not an answer and does not stop the
-  ladder. Nothing throws on a malformed tag. iOS resolves identically.
+  then the device, then English. Each candidate is matched on its own — the whole
+  tag, then its primary subtag, so `fr-CA` reaches French — and one that matches
+  nothing falls through to the next rather than ending the ladder. Nothing throws
+  on a malformed tag. Same rule as the hosted checkout page, and iOS resolves
+  identically.
 
   The merchant's override reaches the sheet's window before it is built. The
   session's locale arrives with the payload and is applied without recreating the
@@ -60,10 +59,18 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   short `Session expired` read like a developer message, and iOS already showed
   the sentence. `paycross_error_session_expired` does not exist.
 
-- The amount is formatted in the language the sheet resolved rather than the
-  device's, so the number under a French label is grouped the French way. A
-  shopper whose device is in a language the SDK does not ship sees the amount
-  formatted in English where it was previously formatted for their device.
+- The amount is formatted with the first locale anyone named — the override, else
+  the session's `locale`, else the device — and that one is **not** narrowed to
+  the shipped languages. A German handset draws an English sheet over a `12,34 €`
+  amount, and a `fr-CH` session keeps Swiss grouping under French words. Only the
+  strings are clamped, because the SDK either has the words or it does not, while
+  the platform can format a number for any locale.
+
+- Google Pay's own sheet names its total line from `paycross_total` ("Total" /
+  "Total"). It was a hardcoded English `"Payment"`. Google draws that string and
+  does not translate a merchant's copy, so a French shopper read "Payment" there
+  however the rest of the sheet was set. The card form still draws no Total
+  caption of its own; the key is shared with the iOS sheet, which does.
 
 - A rejected submit's own error sentence, and a merchant field group's own
   `required` and `pattern` messages, are shown exactly as the server wrote them.
@@ -73,9 +80,10 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ### Not changed, deliberately
 
-- **Android still has no `Total` caption over the amount, and iOS still does.**
-  The two sheets stay asymmetric this release rather than growing a label nobody
-  asked for.
+- **The Android card form still has no `Total` caption over the amount, and iOS
+  still does.** The two sheets stay asymmetric this release rather than growing a
+  label nobody asked for. `paycross_total` ships on Android all the same, because
+  Google Pay's sheet needs those words.
 - The invalid-field announcement on a card field is still Material's own
   `default_error_message`. Compose ships it in about forty languages; this SDK
   ships two, so borrowing it keeps more shoppers hearing their own.

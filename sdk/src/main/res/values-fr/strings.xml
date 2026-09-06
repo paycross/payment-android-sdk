@@ -17,6 +17,10 @@
     <!-- Three ASCII dots, not U+2026: the hosted checkout page writes it that way. -->
     <string name="paycross_processing" tools:ignore="TypographyEllipsis">Traitement du paiement...</string>
 
+    <!-- Google Pay. Names the total line inside Google's own sheet; the
+         card form still draws no Total caption of its own. -->
+    <string name="paycross_total">Total</string>
+
     <!-- Saved cards -->
     <string name="paycross_use_a_new_card">Utiliser une nouvelle carte</string>
     <string name="paycross_saved_card_expires">Expire %1$s/%2$s</string>

@@ -722,18 +722,12 @@ overrides one is in `LOCALIZATION.md`; this section is the mechanism.
 ### The ladder
 
 `LocaleResolution.resolve` takes the merchant's `locale`, the session's `locale`
-and the device's, and answers with one of the shipped languages. The first of the
-three that names a language at all is the one matched - the whole tag, then its
-primary subtag - and one that names a language the SDK does not ship resolves to
-English rather than passing the question down. A blank tag is not an answer and
-does not stop the ladder. Nothing throws: a tag the SDK cannot parse is a tag it
-does not ship, and both answers are English.
-
-The two native SDKs resolve identically, which is the point. The hosted checkout
-page differs in one case: `resolveLanguage` in `useLangAndLocales.js` runs each
-candidate through `matchSupportedLocale` separately, so an unmatched `?lang=`
-there does fall through to the session's locale. Worth reconciling, in whichever
-direction, rather than leaving three surfaces with two rules.
+and the device's, and answers with one of the shipped languages. Each candidate
+is matched on its own - the whole tag, then its primary subtag - and one that
+matches nothing falls through to the next rather than ending the ladder. Nothing
+throws: a tag the SDK cannot parse is a tag it does not ship, and both answers
+are "try the next one". This is `resolveLanguage` in the hosted page's
+`useLangAndLocales.js`, rule for rule, and iOS resolves identically.
 
 ### Why the session locale does not go through the context
 
@@ -770,10 +764,27 @@ already in.
 Material's `default_error_message`, borrowed for the invalid-field announcement,
 stays borrowed. Compose ships it in about forty languages; this SDK ships two.
 
-### The amount
+### The amount is not clamped
 
-`Amounts.formatMinor` is given the resolved locale, so the grouping and the
-symbol's position match the label above them rather than the device's settings.
+`LocaleResolution.formattingLocale` is a separate answer: the first of the
+override, the session locale and the device that names a language at all, kept
+whole. It never narrows to the shipped set, because the platform formats numbers
+for every locale it knows and there is nothing to gain by taking a shopper's own
+grouping away over a missing translation. It reaches `Amounts.formatMinor`
+through `LocalPayCrossFormattingLocale`, a second local beside the resources.
+
+So a German device draws English words over `12,34 €`, and a `fr-CH` session gets
+Swiss grouping under France's French - the only French the SDK ships. Dropping
+`fr-CH` to `fr` for the number as well would have moved a Swiss shopper onto
+another country's conventions to no purpose.
+
+### Google Pay's total line
+
+`transactionInfo.totalPriceLabel` is drawn by Google inside its own sheet and
+Google does not translate a merchant's strings, so `paycross_total` is resolved
+in the composition and handed to `GooglePayRequests.buildPaymentDataRequest`.
+That object stays pure and JVM-testable; it is given the words rather than
+looking them up. The card form itself still draws no Total caption.
 
 ### Deprecated
 

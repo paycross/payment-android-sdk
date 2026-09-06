@@ -63,6 +63,7 @@ import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
+import java.util.Locale
 
 /**
  * Internal activity that hosts the payment flow UI.
@@ -129,8 +130,13 @@ internal class PaymentActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val sessionLocale by remember {
+                        viewModel.uiState.map { it.sessionData?.locale }
+                    }.collectAsState(initial = null)
+
                     CompositionLocalProvider(
-                        LocalPayCrossResources provides sheetResources(viewModel)
+                        LocalPayCrossResources provides sheetResources(sessionLocale),
+                        LocalPayCrossFormattingLocale provides amountLocale(sessionLocale)
                     ) {
                         PaymentScreen(
                             viewModel = viewModel,
@@ -186,11 +192,7 @@ internal class PaymentActivity : ComponentActivity() {
      * half-filled card form, so it arrives as a composition local instead.
      */
     @Composable
-    private fun sheetResources(viewModel: PaymentViewModel): Resources {
-        val sessionLocale by remember {
-            viewModel.uiState.map { it.sessionData?.locale }
-        }.collectAsState(initial = null)
-
+    private fun sheetResources(sessionLocale: String?): Resources {
         val context = LocalContext.current
         val deviceLocale = LocalConfiguration.current.locales[0]
         val locale = remember(sessionLocale, deviceLocale) {
@@ -201,6 +203,22 @@ internal class PaymentActivity : ComponentActivity() {
             )
         }
         return remember(context, locale) { context.localizedResources(locale) }
+    }
+
+    /**
+     * The locale the amount is formatted with, which is not narrowed to the two
+     * languages the SDK has words for.
+     */
+    @Composable
+    private fun amountLocale(sessionLocale: String?): Locale {
+        val deviceLocale = LocalConfiguration.current.locales[0]
+        return remember(sessionLocale, deviceLocale) {
+            LocaleResolution.formattingLocale(
+                override = PayCross.getConfigOrNull()?.locale,
+                session = sessionLocale,
+                device = deviceLocale
+            )
+        }
     }
 
     /**
@@ -269,6 +287,8 @@ private fun PaymentScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
+    // Google's sheet draws this one, so it is resolved here and handed over.
+    val totalLabel = pcStringResource(R.string.paycross_total)
 
     BackHandler {
         showCancelDialog = true
@@ -356,7 +376,8 @@ private fun PaymentScreen(
                                 client = paymentsClient,
                                 claims = claims,
                                 sessionData = uiState.sessionData,
-                                googlePayMerchantId = PayCross.requireConfig().googlePayMerchantId
+                                googlePayMerchantId = PayCross.requireConfig().googlePayMerchantId,
+                                totalPriceLabel = totalLabel
                             ).addOnCompleteListener(googlePayLauncher::launch)
                         }
                     },

@@ -23,18 +23,14 @@ Four candidates, in order. The first that names a language the SDK ships wins.
 3. **The device's language.**
 4. **English.**
 
-**The first rung that answers decides.** Whichever of those first names a
-language at all is the one that gets matched — the whole tag first, then its
-primary subtag, so `fr-CA` reaches French — and if it names a language the SDK
-does not ship, the answer is English rather than the next rung down. So
-`init(locale = "de")` over a session whose locale is `fr` draws English: you
-said German, and quietly showing French because the handset is French would be
-the SDK answering a question you had already answered differently.
+Each candidate is matched on its own: the whole tag first, then its primary
+subtag, so `fr-CA` reaches French. One that matches nothing falls through to the
+next rather than ending the ladder, so `init(locale = "de")` over a session whose
+locale is `fr` still draws French, and a blank or malformed tag costs nothing.
 
-A blank tag is not an answer. A session minted with `"locale": ""` has said
-nothing, so the device still gets its turn.
-
-The iOS SDK resolves identically, so the two native sheets always agree.
+This is the hosted checkout page's rule, unchanged, so a shopper who moves
+between the page and either native sheet reads one language. iOS resolves
+identically.
 
 The merchant override applies before the sheet's window is built. The session's
 locale arrives with the payment session, after the form is on screen, and is
@@ -43,8 +39,25 @@ applied without recreating the activity, so a half-filled card form survives it.
 The sheet's language never touches the host app's. Only the payment sheet's own
 window is affected.
 
-The formatted amount follows the same resolved language, so the number under a
-French label is grouped the French way.
+## Amounts
+
+The amount does **not** go through that ladder. It is formatted with the first
+locale anyone actually named — the merchant's override, else the session's
+`locale`, else the device — kept whole and never narrowed to `en` or `fr`.
+
+The strings are clamped because the SDK either has the words or it does not.
+Numbers are different: the platform can format them for every locale it knows,
+so there is nothing to gain by taking a shopper's own grouping away.
+
+| Situation | Words | Amount |
+|---|---|---|
+| Device `de`, no override, no session locale | English | `12,34 €` |
+| Session `fr-CH` | French | Swiss-French grouping |
+| Session `fr-CA`, override `fr` | French | France's French grouping, because the override named it |
+
+So a German shopper reads an English sheet over an amount written the way they
+expect, and a Swiss session keeps Switzerland's conventions rather than being
+moved onto France's on the way to the French strings.
 
 ## Overriding a string
 
@@ -83,6 +96,7 @@ button with no amount on it, and `paycross_saved_card_expires` carries two.
 | `paycross_save_this_card` | Save card for future use | Save-card checkbox, shown when the session allows saving |
 | `paycross_pay_amount` | Pay `%1$s` | The Pay button. `%1$s` is the formatted amount |
 | `paycross_or_pay_with_card` | Or pay with card | Divider under the Google Pay button |
+| `paycross_total` | Total | Names the total line **inside Google Pay's own sheet**. The card form draws no Total caption of its own; iOS uses the same key for its amount caption |
 | `paycross_processing` | Processing payment... | Overlay while a payment is in flight |
 
 ### Saved cards
