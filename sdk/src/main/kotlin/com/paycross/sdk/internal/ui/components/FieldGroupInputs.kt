@@ -8,7 +8,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -93,7 +92,7 @@ private fun TextInputField(
     error: String?,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    PayCrossOutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(field.label ?: field.name) },
@@ -124,7 +123,7 @@ private fun SelectField(
         expanded = expanded && !readonly,
         onExpandedChange = { if (!readonly) expanded = it }
     ) {
-        OutlinedTextField(
+        PayCrossOutlinedTextField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,

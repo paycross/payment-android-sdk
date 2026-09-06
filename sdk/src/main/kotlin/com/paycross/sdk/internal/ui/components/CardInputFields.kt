@@ -2,7 +2,6 @@ package com.paycross.sdk.internal.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -22,7 +21,7 @@ internal fun CardNumberField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    PayCrossOutlinedTextField(
         // Raw digits in, grouping drawn on top: formatting the value itself
         // leaves the caret behind the group separator and the next keystroke
         // lands in front of the digit before it.
@@ -55,7 +54,7 @@ internal fun ExpiryField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    PayCrossOutlinedTextField(
         value = value,
         onValueChange = { newValue ->
             val digitsOnly = newValue.filter { it.isDigit() }
@@ -80,7 +79,7 @@ internal fun CvvField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    PayCrossOutlinedTextField(
         value = value,
         onValueChange = { newValue ->
             val digitsOnly = newValue.filter { it.isDigit() }
@@ -104,7 +103,7 @@ internal fun CardholderNameField(
     isError: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    PayCrossOutlinedTextField(
         // The state is already uppercased on the way in; uppercasing it again on
         // the way out only risks the field editing text it never handed back.
         value = value,
