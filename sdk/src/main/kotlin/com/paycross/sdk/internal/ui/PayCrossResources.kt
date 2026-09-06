@@ -53,7 +53,13 @@ internal fun pcStringResource(@StringRes id: Int, vararg formatArgs: Any): Strin
 @ReadOnlyComposable
 internal fun pcStringResource(text: UiText): String = when (text) {
     is UiText.Raw -> text.text
-    is UiText.Resource -> pcStringResource(text.id, *text.args.toTypedArray())
+    // The no-argument overload rather than an empty spread: the formatting one
+    // runs the value through String.format, which would throw on a stray percent
+    // in a merchant's own override of a key that takes no arguments.
+    is UiText.Resource -> when {
+        text.args.isEmpty() -> pcStringResource(text.id)
+        else -> pcStringResource(text.id, *text.args.toTypedArray())
+    }
 }
 
 /**
