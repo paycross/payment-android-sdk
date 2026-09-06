@@ -113,8 +113,7 @@ internal object AppearanceResolver {
             icon = colors.icon?.let(::Color) ?: textSecondary,
             shapes = shapes,
             primaryButton = resolvePrimaryButton(appearance, shapes),
-            sizeScaleFactor = appearance?.typography?.sizeScaleFactor
-                ?.coerceIn(MIN_SCALE, MAX_SCALE) ?: 1f
+            sizeScaleFactor = appearance?.typography?.sizeScaleFactor.asScale()
         )
     }
 
@@ -146,7 +145,7 @@ internal object AppearanceResolver {
 
         val digits = trimmed.removePrefix("#")
         if (digits.length != HEX_SHORT && digits.length != HEX_FULL) return null
-        if (!digits.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) return null
+        if (!digits.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null
 
         val full = if (digits.length == HEX_SHORT) {
             digits.flatMap { listOf(it, it) }.joinToString("")
@@ -166,6 +165,12 @@ internal object AppearanceResolver {
         val onBrand = resolved.colorScheme.onPrimary
         if (contrastRatio(brand, onBrand) < MIN_CONTRAST) {
             add(warning("brand", brand, onBrand))
+        }
+
+        val surface = resolved.colorScheme.surface
+        val onSurface = resolved.colorScheme.onSurface
+        if (contrastRatio(surface, onSurface) < MIN_CONTRAST) {
+            add(warning("sheet", surface, onSurface))
         }
 
         val button = resolved.primaryButton
@@ -193,11 +198,11 @@ internal object AppearanceResolver {
 
     private fun resolveShapes(appearance: PayCrossAppearance?): ResolvedShapes {
         val shapes = appearance?.shapes
-        val cornerRadius = shapes?.cornerRadius?.dp
+        val cornerRadius = shapes?.cornerRadius.asDimension()
         return ResolvedShapes(
             cornerRadius = cornerRadius,
-            buttonCornerRadius = shapes?.buttonCornerRadius?.dp ?: cornerRadius,
-            borderWidth = shapes?.borderWidth?.dp
+            buttonCornerRadius = shapes?.buttonCornerRadius.asDimension() ?: cornerRadius,
+            borderWidth = shapes?.borderWidth.asDimension()
         )
     }
 
@@ -206,13 +211,29 @@ internal object AppearanceResolver {
         shapes: ResolvedShapes
     ): ResolvedPrimaryButton {
         val button = appearance?.primaryButton
+        val background = button?.background?.let(::Color)
         return ResolvedPrimaryButton(
-            background = button?.background?.let(::Color),
-            textColor = button?.textColor?.let(::Color),
+            background = background,
+            // A background with no label colour would otherwise keep the one the
+            // brand derived, which is white on a white button.
+            textColor = button?.textColor?.let(::Color) ?: background?.let(::onBrandColor),
             disabledBackground = button?.disabledBackground?.let(::Color),
             disabledTextColor = button?.disabledTextColor?.let(::Color),
-            cornerRadius = button?.cornerRadius?.dp ?: shapes.buttonCornerRadius,
-            height = button?.height?.dp
+            cornerRadius = button?.cornerRadius.asDimension() ?: shapes.buttonCornerRadius,
+            height = button?.height.asDimension()
         )
     }
+
+    /**
+     * A merchant's float as a dimension, or null when it is not one. Every value
+     * here arrives from a public API and reaches a layout: NaN survives both
+     * coerceIn and the Dp constructor, and Dp.roundToPx throws on it rather than
+     * rounding, which the Google Pay button's radius would hit. A negative
+     * radius, height or thickness has no meaning either.
+     */
+    private fun Float?.asDimension(): Dp? = this?.takeIf { it.isFinite() && it >= 0f }?.dp
+
+    /** The size scale, clamped, with anything that is not a number ignored. */
+    private fun Float?.asScale(): Float =
+        this?.takeIf { it.isFinite() }?.coerceIn(MIN_SCALE, MAX_SCALE) ?: 1f
 }

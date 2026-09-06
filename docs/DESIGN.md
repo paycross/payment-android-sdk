@@ -680,6 +680,10 @@ back to `cornerRadius`. Dialogs keep Material's own radius.
 stay in sp, so it composes with the device's font scale rather than replacing
 it.
 
+A radius, height or thickness that is negative, infinite or not a number is
+ignored, and so is a scale that is infinite or not a number. Zero is a real
+value: it squares the corners and removes the border.
+
 ### Fixed by design
 
 Layout and spacing, the card fields' internals, the wallet buttons' own colours
@@ -691,8 +695,8 @@ has no logo slot, and adding one is a layout change.
 
 ### Contrast
 
-The resolver computes the WCAG ratio for the `brand`/`onBrand` pair and for a
-merchant-set Pay button pair, and anything under 4.5:1 is logged once per
+The resolver computes the WCAG ratio for the `brand`/`onBrand` pair, for
+`surface` against the text drawn on it, and for a merchant-set Pay button pair, and anything under 4.5:1 is logged once per
 sheet — only when the host app is debuggable, because a merchant shipping a
 release build cannot act on a logcat line. The resolver returns the warnings and
 the sheet logs them, so the rule stays a pure function under unit test. A derived `onBrand` never trips it: black and

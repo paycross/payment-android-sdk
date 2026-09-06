@@ -260,6 +260,137 @@ class AppearanceResolverTest {
     }
 
     @Test
+    fun `a size scale that is not a number is ignored`() {
+        // Ignored rather than clamped: an infinite scale is a mistake, not a
+        // request for the largest supported one. A finite value out of range is
+        // a request, so it still clamps.
+        assertEquals(1f, scaleOf(Float.NaN), 0f)
+        assertEquals(1f, scaleOf(Float.POSITIVE_INFINITY), 0f)
+        assertEquals(1f, scaleOf(Float.NEGATIVE_INFINITY), 0f)
+        assertEquals(0.8f, scaleOf(-2f), 0f)
+    }
+
+    @Test
+    fun `a radius or thickness that is not a dimension is ignored`() {
+        // NaN survives both coerceIn and the Dp constructor, and Dp.roundToPx
+        // throws on it rather than rounding, which the Google Pay button's
+        // radius reaches.
+        listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -1f).forEach { bad ->
+            val shapes = AppearanceResolver.resolve(
+                PayCrossAppearance(
+                    shapes = PayCrossShapes(
+                        cornerRadius = bad,
+                        buttonCornerRadius = bad,
+                        borderWidth = bad
+                    )
+                ),
+                null,
+                systemDark = false
+            ).shapes
+
+            assertNull("cornerRadius accepted $bad", shapes.cornerRadius)
+            assertNull("buttonCornerRadius accepted $bad", shapes.buttonCornerRadius)
+            assertNull("borderWidth accepted $bad", shapes.borderWidth)
+        }
+    }
+
+    @Test
+    fun `a button radius or height that is not a dimension is ignored`() {
+        listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -1f).forEach { bad ->
+            val button = AppearanceResolver.resolve(
+                PayCrossAppearance(primaryButton = PayCrossPrimaryButton(cornerRadius = bad, height = bad)),
+                null,
+                systemDark = false
+            ).primaryButton
+
+            assertNull("button cornerRadius accepted $bad", button.cornerRadius)
+            assertNull("button height accepted $bad", button.height)
+        }
+    }
+
+    @Test
+    fun `a bad button radius still falls back to the shapes`() {
+        val appearance = PayCrossAppearance(
+            shapes = PayCrossShapes(buttonCornerRadius = 28f),
+            primaryButton = PayCrossPrimaryButton(cornerRadius = Float.NaN)
+        )
+        assertEquals(
+            28.dp,
+            AppearanceResolver.resolve(appearance, null, systemDark = false).primaryButton.cornerRadius
+        )
+    }
+
+    @Test
+    fun `zero is a dimension`() {
+        val appearance = PayCrossAppearance(
+            shapes = PayCrossShapes(cornerRadius = 0f, borderWidth = 0f)
+        )
+        val shapes = AppearanceResolver.resolve(appearance, null, systemDark = false).shapes
+
+        assertEquals(0.dp, shapes.cornerRadius)
+        assertEquals(0.dp, shapes.borderWidth)
+    }
+
+    @Test
+    fun `a button background derives its own label colour`() {
+        // Otherwise the label keeps the colour the brand derived, which on a
+        // white button is white on white.
+        val appearance = PayCrossAppearance(
+            primaryButton = PayCrossPrimaryButton(background = Color.White.toArgb())
+        )
+        val button = AppearanceResolver.resolve(appearance, null, systemDark = false).primaryButton
+
+        assertEquals(Color.White, button.background)
+        assertEquals(Color.Black, button.textColor)
+    }
+
+    @Test
+    fun `an explicit button label colour is kept`() {
+        val appearance = PayCrossAppearance(
+            primaryButton = PayCrossPrimaryButton(
+                background = Color.White.toArgb(),
+                textColor = Color.Magenta.toArgb()
+            )
+        )
+        assertEquals(
+            Color.Magenta,
+            AppearanceResolver.resolve(appearance, null, systemDark = false).primaryButton.textColor
+        )
+    }
+
+    @Test
+    fun `a button with no background derives no label colour`() {
+        assertNull(
+            AppearanceResolver.resolve(null, null, systemDark = false).primaryButton.textColor
+        )
+    }
+
+    @Test
+    fun `an unreadable sheet warns`() {
+        val appearance = PayCrossAppearance(
+            light = PayCrossColors(surface = Color(0xFF767676).toArgb(), text = Color(0xFF8A8A8A).toArgb())
+        )
+        val warnings = AppearanceResolver.contrastWarnings(
+            AppearanceResolver.resolve(appearance, null, systemDark = false)
+        )
+        assertEquals(1, warnings.size)
+        assertTrue(warnings.single(), warnings.single().contains("sheet"))
+    }
+
+    @Test
+    fun `a merchant surface with the platform text colour is checked too`() {
+        // Setting only the surface is the common case, and it is exactly the one
+        // that can drop the platform's text colour onto an unreadable ground.
+        val appearance = PayCrossAppearance(light = PayCrossColors(surface = Color(0xFF1C1B1F).toArgb()))
+        assertEquals(
+            1,
+            AppearanceResolver.contrastWarnings(
+                AppearanceResolver.resolve(appearance, null, systemDark = false)
+            ).size
+        )
+    }
+
+    @Test
     fun `six digit hex parses`() {
         assertEquals(Color(0xFF1E88E5), AppearanceResolver.parseHexColor("#1E88E5"))
     }
@@ -296,6 +427,9 @@ class AppearanceResolverTest {
         assertNull(AppearanceResolver.parseHexColor("#12345"))
         assertNull(AppearanceResolver.parseHexColor("#GGGGGG"))
         assertNull(AppearanceResolver.parseHexColor("rebeccapurple"))
+        // isDigit is Unicode-wide and Long.parseLong reads these as 3, so this
+        // used to resolve to a colour nobody asked for.
+        assertNull(AppearanceResolver.parseHexColor("#٣٣٣"))
     }
 
     @Test

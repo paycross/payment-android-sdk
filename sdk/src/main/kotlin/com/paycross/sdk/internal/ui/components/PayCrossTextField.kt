@@ -5,7 +5,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -145,8 +144,8 @@ internal fun PayCrossOutlinedTextField(
                             isError = isError,
                             interactionSource = interactionSource,
                             colors = colors,
-                            shape = appearance?.shapes?.cornerRadius?.let(::RoundedCornerShape)
-                                ?: OutlinedTextFieldDefaults.shape,
+                            // No shape: PayCrossTheme already puts the merchant's
+                            // corner radius on the extraSmall slot this reads.
                             focusedBorderThickness = appearance?.shapes?.borderWidth
                                 ?: OutlinedTextFieldDefaults.FocusedBorderThickness,
                             unfocusedBorderThickness = appearance?.shapes?.borderWidth

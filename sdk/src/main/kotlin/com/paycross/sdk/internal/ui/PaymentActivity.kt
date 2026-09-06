@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -42,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -53,6 +53,7 @@ import com.paycross.sdk.ThemeMode
 import com.paycross.sdk.internal.ui.theme.AppearanceResolver
 import com.paycross.sdk.internal.ui.theme.PayCrossTheme
 import com.paycross.sdk.internal.ui.theme.ResolvedAppearance
+import com.paycross.sdk.internal.ui.theme.nightUiMode
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
@@ -90,6 +91,7 @@ internal class PaymentActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         )
+        applyWindowBackground()
 
         val sessionToken = intent.getStringExtra(EXTRA_SESSION_TOKEN)
         if (sessionToken.isNullOrEmpty()) {
@@ -111,15 +113,7 @@ internal class PaymentActivity : ComponentActivity() {
             val resolved = remember(appearance, serverBrand, dark) {
                 AppearanceResolver.resolve(appearance, serverBrand, dark)
             }
-            LaunchedEffect(resolved) {
-                // The window is themed from a resource, so without this the
-                // merchant's surface is framed by a system-coloured band and
-                // shows one before Compose draws its first frame.
-                window.setBackgroundDrawable(
-                    ColorDrawable(resolved.colorScheme.background.toArgb())
-                )
-                warnAboutContrast(resolved)
-            }
+            LaunchedEffect(resolved) { warnAboutContrast(resolved) }
 
             PayCrossTheme(appearance = resolved) {
                 // Material leaves LocalContentColor black until a Surface sets
@@ -154,15 +148,29 @@ internal class PaymentActivity : ComponentActivity() {
         val mode = PayCross.getConfigOrNull()?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
         if (mode == ThemeMode.SYSTEM) return base
 
-        val night = if (mode == ThemeMode.DARK) {
-            Configuration.UI_MODE_NIGHT_YES
-        } else {
-            Configuration.UI_MODE_NIGHT_NO
-        }
         val configuration = Configuration(base.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or night
+            uiMode = nightUiMode(mode, uiMode)
         }
         return base.createConfigurationContext(configuration)
+    }
+
+    /**
+     * Paints the window with the merchant's surface colour.
+     *
+     * Here rather than in a effect under setContent: the window is themed from a
+     * resource, so anything later leaves the sheet framed by a system-coloured
+     * band until the first frame lands. Resolved without the session's colour,
+     * which reaches the brand role only and so cannot change this one.
+     */
+    private fun applyWindowBackground() {
+        val systemDark = resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val resolved = AppearanceResolver.resolve(
+            appearance = PayCross.getConfigOrNull()?.effectiveAppearance(),
+            serverBrandHex = null,
+            systemDark = systemDark
+        )
+        window.setBackgroundDrawable(resolved.colorScheme.background.toArgb().toDrawable())
     }
 
     /**
