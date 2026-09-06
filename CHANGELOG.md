@@ -21,8 +21,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 ### Added
 
 - **French.** Every string the sheet draws now lives in
-  `res/values/strings.xml`, with a `values-fr` translation. Thirty-two keys, all
-  named `paycross_*` and all public API: declaring the same key in your own app
+  `res/values/strings.xml`, with a `values-fr` translation. Thirty-three keys,
+  all named `paycross_*` and all public API: declaring the same key in your own app
   overrides ours through ordinary resource merging. Setting a locale does **not**
   turn those overrides off — the locale picks which of your `values-*` folders is
   read, and your string still wins inside it. Every key, what it paints and how
