@@ -38,8 +38,12 @@ class FrenchSheetTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val french = InstrumentationRegistry.getInstrumentation().targetContext
-        .localizedResources(Locale.FRENCH)
+    private val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+    private val french = targetContext.localizedResources(Locale.FRENCH)
+
+    // Provided explicitly rather than left to the fallback, so the English cases
+    // assert English rather than whatever language the emulator happens to be in.
+    private val english = targetContext.localizedResources(Locale.ENGLISH)
 
     private val claims = JwtClaims(
         sessionId = "session-123",
@@ -91,9 +95,12 @@ class FrenchSheetTest {
     }
 
     @Test
-    fun theSheetStaysEnglishWithNoResourcesProvided() {
-        // The fallback path, which is what a shopper on an English device gets.
-        compose.setContent { PayButton(amount = "€12.34", isLoading = false, onClick = {}) }
+    fun theSheetIsEnglishUnderAnEnglishLocale() {
+        compose.setContent {
+            CompositionLocalProvider(LocalPayCrossResources provides english) {
+                PayButton(amount = "€12.34", isLoading = false, onClick = {})
+            }
+        }
 
         compose.onNodeWithText("Pay €12.34").assertIsDisplayed()
     }
@@ -103,7 +110,10 @@ class FrenchSheetTest {
         // The point of keeping the amount's locale separate from the strings':
         // German words do not exist here, German number formatting does.
         compose.setContent {
-            CompositionLocalProvider(LocalPayCrossFormattingLocale provides Locale.GERMANY) {
+            CompositionLocalProvider(
+                LocalPayCrossResources provides english,
+                LocalPayCrossFormattingLocale provides Locale.GERMANY
+            ) {
                 CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
             }
         }
@@ -112,6 +122,46 @@ class FrenchSheetTest {
         // number from the euro sign with a no-break space whose width has moved
         // between ICU releases, and which one it is today is not what this test
         // is about. "Pay" is the English word; "12,34" is the German comma.
+        compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
+    }
+
+    // --- Through the real wiring, with nothing provided by hand ---
+
+    @Test
+    fun aFrenchSessionDrawsFrenchWithoutAHandProvidedLocal() {
+        // Everything above provides the resources itself, which proves the
+        // mechanism but skips the ladder. This one hands PayCrossLocalization the
+        // session locale exactly as the activity does and reads the words back.
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "fr", merchantLocale = null) {
+                PayButton(amount = "12,34 €", isLoading = false, onClick = {})
+            }
+        }
+
+        compose.onNodeWithText("Payer 12,34 €").assertIsDisplayed()
+    }
+
+    @Test
+    fun aMerchantOverrideBeatsTheSessionThroughTheRealWiring() {
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "en", merchantLocale = "fr-CA") {
+                PayButton(amount = "12,34 €", isLoading = false, onClick = {})
+            }
+        }
+
+        compose.onNodeWithText("Payer 12,34 €").assertIsDisplayed()
+    }
+
+    @Test
+    fun aSessionLanguageTheSdkCannotSpeakDrawsEnglishThroughTheRealWiring() {
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "de", merchantLocale = null) {
+                CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
+            }
+        }
+
+        // English words, and the amount punctuated the German way the session
+        // asked for, which is the split the two locals exist to make.
         compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
     }
 

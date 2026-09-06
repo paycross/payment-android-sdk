@@ -11,7 +11,7 @@ class LocaleResolutionTest {
     fun `the merchant override wins over the session and the device`() {
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = "fr", session = "en", device = Locale.US)
+            LocaleResolution.resolve(override = "fr", session = "en", device = listOf(Locale.US))
         )
     }
 
@@ -19,7 +19,7 @@ class LocaleResolutionTest {
     fun `the session locale wins over the device`() {
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = null, session = "fr", device = Locale.US)
+            LocaleResolution.resolve(override = null, session = "fr", device = listOf(Locale.US))
         )
     }
 
@@ -27,7 +27,7 @@ class LocaleResolutionTest {
     fun `a session tag with a region falls back to its primary subtag`() {
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = null, session = "fr-CA", device = Locale.US)
+            LocaleResolution.resolve(override = null, session = "fr-CA", device = listOf(Locale.US))
         )
     }
 
@@ -35,7 +35,7 @@ class LocaleResolutionTest {
     fun `a device the SDK has no strings for gets English`() {
         assertEquals(
             Locale.forLanguageTag("en"),
-            LocaleResolution.resolve(override = null, session = null, device = Locale.GERMANY)
+            LocaleResolution.resolve(override = null, session = null, device = listOf(Locale.GERMANY))
         )
     }
 
@@ -45,7 +45,7 @@ class LocaleResolutionTest {
             assertEquals(
                 "malformed tag $tag",
                 Locale.forLanguageTag("en"),
-                LocaleResolution.resolve(override = tag, session = tag, device = null)
+                LocaleResolution.resolve(override = tag, session = tag, device = emptyList())
             )
         }
     }
@@ -57,7 +57,7 @@ class LocaleResolutionTest {
         // not ship still leaves the session's own locale in play.
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = "de", session = "fr", device = Locale.US)
+            LocaleResolution.resolve(override = "de", session = "fr", device = listOf(Locale.US))
         )
     }
 
@@ -65,7 +65,7 @@ class LocaleResolutionTest {
     fun `an override and a device the SDK cannot speak land on English`() {
         assertEquals(
             Locale.forLanguageTag("en"),
-            LocaleResolution.resolve(override = "de", session = null, device = Locale.GERMANY)
+            LocaleResolution.resolve(override = "de", session = null, device = listOf(Locale.GERMANY))
         )
     }
 
@@ -73,7 +73,7 @@ class LocaleResolutionTest {
     fun `an override with a region falls back to its primary subtag`() {
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = "fr-CA", session = null, device = Locale.US)
+            LocaleResolution.resolve(override = "fr-CA", session = null, device = listOf(Locale.US))
         )
     }
 
@@ -83,12 +83,12 @@ class LocaleResolutionTest {
             assertEquals(
                 "override '$override' with a French session",
                 Locale.forLanguageTag("fr"),
-                LocaleResolution.resolve(override, session = "fr", device = Locale.US)
+                LocaleResolution.resolve(override, session = "fr", device = listOf(Locale.US))
             )
             assertEquals(
                 "override '$override' with a French device",
                 Locale.forLanguageTag("fr"),
-                LocaleResolution.resolve(override, session = null, device = Locale.CANADA_FRENCH)
+                LocaleResolution.resolve(override, session = null, device = listOf(Locale.CANADA_FRENCH))
             )
         }
     }
@@ -100,7 +100,7 @@ class LocaleResolutionTest {
             LocaleResolution.resolve(
                 override = null,
                 session = "de",
-                device = Locale.CANADA_FRENCH
+                device = listOf(Locale.CANADA_FRENCH)
             )
         )
     }
@@ -109,7 +109,7 @@ class LocaleResolutionTest {
     fun `nothing anywhere is English`() {
         assertEquals(
             Locale.forLanguageTag("en"),
-            LocaleResolution.resolve(override = null, session = null, device = null)
+            LocaleResolution.resolve(override = null, session = null, device = emptyList())
         )
     }
 
@@ -117,7 +117,7 @@ class LocaleResolutionTest {
     fun `a French device with no override and no session gets French`() {
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = null, session = null, device = Locale.CANADA_FRENCH)
+            LocaleResolution.resolve(override = null, session = null, device = listOf(Locale.CANADA_FRENCH))
         )
     }
 
@@ -144,14 +144,14 @@ class LocaleResolutionTest {
         // not have to follow them, because every locale can format a number.
         assertEquals(
             Locale.forLanguageTag("en"),
-            LocaleResolution.resolve(override = null, session = null, device = Locale.GERMANY)
+            LocaleResolution.resolve(override = null, session = null, device = listOf(Locale.GERMANY))
         )
         assertEquals(
             Locale.GERMANY,
             LocaleResolution.formattingLocale(
                 override = null,
                 session = null,
-                device = Locale.GERMANY
+                device = listOf(Locale.GERMANY)
             )
         )
     }
@@ -162,14 +162,14 @@ class LocaleResolutionTest {
         // but Swiss grouping is not France's and the amount keeps it.
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve(override = null, session = "fr-CH", device = Locale.US)
+            LocaleResolution.resolve(override = null, session = "fr-CH", device = listOf(Locale.US))
         )
         assertEquals(
             Locale.forLanguageTag("fr-CH"),
             LocaleResolution.formattingLocale(
                 override = null,
                 session = "fr-CH",
-                device = Locale.US
+                device = listOf(Locale.US)
             )
         )
     }
@@ -178,13 +178,13 @@ class LocaleResolutionTest {
     fun `the amount follows the override first, then the session, then the device`() {
         assertEquals(
             Locale.forLanguageTag("de-AT"),
-            LocaleResolution.formattingLocale("de-AT", "fr-CA", Locale.US)
+            LocaleResolution.formattingLocale("de-AT", "fr-CA", listOf(Locale.US))
         )
         assertEquals(
             Locale.forLanguageTag("fr-CA"),
-            LocaleResolution.formattingLocale(null, "fr-CA", Locale.US)
+            LocaleResolution.formattingLocale(null, "fr-CA", listOf(Locale.US))
         )
-        assertEquals(Locale.US, LocaleResolution.formattingLocale(null, null, Locale.US))
+        assertEquals(Locale.US, LocaleResolution.formattingLocale(null, null, listOf(Locale.US)))
     }
 
     @Test
@@ -193,7 +193,7 @@ class LocaleResolutionTest {
             assertEquals(
                 "junk tag '$junk'",
                 Locale.US,
-                LocaleResolution.formattingLocale(junk, junk, Locale.US)
+                LocaleResolution.formattingLocale(junk, junk, listOf(Locale.US))
             )
         }
     }
@@ -209,7 +209,7 @@ class LocaleResolutionTest {
             assertEquals(
                 "typo '$typo'",
                 Locale.GERMANY,
-                LocaleResolution.formattingLocale(typo, session = null, device = Locale.GERMANY)
+                LocaleResolution.formattingLocale(typo, session = null, device = listOf(Locale.GERMANY))
             )
         }
     }
@@ -220,7 +220,7 @@ class LocaleResolutionTest {
             assertEquals(
                 "typo '$typo'",
                 Locale.forLanguageTag("en"),
-                LocaleResolution.resolve(typo, session = null, device = Locale.GERMANY)
+                LocaleResolution.resolve(typo, session = null, device = listOf(Locale.GERMANY))
             )
         }
     }
@@ -234,11 +234,11 @@ class LocaleResolutionTest {
         // a number's punctuation is not.
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve("fr-", session = null, device = Locale.GERMANY)
+            LocaleResolution.resolve("fr-", session = null, device = listOf(Locale.GERMANY))
         )
         assertEquals(
             Locale.GERMANY,
-            LocaleResolution.formattingLocale("fr-", session = null, device = Locale.GERMANY)
+            LocaleResolution.formattingLocale("fr-", session = null, device = listOf(Locale.GERMANY))
         )
     }
 
@@ -249,7 +249,7 @@ class LocaleResolutionTest {
             LocaleResolution.formattingLocale(
                 override = null,
                 session = "français",
-                device = Locale.GERMANY
+                device = listOf(Locale.GERMANY)
             )
         )
     }
@@ -261,11 +261,11 @@ class LocaleResolutionTest {
         // is the handset's because a misshapen tag never formats anything.
         assertEquals(
             Locale.forLanguageTag("en"),
-            LocaleResolution.resolve("français", session = null, device = Locale.GERMANY)
+            LocaleResolution.resolve("français", session = null, device = listOf(Locale.GERMANY))
         )
         assertEquals(
             Locale.GERMANY,
-            LocaleResolution.formattingLocale("français", session = null, device = Locale.GERMANY)
+            LocaleResolution.formattingLocale("français", session = null, device = listOf(Locale.GERMANY))
         )
     }
 
@@ -275,16 +275,16 @@ class LocaleResolutionTest {
         // thing for a merchant to hand us and which BCP 47 does not accept.
         assertEquals(
             Locale.forLanguageTag("fr"),
-            LocaleResolution.resolve("fr_FR", session = null, device = Locale.US)
+            LocaleResolution.resolve("fr_FR", session = null, device = listOf(Locale.US))
         )
         assertEquals(
             Locale.forLanguageTag("fr-FR"),
-            LocaleResolution.formattingLocale("fr_FR", session = null, device = Locale.US)
+            LocaleResolution.formattingLocale("fr_FR", session = null, device = listOf(Locale.US))
         )
         assertEquals(Locale.forLanguageTag("fr"), LocaleResolution.match("fr_CA"))
         assertEquals(
             Locale.forLanguageTag("de-DE"),
-            LocaleResolution.formattingLocale("de_DE", session = null, device = Locale.US)
+            LocaleResolution.formattingLocale("de_DE", session = null, device = listOf(Locale.US))
         )
     }
 
@@ -294,7 +294,7 @@ class LocaleResolutionTest {
             assertEquals(
                 "well-shaped tag '$tag'",
                 Locale.forLanguageTag(tag),
-                LocaleResolution.formattingLocale(tag, session = null, device = Locale.US)
+                LocaleResolution.formattingLocale(tag, session = null, device = listOf(Locale.US))
             )
         }
     }
@@ -303,14 +303,108 @@ class LocaleResolutionTest {
     fun `the amount falls back to the platform default when nothing names a locale`() {
         assertEquals(
             Locale.getDefault(),
-            LocaleResolution.formattingLocale(null, null, null)
+            LocaleResolution.formattingLocale(null, null, emptyList())
         )
     }
 
     @Test
-    fun `the shipped set is exactly the resource folders that exist`() {
-        // values/ and values-fr/. A language added here without its folder ships
-        // a locale that resolves to nothing and paints English anyway.
-        assertEquals(listOf("en", "fr"), LocaleResolution.SUPPORTED_TAGS)
+    fun `every language in the shipped set resolves to itself`() {
+        // Behavioural stand-in for "SUPPORTED_TAGS matches the values- folders",
+        // which a JVM test cannot see. A tag listed here but never shipped would
+        // still pass this; FrenchSheetTest is what proves the folder exists.
+        LocaleResolution.SUPPORTED_TAGS.forEach { tag ->
+            assertEquals(
+                "shipped tag '$tag'",
+                Locale.forLanguageTag(tag),
+                LocaleResolution.resolve(tag, session = null, device = emptyList())
+            )
+        }
     }
+
+    // --- Every language the shopper listed, not just the first ---
+
+    @Test
+    fun `a second device preference is reached when the first is not shipped`() {
+        // A handset set to German first and French second has asked for French
+        // over English. Reading only locales[0] answered it with English.
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve(
+                override = null,
+                session = null,
+                device = listOf(Locale.forLanguageTag("de-DE"), Locale.forLanguageTag("fr-FR"))
+            )
+        )
+    }
+
+    @Test
+    fun `the earliest shipped device preference wins`() {
+        assertEquals(
+            Locale.forLanguageTag("en"),
+            LocaleResolution.resolve(
+                override = null,
+                session = null,
+                device = listOf(
+                    Locale.forLanguageTag("de-DE"),
+                    Locale.forLanguageTag("en-GB"),
+                    Locale.forLanguageTag("fr-FR")
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `a device list with nothing shipped is English`() {
+        assertEquals(
+            Locale.forLanguageTag("en"),
+            LocaleResolution.resolve(
+                override = null,
+                session = null,
+                device = listOf(Locale.forLanguageTag("de-DE"), Locale.forLanguageTag("es-ES"))
+            )
+        )
+    }
+
+    @Test
+    fun `the amount follows the handset's first choice, shipped or not`() {
+        // The words come from the second preference because the SDK has French;
+        // the number still follows the first, because German punctuation is
+        // exactly what that shopper asked for and the SDK can produce it.
+        val device = listOf(Locale.forLanguageTag("de-DE"), Locale.forLanguageTag("fr-FR"))
+        assertEquals(
+            Locale.forLanguageTag("fr"),
+            LocaleResolution.resolve(override = null, session = null, device = device)
+        )
+        assertEquals(
+            Locale.forLanguageTag("de-DE"),
+            LocaleResolution.formattingLocale(override = null, session = null, device = device)
+        )
+    }
+
+    // --- Both answers together, the way the sheet asks for them ---
+
+    @Test
+    fun `sheetLocales answers the words and the amount from one set of candidates`() {
+        val locales = LocaleResolution.sheetLocales(
+            override = null,
+            session = "fr-CH",
+            device = listOf(Locale.GERMANY)
+        )
+
+        assertEquals(Locale.forLanguageTag("fr"), locales.strings)
+        assertEquals(Locale.forLanguageTag("fr-CH"), locales.amount)
+    }
+
+    @Test
+    fun `sheetLocales on a handset the SDK cannot speak splits the two answers`() {
+        val locales = LocaleResolution.sheetLocales(
+            override = null,
+            session = null,
+            device = listOf(Locale.GERMANY)
+        )
+
+        assertEquals(Locale.forLanguageTag("en"), locales.strings)
+        assertEquals(Locale.GERMANY, locales.amount)
+    }
+
 }

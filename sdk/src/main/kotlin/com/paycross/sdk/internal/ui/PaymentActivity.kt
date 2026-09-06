@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
-import android.content.res.Resources
 import android.os.Bundle
 import android.os.LocaleList
 import android.util.Log
@@ -28,7 +27,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,7 +38,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -63,7 +60,6 @@ import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
-import java.util.Locale
 
 /**
  * Internal activity that hosts the payment flow UI.
@@ -110,6 +106,7 @@ internal class PaymentActivity : ComponentActivity() {
 
         setContent {
             val appearance = remember { PayCross.requireConfig().effectiveAppearance() }
+            val merchantLocale = remember { PayCross.getConfigOrNull()?.locale }
             // Mapped rather than collected whole: the brand changes once, when the
             // session lands, and the theme has no business recomposing on every
             // form keystroke.
@@ -130,13 +127,15 @@ internal class PaymentActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Mapped rather than collected whole, like the brand above:
+                    // the locale changes once, when the session lands.
                     val sessionLocale by remember {
                         viewModel.uiState.map { it.sessionData?.locale }
                     }.collectAsState(initial = null)
 
-                    CompositionLocalProvider(
-                        LocalPayCrossResources provides sheetResources(sessionLocale),
-                        LocalPayCrossFormattingLocale provides amountLocale(sessionLocale)
+                    PayCrossLocalization(
+                        sessionLocale = sessionLocale,
+                        merchantLocale = merchantLocale
                     ) {
                         PaymentScreen(
                             viewModel = viewModel,
@@ -180,45 +179,6 @@ internal class PaymentActivity : ComponentActivity() {
             locale?.let { setLocales(LocaleList(it)) }
         }
         return base.createConfigurationContext(configuration)
-    }
-
-    /**
-     * The resources every string in the sheet is read from.
-     *
-     * Recomputed once, when the session lands and its `locale` joins the ladder;
-     * until then it answers with the merchant's override or the device. The
-     * session's language cannot reach [attachBaseContext] - it arrives after
-     * setContent - and recreating the activity to apply it would throw away a
-     * half-filled card form, so it arrives as a composition local instead.
-     */
-    @Composable
-    private fun sheetResources(sessionLocale: String?): Resources {
-        val context = LocalContext.current
-        val deviceLocale = LocalConfiguration.current.locales[0]
-        val locale = remember(sessionLocale, deviceLocale) {
-            LocaleResolution.resolve(
-                override = PayCross.getConfigOrNull()?.locale,
-                session = sessionLocale,
-                device = deviceLocale
-            )
-        }
-        return remember(context, locale) { context.localizedResources(locale) }
-    }
-
-    /**
-     * The locale the amount is formatted with, which is not narrowed to the two
-     * languages the SDK has words for.
-     */
-    @Composable
-    private fun amountLocale(sessionLocale: String?): Locale {
-        val deviceLocale = LocalConfiguration.current.locales[0]
-        return remember(sessionLocale, deviceLocale) {
-            LocaleResolution.formattingLocale(
-                override = PayCross.getConfigOrNull()?.locale,
-                session = sessionLocale,
-                device = deviceLocale
-            )
-        }
     }
 
     /**

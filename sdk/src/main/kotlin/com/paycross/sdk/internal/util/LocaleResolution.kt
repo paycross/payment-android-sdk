@@ -21,6 +21,14 @@ import java.util.Locale
  *
  * Nothing here throws. A tag that cannot be parsed is not an answer.
  */
+/**
+ * @property strings The language the sheet's own copy is drawn in, always one the
+ *   SDK ships.
+ * @property amount The locale the amount is punctuated with, which is whatever
+ *   the shopper named and not narrowed to the shipped languages.
+ */
+internal data class SheetLocales(val strings: Locale, val amount: Locale)
+
 internal object LocaleResolution {
 
     /**
@@ -53,10 +61,16 @@ internal object LocaleResolution {
      *
      * @param override The merchant's `PayCross.init(locale = …)`.
      * @param session The session payload's `locale`.
-     * @param device The device's own locale, or null when there is none to read.
+     * @param device Every language the shopper listed, in their order of
+     *   preference. All of them are candidates: a handset set to German first
+     *   and French second has asked for French over English, and answering it
+     *   with English because German came first would ignore what it said.
      */
-    fun resolve(override: String?, session: String?, device: Locale?): Locale =
-        match(override) ?: match(session) ?: match(device?.toLanguageTag()) ?: DEFAULT
+    fun resolve(override: String?, session: String?, device: List<Locale>): Locale =
+        match(override)
+            ?: match(session)
+            ?: device.firstNotNullOfOrNull { match(it.toLanguageTag()) }
+            ?: DEFAULT
 
     /**
      * The locale the amount is formatted with: the first of [override], [session]
@@ -68,8 +82,22 @@ internal object LocaleResolution {
      * region is what carries the formatting, and dropping it to reach `fr` would
      * quietly move a Swiss shopper onto France's conventions.
      */
-    fun formattingLocale(override: String?, session: String?, device: Locale?): Locale =
-        wellShaped(override) ?: wellShaped(session) ?: device ?: Locale.getDefault()
+    fun formattingLocale(override: String?, session: String?, device: List<Locale>): Locale =
+        wellShaped(override)
+            ?: wellShaped(session)
+            ?: device.firstOrNull()
+            ?: Locale.getDefault()
+
+    /**
+     * Both answers at once, which is what the sheet actually needs: the language
+     * to draw and the locale to punctuate the amount with, from one set of
+     * candidates.
+     */
+    fun sheetLocales(override: String?, session: String?, device: List<Locale>): SheetLocales =
+        SheetLocales(
+            strings = resolve(override, session, device),
+            amount = formattingLocale(override, session, device)
+        )
 
     /**
      * A tag shaped like BCP 47: a 2-3 letter language, then any number of

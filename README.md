@@ -87,7 +87,10 @@ same key in your app and yours wins:
 ```
 
 **Setting `locale` does not turn your overrides off** — the locale picks which of
-your `values-*` folders is read, and your string still beats ours inside it.
+your `values-*` folders is read, and your string still beats ours inside it. Note
+that `locale` can only name a language the SDK ships, so it will not reach a
+`values-de` of your own; your German strings are still used when the device or
+the session selects German.
 
 The full key list, what each one paints, and how to add a language are in
 [`LOCALIZATION.md`](LOCALIZATION.md).

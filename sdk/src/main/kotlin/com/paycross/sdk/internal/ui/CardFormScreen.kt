@@ -149,9 +149,6 @@ internal fun CardFormScreen(
         cardholderName = cardholderName,
         cvvCardType = cvvCardType
     )
-    // Google draws this inside its own sheet, so it has to be resolved out here
-    // where there are resources to resolve it from.
-    val totalLabel = pcStringResource(R.string.paycross_total)
     val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat) {
         FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat))
             .associate { "${it.groupKey}|${it.fieldName}" to it.message }
@@ -172,13 +169,8 @@ internal fun CardFormScreen(
 
             if (googlePayAvailable) {
                 GooglePaySection(
-                    allowedPaymentMethodsJson = remember(claims, sessionData, totalLabel) {
-                        GooglePayRequests.buildPaymentDataRequest(
-                            claims,
-                            sessionData,
-                            PayCross.requireConfig().googlePayMerchantId,
-                            totalLabel
-                        ).getAsJsonArray("allowedPaymentMethods").toString()
+                    allowedPaymentMethodsJson = remember(claims, sessionData) {
+                        GooglePayRequests.buildAllowedPaymentMethods(claims, sessionData).toString()
                     },
                     onClick = {
                         showErrors = true

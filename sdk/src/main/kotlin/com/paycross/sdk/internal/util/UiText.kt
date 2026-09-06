@@ -13,7 +13,13 @@ import androidx.annotation.StringRes
  */
 internal sealed interface UiText {
 
-    data class Resource(@StringRes val id: Int, val args: List<Any> = emptyList()) : UiText
+    /**
+     * Arguments are already-rendered strings, never raw numbers. Since API 24
+     * `Resources.getString` formats with the resources' own locale, and those are
+     * clamped to the languages the SDK ships while the amount deliberately is
+     * not — so a number passed here would be punctuated in the wrong one.
+     */
+    data class Resource(@StringRes val id: Int, val args: List<String> = emptyList()) : UiText
 
     data class Raw(val text: String) : UiText
 }

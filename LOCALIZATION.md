@@ -20,7 +20,9 @@ Four candidates, in order. The first that names a language the SDK ships wins.
 
 1. **The merchant's override** — `PayCross.init(locale = "fr")`.
 2. **The payment session's `locale`**, minted by your backend with the session.
-3. **The device's language.**
+3. **The device's languages**, every one the shopper listed, in their order of
+   preference — so a handset set to German first and French second gets French,
+   because the SDK has French and the shopper asked for it over English.
 4. **English.**
 
 Each candidate is matched on its own: the whole tag first, then its primary
@@ -96,6 +98,14 @@ sheet:
 locale picks which of your `values-*` folders is read, and your resource still
 beats ours inside it. Some SDKs make an explicit locale turn string overrides
 off; this one does not.
+
+**But `locale` can only name a language the SDK ships.** It is matched against
+`en` and `fr` like every other candidate, so `init(locale = "de")` does not reach
+your own `values-de` — it falls through and the sheet resolves to English or
+French as usual. Your German strings are still used when the shopper's device or
+the session selects German, because Android picks the folder then and your
+resource wins inside it. To have `locale` itself select another language, that
+language has to be shipped by the SDK; see **Adding a language** below.
 
 Keep the format arguments. `paycross_pay_amount` without its `%1$s` draws a
 button with no amount on it, and `paycross_saved_card_expires` carries two.

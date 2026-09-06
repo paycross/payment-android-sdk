@@ -50,6 +50,15 @@ internal object GooglePayRequests {
     }
 
     /**
+     * The allowed payment methods on their own, for the Google Pay button, which
+     * needs them to decide what it may draw. Built without the rest of the
+     * request because the button has no total to name and no merchant to
+     * identify, and asking for those would mean resolving a string it never uses.
+     */
+    fun buildAllowedPaymentMethods(claims: JwtClaims, sessionData: SessionData?): JsonArray =
+        JsonArray().apply { add(cardMethodWithTokenization(claims, sessionData)) }
+
+    /**
      * @param totalPriceLabel What Google's own sheet names the total line. Drawn
      *   to the shopper, so it arrives already translated: this object has no
      *   Context and Google localizes its chrome but not a merchant's strings.
@@ -62,7 +71,7 @@ internal object GooglePayRequests {
     ): JsonObject = JsonObject().apply {
         addProperty("apiVersion", API_VERSION)
         addProperty("apiVersionMinor", API_VERSION_MINOR)
-        add("allowedPaymentMethods", JsonArray().apply { add(cardMethodWithTokenization(claims, sessionData)) })
+        add("allowedPaymentMethods", buildAllowedPaymentMethods(claims, sessionData))
         add("transactionInfo", transactionInfo(claims, sessionData, totalPriceLabel))
         merchantInfo(sessionData, googlePayMerchantId)?.let { add("merchantInfo", it) }
     }

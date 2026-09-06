@@ -1043,5 +1043,5 @@ class PaymentViewModelTest {
     // The view model has no Context, so it names its copy rather than building
     // it: asserting the id keeps these tests off the resource table and lets the
     // sheet draw the sentence in whichever language it resolved.
-    private fun resource(id: Int, vararg args: Any) = UiText.Resource(id, args.toList())
+    private fun resource(id: Int, vararg args: String) = UiText.Resource(id, args.toList())
 }

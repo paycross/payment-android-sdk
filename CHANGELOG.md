@@ -30,9 +30,11 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 - **A locale rule.** The sheet's language is the first of these the SDK ships
   strings for: `PayCross.init(locale = …)`, then the payment session's `locale`,
-  then the device, then English. Each candidate is matched on its own — the whole
-  tag, then its primary subtag, so `fr-CA` reaches French — and one that matches
-  nothing falls through to the next rather than ending the ladder. Nothing throws
+  then every language the device lists in the shopper's own order of preference,
+  then English. Each candidate is matched on its own — the whole tag, then its
+  primary subtag, so `fr-CA` reaches French — and one that matches nothing falls
+  through to the next rather than ending the ladder. A handset set to German
+  first and French second therefore gets French, not English. Nothing throws
   on a malformed tag. Same rule as the hosted checkout page, and iOS resolves
   identically.
 

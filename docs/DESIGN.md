@@ -722,7 +722,13 @@ overrides one is in `LOCALIZATION.md`; this section is the mechanism.
 ### The ladder
 
 `LocaleResolution.resolve` takes the merchant's `locale`, the session's `locale`
-and the device's, and answers with one of the shipped languages. Each candidate
+and every locale in the device's `LocaleList`, and answers with one of the
+shipped languages. The whole device list is walked, not just `locales[0]`: a
+handset set to German first and French second has asked for French over English,
+and reading only the first entry would have answered it with English.
+`LocaleResolution.sheetLocales` returns that answer alongside the amount's, and
+`PayCrossLocalization` is the composable that calls it and provides both locals,
+which is what lets the wiring be tested without an Activity. Each candidate
 is matched on its own - the whole tag, then its primary subtag - and one that
 matches nothing falls through to the next rather than ending the ladder. Nothing
 throws: a tag the SDK cannot parse is a tag it does not ship, and both answers

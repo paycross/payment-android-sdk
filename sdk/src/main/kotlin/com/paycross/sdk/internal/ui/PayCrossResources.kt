@@ -6,10 +6,13 @@ import android.content.res.Resources
 import android.os.LocaleList
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.util.UiText
 import java.util.Locale
 
@@ -78,6 +81,45 @@ internal val pcFormattingLocale: Locale
     @ReadOnlyComposable
     get() = LocalPayCrossFormattingLocale.current
         ?: LocalConfiguration.current.locales[0]
+
+/**
+ * Runs [content] with the sheet's language and the amount's locale resolved from
+ * [merchantLocale], [sessionLocale] and the shopper's own list of preferences.
+ *
+ * The whole ladder lives here rather than in the activity so that it can be
+ * exercised without one: a test renders this with a session locale and reads the
+ * words back, which is the wiring rather than the mechanism. The two are
+ * provided together because they come from one set of candidates and must never
+ * disagree about which session they describe.
+ */
+@Composable
+internal fun PayCrossLocalization(
+    sessionLocale: String?,
+    merchantLocale: String?,
+    content: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    val deviceLocales = LocalConfiguration.current.locales
+    val locales = remember(merchantLocale, sessionLocale, deviceLocales) {
+        LocaleResolution.sheetLocales(
+            override = merchantLocale,
+            session = sessionLocale,
+            device = deviceLocales.toList()
+        )
+    }
+    val resources = remember(context, locales.strings) {
+        context.localizedResources(locales.strings)
+    }
+
+    CompositionLocalProvider(
+        LocalPayCrossResources provides resources,
+        LocalPayCrossFormattingLocale provides locales.amount,
+        content = content
+    )
+}
+
+/** The shopper's languages in their order of preference. */
+private fun LocaleList.toList(): List<Locale> = (0 until size()).map { get(it) }
 
 /**
  * [this] re-read in [locale]. Built from the context rather than from a bare
