@@ -5,16 +5,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.paycross.sdk.R
+import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.validation.CardType
 
 private const val MAX_CARD_NUMBER_LENGTH = 19
 private const val EXPIRY_LENGTH = 4
+
+/** The spoken label and the identifier, on the field's own node. */
+private fun Modifier.fieldSemantics(description: String, tag: String): Modifier =
+    this.testTag(tag).semantics { contentDescription = description }
 
 @Composable
 internal fun CardNumberField(
@@ -46,7 +52,7 @@ internal fun CardNumberField(
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = description }
+            .fieldSemantics(description, TestTags.CARD_NUMBER)
     )
 }
 
@@ -71,7 +77,7 @@ internal fun ExpiryField(
         visualTransformation = ExpiryVisualTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
-        modifier = modifier.semantics { contentDescription = description }
+        modifier = modifier.fieldSemantics(description, TestTags.EXPIRY)
     )
 }
 
@@ -97,7 +103,7 @@ internal fun CvvField(
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
-        modifier = modifier.semantics { contentDescription = description }
+        modifier = modifier.fieldSemantics(description, TestTags.CVV)
     )
 }
 
@@ -119,6 +125,6 @@ internal fun CardholderNameField(
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = description }
+            .fieldSemantics(description, TestTags.CARDHOLDER_NAME)
     )
 }

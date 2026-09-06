@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
@@ -299,6 +300,7 @@ private fun PaymentScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .testTag(TestTags.SHEET)
             .semantics { testTagsAsResourceId = publishTestTags }
     ) {
         when {
@@ -310,7 +312,9 @@ private fun PaymentScreen(
                     action = challenge.action,
                     onComplete = { viewModel.clearThreeDs() },
                     onError = { /* Continue polling, will fail eventually */ },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(TestTags.THREE_DS)
                 )
             }
             uiState.claims != null -> {
@@ -379,10 +383,15 @@ private fun PaymentScreen(
     }
 }
 
+// Internal so the instrumented suite can stand it up on its own, like the cancel
+// dialog below: reaching it through PaymentScreen would mean a session, a
+// network and a payment in flight.
 @Composable
-private fun LoadingOverlay() {
+internal fun LoadingOverlay() {
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(TestTags.LOADING),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -405,15 +414,22 @@ internal fun CancelConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(TestTags.CANCEL_DIALOG),
         title = { Text(pcStringResource(R.string.paycross_cancel_payment_title)) },
         text = { Text(pcStringResource(R.string.paycross_cancel_payment_message)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag(TestTags.CANCEL_CONFIRM)
+            ) {
                 Text(pcStringResource(R.string.paycross_cancel_payment_yes))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(TestTags.CANCEL_DISMISS)
+            ) {
                 Text(pcStringResource(R.string.paycross_cancel_payment_continue))
             }
         }

@@ -15,11 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
+import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.util.UiText
 import com.paycross.sdk.internal.validation.FieldGroupLogic
@@ -67,6 +69,7 @@ private fun FieldGroupCard(
             val error = errors["${group.key}|${field.name}"]
             if (field.type == "select") {
                 SelectField(
+                    groupKey = group.key,
                     field = field,
                     value = groupValues[field.name].orEmpty(),
                     readonly = state.readonly,
@@ -75,6 +78,7 @@ private fun FieldGroupCard(
                 )
             } else {
                 TextInputField(
+                    groupKey = group.key,
                     field = field,
                     value = groupValues[field.name].orEmpty(),
                     readonly = state.readonly,
@@ -88,6 +92,7 @@ private fun FieldGroupCard(
 
 @Composable
 private fun TextInputField(
+    groupKey: String,
     field: FieldDefinition,
     value: String,
     readonly: Boolean,
@@ -101,16 +106,27 @@ private fun TextInputField(
         placeholder = field.placeholder?.let { { Text(it) } },
         readOnly = readonly,
         isError = error != null,
-        supportingText = error?.let { { Text(pcStringResource(it)) } },
+        supportingText = error?.let { { ErrorText(groupKey, field.name, it) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardTypeFor(field.type)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.field(groupKey, field.name))
+    )
+}
+
+@Composable
+private fun ErrorText(groupKey: String, fieldName: String, error: UiText) {
+    Text(
+        text = pcStringResource(error),
+        modifier = Modifier.testTag(TestTags.fieldError(groupKey, fieldName))
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SelectField(
+    groupKey: String,
     field: FieldDefinition,
     value: String,
     readonly: Boolean,
@@ -131,11 +147,12 @@ private fun SelectField(
             readOnly = true,
             label = { Text(field.label ?: field.name) },
             isError = error != null,
-            supportingText = error?.let { { Text(pcStringResource(it)) } },
+            supportingText = error?.let { { ErrorText(groupKey, field.name, it) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor()
+                .testTag(TestTags.field(groupKey, field.name))
         )
         ExposedDropdownMenu(
             expanded = expanded && !readonly,

@@ -22,10 +22,9 @@ import com.google.android.gms.wallet.button.ButtonConstants
 import com.google.android.gms.wallet.button.ButtonOptions
 import com.google.android.gms.wallet.button.PayButton
 import com.paycross.sdk.R
+import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
-
-internal const val GOOGLE_PAY_BUTTON_TAG = "google_pay_button"
 
 /**
  * The button variant Google pairs with a surface of the given mode: a dark
@@ -82,10 +81,14 @@ internal fun GooglePaySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .testTag(GOOGLE_PAY_BUTTON_TAG)
+                .testTag(TestTags.WALLET_BUTTON)
         )
 
-        OrPayWithCardDivider(modifier = Modifier.padding(top = 16.dp))
+        OrPayWithCardDivider(
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .testTag(TestTags.WALLET_DIVIDER)
+        )
     }
 }
 

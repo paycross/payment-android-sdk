@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.paycross.sdk.PayCross
@@ -269,7 +270,9 @@ private fun AmountHeader(amount: String) {
     Text(
         text = amount,
         style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.AMOUNT),
         textAlign = TextAlign.Center
     )
 }
@@ -328,7 +331,9 @@ private fun NewCardForm(
 private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.SAVE_CARD)
     ) {
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
         Text(pcStringResource(R.string.paycross_save_this_card))
@@ -364,7 +369,8 @@ private fun ErrorMessage(message: UiText) {
     Text(
         text = pcStringResource(message),
         color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodySmall
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.testTag(TestTags.ERROR_BANNER)
     )
 }
 
@@ -390,6 +396,7 @@ internal fun PayButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(button?.height ?: PAY_BUTTON_HEIGHT)
+            .testTag(TestTags.PAY_BUTTON)
     ) {
         if (isLoading) {
             CircularProgressIndicator(

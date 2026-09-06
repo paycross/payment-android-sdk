@@ -10,7 +10,6 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.internal.api.JwtClaims
-import com.paycross.sdk.internal.ui.components.GOOGLE_PAY_BUTTON_TAG
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -49,7 +48,7 @@ class GooglePayButtonVisibilityTest {
             )
         }
 
-        compose.onNodeWithTag(GOOGLE_PAY_BUTTON_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(TestTags.WALLET_BUTTON).assertDoesNotExist()
     }
 
     @Test
@@ -71,6 +70,6 @@ class GooglePayButtonVisibilityTest {
             )
         }
 
-        compose.onNodeWithTag(GOOGLE_PAY_BUTTON_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(TestTags.WALLET_BUTTON).assertIsDisplayed()
     }
 }

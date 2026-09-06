@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.PayCross
@@ -75,7 +75,7 @@ class SavedCardCvvTest {
         val selected = mutableStateOf<String?>("card-1")
         setContent(cards, selected)
 
-        compose.onNodeWithContentDescription(CVV).performTextInput("123")
+        compose.onNodeWithTag(TestTags.CVV).performTextInput("123")
         compose.waitForIdle()
         assertEquals(3, cvvLength())
 
@@ -95,7 +95,7 @@ class SavedCardCvvTest {
         val error = mutableStateOf<UiText?>(null)
         setContent(cards, selected, error)
 
-        compose.onNodeWithContentDescription(CVV).performTextInput("123")
+        compose.onNodeWithTag(TestTags.CVV).performTextInput("123")
         compose.waitForIdle()
 
         // What a refused removal looks like from the form's side: the banner
@@ -113,7 +113,7 @@ class SavedCardCvvTest {
         val selected = mutableStateOf<String?>("card-1")
         setContent(cards, selected)
 
-        compose.onNodeWithContentDescription(CVV).performTextInput("123")
+        compose.onNodeWithTag(TestTags.CVV).performTextInput("123")
         compose.waitForIdle()
 
         cards.value = listOf(visa)
@@ -156,15 +156,11 @@ class SavedCardCvvTest {
     // Length, not content: the field masks its value, so what semantics reports
     // is bullets. The distinction the tests need is emptied versus untouched.
     private fun cvvLength(): Int =
-        compose.onNodeWithContentDescription(CVV)
+        compose.onNodeWithTag(TestTags.CVV)
             .fetchSemanticsNode()
             .config
             .getOrNull(SemanticsProperties.EditableText)
             ?.text
             ?.length
             ?: 0
-
-    private companion object {
-        const val CVV = "CVV input"
-    }
 }
