@@ -18,7 +18,31 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   **recompiled** rather than swapped in, and Java callers — which have no default
   arguments — must pass the extra argument.
 
+### Changed — source-compatible, but UI tests that name elements will break
+
+- **Every element in the sheet now carries a `paycross.*` test identifier**, the
+  same string as iOS. The one Android name that existed before,
+  `google_pay_button`, is **gone**; it is `paycross.walletButton`. The saved-card
+  identifiers Train 2 shipped are unchanged. The full list is in the README.
+  No merchant is onboarded, so nothing keeps the old name.
+
+- **The Pay button's height is a minimum rather than a fixed size**, and a height
+  set through `PayCrossAppearance.primaryButton` is read the same way. At the
+  platform's accessibility text sizes the button grows instead of cropping its
+  label. A merchant who pinned a height to keep a long currency string on one
+  line will see the button grow instead.
+
+- **The save-card toggle is the whole row**, not just the checkbox: tapping the
+  caption toggles it, and the row is at least 48dp tall.
+
 ### Added
+
+- **An accessibility floor**, documented in the README and asserted by the
+  instrumented suite. Every control is named; a decline is announced through a
+  polite live region and carries a warning glyph so colour is not its only
+  signal; a card field speaks its label, its name and its error state as one
+  node; the Pay button keeps its name while the spinner covers its label; the
+  saved-card CVV box grows with the text size; the amount is a heading.
 
 - **French.** Every string the sheet draws now lives in
   `res/values/strings.xml`, with a `values-fr` translation. Thirty-three keys,
