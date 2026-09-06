@@ -26,12 +26,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   identifiers Train 2 shipped are unchanged. The full list is in the README.
   No merchant is onboarded, so nothing keeps the old name.
 
-  Two identifiers in the shared scheme have **no Android element behind them**:
-  `paycross.brand` and `paycross.threeDSCancel`. iOS draws a brand badge beside
-  the card number and a Cancel button over the 3-D Secure challenge; Android
-  draws neither, and the challenge is left with the system back gesture, which
-  raises the cancel dialog. A cross-platform test that looks for either will
-  find nothing here.
+  Three identifiers in the shared scheme have **no Android element behind them**,
+  and a cross-platform test looking for any of them will find nothing here:
+  `paycross.brand`, the brand badge iOS draws beside the card number;
+  `paycross.threeDSCancel`, the Cancel button iOS puts over the 3-D Secure
+  challenge; and `paycross.cancel`, iOS's Cancel button in the sheet chrome. The
+  Android sheet has no close control of its own — it is cancelled with the system
+  back gesture, which the SDK catches to raise the cancel dialog. Press back and
+  use `paycross.cancelConfirm`.
 
 - **The Pay button's height is a minimum rather than a fixed size**, and a height
   set through `PayCrossAppearance.primaryButton` is read the same way. At the

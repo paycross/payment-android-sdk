@@ -152,11 +152,16 @@ space**: a field called `city.error` in group `billing` would produce the
 identifier of `city`'s error node, and a space would put a space in a resource
 id. Field keys are yours to choose in the back office, so choose them without.
 
-Two identifiers in the shared scheme have no Android element behind them:
-`paycross.brand` and `paycross.threeDSCancel`. iOS draws a brand badge beside the
-card number and a Cancel button over the 3-D Secure challenge. Android draws
-neither — the challenge is left with the system back gesture, which raises the
-cancel dialog.
+Three identifiers in the shared scheme have no Android element behind them:
+
+- `paycross.brand` — iOS draws a brand badge beside the card number; Android
+  draws none.
+- `paycross.threeDSCancel` — iOS puts a Cancel button over the 3-D Secure
+  challenge; on Android the challenge is left with the system back gesture.
+- `paycross.cancel` — iOS has a Cancel button in the sheet's chrome. The Android
+  sheet has no close control of its own: it is cancelled with the system back
+  gesture, and the SDK catches that to raise the cancel dialog. To cancel from a
+  test, press back and then use `paycross.cancelConfirm`.
 
 ### These are a debug-build contract
 

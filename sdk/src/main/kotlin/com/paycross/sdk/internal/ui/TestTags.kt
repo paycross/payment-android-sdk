@@ -23,12 +23,18 @@ import androidx.compose.ui.platform.LocalContext
  * dropdown is a third window and sets it nowhere, so a tag attached in that
  * popup would be addressable from a Compose test and invisible to a dump.
  *
- * Two names in the cross-platform set have nothing to sit on here:
- * `paycross.brand` and `paycross.threeDSCancel`. iOS draws a brand badge beside
- * the card number and a Cancel button over the 3-D Secure challenge; Android
- * draws neither, and the challenge is dismissed with the system back gesture
- * into the cancel dialog. They are listed in the README as iOS-only rather than
- * attached to something that only approximates them.
+ * Three names in the cross-platform set have nothing to sit on here, and are
+ * listed in the README as iOS-only rather than attached to something that only
+ * approximates them:
+ *
+ * - `paycross.brand`, the brand badge iOS draws beside the card number.
+ * - `paycross.threeDSCancel`, the Cancel button iOS puts over the challenge.
+ * - `paycross.cancel`, the sheet's own cancel control. Android has none: the
+ *   sheet is cancelled with the system back gesture, which `PaymentActivity`
+ *   catches to raise the cancel dialog. A gesture has no node to tag, and
+ *   tagging the sheet root as the cancel affordance would be a lie. The dialog
+ *   it raises is tagged, and [CANCEL_DIALOG] with [CANCEL_CONFIRM] and
+ *   [CANCEL_DISMISS] is the handle a test needs anyway.
  */
 internal object TestTags {
     const val SHEET = "paycross.sheet"
