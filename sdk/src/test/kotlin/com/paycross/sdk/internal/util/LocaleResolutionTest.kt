@@ -51,14 +51,45 @@ class LocaleResolutionTest {
     }
 
     @Test
-    fun `an unsupported override falls through to the session rather than to English`() {
-        // The hosted page runs each candidate through the matcher on its own, so
-        // a merchant asking for a language the SDK does not ship still leaves the
-        // session's own locale in play.
+    fun `an unsupported override is English, not the session's language`() {
+        // The first rung that answers decides. The merchant said German; the SDK
+        // has no German, so the shopper gets English. Falling through to the
+        // French session here would have the SDK answer a question the merchant
+        // had already answered differently.
         assertEquals(
-            Locale.forLanguageTag("fr"),
+            Locale.forLanguageTag("en"),
             LocaleResolution.resolve(override = "de", session = "fr", device = Locale.US)
         )
+    }
+
+    @Test
+    fun `an unsupported session locale is English, not the device's language`() {
+        assertEquals(
+            Locale.forLanguageTag("en"),
+            LocaleResolution.resolve(
+                override = null,
+                session = "de",
+                device = Locale.CANADA_FRENCH
+            )
+        )
+    }
+
+    @Test
+    fun `a blank tag is not an answer and does not stop the ladder`() {
+        // A session minted with an empty locale has said nothing, so the device
+        // still gets its turn. The hosted page treats an empty tag the same way,
+        // because an empty string is falsy there.
+        listOf("", "   ").forEach { blank ->
+            assertEquals(
+                "blank tag '$blank'",
+                Locale.forLanguageTag("fr"),
+                LocaleResolution.resolve(
+                    override = blank,
+                    session = blank,
+                    device = Locale.CANADA_FRENCH
+                )
+            )
+        }
     }
 
     @Test

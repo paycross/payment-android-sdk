@@ -5,16 +5,19 @@ import java.util.Locale
 /**
  * Picks the language the payment sheet draws in.
  *
- * The ladder is the merchant's override, then the session's `locale`, then the
- * device, then English. Each candidate is matched on its own against the
- * languages the SDK actually ships — the whole tag first, then its primary
- * subtag, so `fr-CA` reaches the French strings — and a candidate that matches
- * nothing falls through to the next rather than ending the ladder. That is the
- * hosted checkout page's `matchSupportedLocale` / `resolveLanguage` rule, so a
- * shopper who bounces between the page and a native sheet reads one language.
+ * The first rung that answers decides. The merchant's override is asked first,
+ * then the session's `locale`, then the device; whichever of those first names a
+ * language at all is the one that is matched, and if it names one the SDK does
+ * not ship, the answer is English rather than the next rung down. So an override
+ * of `de` over a French session draws English: the merchant said German, and
+ * quietly showing French because the handset is French would be the SDK
+ * inventing an answer nobody gave it.
+ *
+ * Matching is the whole tag first, then its primary subtag, so `fr-CA` reaches
+ * the French strings. A blank tag is not an answer and does not stop the ladder.
  *
  * Nothing here throws. A tag the SDK cannot parse is a tag it does not ship, and
- * both answers are the same one: fall through.
+ * both answers are English.
  */
 internal object LocaleResolution {
 
@@ -54,6 +57,9 @@ internal object LocaleResolution {
      * @param session The session payload's `locale`.
      * @param device The device's own locale, or null when there is none to read.
      */
-    fun resolve(override: String?, session: String?, device: Locale?): Locale =
-        match(override) ?: match(session) ?: match(device?.toLanguageTag()) ?: DEFAULT
+    fun resolve(override: String?, session: String?, device: Locale?): Locale {
+        val asked = listOfNotNull(override, session, device?.toLanguageTag())
+            .firstOrNull { it.isNotBlank() }
+        return match(asked) ?: DEFAULT
+    }
 }

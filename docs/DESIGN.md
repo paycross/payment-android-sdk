@@ -722,12 +722,18 @@ overrides one is in `LOCALIZATION.md`; this section is the mechanism.
 ### The ladder
 
 `LocaleResolution.resolve` takes the merchant's `locale`, the session's `locale`
-and the device's, and answers with one of the shipped languages. Each candidate
-is matched on its own - the whole tag, then its primary subtag - and one that
-matches nothing falls through to the next rather than ending the ladder. Nothing
-throws: a tag the SDK cannot parse is a tag it does not ship, and both answers
-are "try the next one". This is the hosted checkout page's `matchSupportedLocale`
-rule, so a shopper moving between the page and the sheet reads one language.
+and the device's, and answers with one of the shipped languages. The first of the
+three that names a language at all is the one matched - the whole tag, then its
+primary subtag - and one that names a language the SDK does not ship resolves to
+English rather than passing the question down. A blank tag is not an answer and
+does not stop the ladder. Nothing throws: a tag the SDK cannot parse is a tag it
+does not ship, and both answers are English.
+
+The two native SDKs resolve identically, which is the point. The hosted checkout
+page differs in one case: `resolveLanguage` in `useLangAndLocales.js` runs each
+candidate through `matchSupportedLocale` separately, so an unmatched `?lang=`
+there does fall through to the session's locale. Worth reconciling, in whichever
+direction, rather than leaving three surfaces with two rules.
 
 ### Why the session locale does not go through the context
 

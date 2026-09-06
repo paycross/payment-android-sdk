@@ -30,10 +30,12 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 - **A locale rule.** The sheet's language is the first of these the SDK ships
   strings for: `PayCross.init(locale = …)`, then the payment session's `locale`,
-  then the device, then English. Each candidate is matched on its own — the whole
-  tag, then its primary subtag, so `fr-CA` reaches French — and one that matches
-  nothing falls through to the next rather than ending the ladder. Nothing
-  throws on a malformed tag. Same rule as the hosted checkout page.
+  then the device, then English. The first of those that names a language at all
+  is the one matched — the whole tag, then its primary subtag, so `fr-CA` reaches
+  French — and one naming a language the SDK does not ship resolves to English
+  rather than passing the question down, so an override of `de` draws English
+  even on a French handset. A blank tag is not an answer and does not stop the
+  ladder. Nothing throws on a malformed tag. iOS resolves identically.
 
   The merchant's override reaches the sheet's window before it is built. The
   session's locale arrives with the payload and is applied without recreating the

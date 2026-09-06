@@ -23,12 +23,18 @@ Four candidates, in order. The first that names a language the SDK ships wins.
 3. **The device's language.**
 4. **English.**
 
-Each candidate is matched on its own: the whole tag first, then its primary
-subtag, so `fr-CA` reaches the French strings. A candidate that matches nothing
-falls through to the next rather than ending the ladder, so an override of `de`
-still leaves a session locale of `fr` in play. This is the same rule the hosted
-checkout page uses, so a shopper who moves between the page and the native sheet
-reads one language.
+**The first rung that answers decides.** Whichever of those first names a
+language at all is the one that gets matched — the whole tag first, then its
+primary subtag, so `fr-CA` reaches French — and if it names a language the SDK
+does not ship, the answer is English rather than the next rung down. So
+`init(locale = "de")` over a session whose locale is `fr` draws English: you
+said German, and quietly showing French because the handset is French would be
+the SDK answering a question you had already answered differently.
+
+A blank tag is not an answer. A session minted with `"locale": ""` has said
+nothing, so the device still gets its turn.
+
+The iOS SDK resolves identically, so the two native sheets always agree.
 
 The merchant override applies before the sheet's window is built. The session's
 locale arrives with the payment session, after the form is on screen, and is
