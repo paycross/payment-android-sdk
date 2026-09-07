@@ -26,6 +26,16 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   every release before it keep the old block, because a coordinate on Central
   is permanent.
 
+### Fixed
+
+- **A Google Pay tap no longer marks the card fields invalid.** One flag
+  revealed validation for both of the sheet's validated surfaces, so tapping the
+  wallet button drew the card number, expiry, CVV and cardholder name in error —
+  a form the shopper had not typed in, and one the wallet branch never submits.
+  Each surface has its own flag now: the wallet tap reveals the merchant's field
+  groups, which it does submit and which the backend validates before the wallet
+  branch either way, and Pay reveals both.
+
 ## [0.8.1] - 2026-09-07
 
 ### Fixed
