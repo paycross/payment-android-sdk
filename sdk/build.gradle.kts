@@ -105,8 +105,8 @@ publishing {
                 url.set("https://github.com/paycross/payment-android-sdk")
                 licenses {
                     license {
-                        name.set("Proprietary")
-                        url.set("https://github.com/paycross/payment-android-sdk/blob/main/LICENSE")
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
                     }
                 }
                 developers {

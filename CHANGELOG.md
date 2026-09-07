@@ -9,6 +9,15 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **The licence is MIT**, matching the iOS SDK and the Flutter plugin. It was a
+  proprietary, all-rights-reserved licence, which said the sources were
+  confidential while they shipped to Maven Central. The POM's licence block
+  changes with it, so artifacts published from here on carry MIT; 0.8.1 and
+  every release before it keep the old block, because a coordinate on Central
+  is permanent.
+
 ## [0.8.1] - 2026-09-07
 
 ### Fixed
