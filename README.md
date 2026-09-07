@@ -48,7 +48,7 @@ payment.launch(sessionToken)
 - **[API reference](https://developers.pay-cross.com/reference/android/)** — every public type.
 - **[Changelog](https://developers.pay-cross.com/resources/changelogs/android/)** —
   mirrored from [`CHANGELOG.md`](CHANGELOG.md).
-- **[Support](https://developers.pay-cross.com/resources/support/)** — where questions go.
+- **[Support](https://developers.pay-cross.com/resources/support/)** — questions go to support@pay-cross.com.
 
 The SDK's internals and its wire contract with the PayCross backend are written
 up for maintainers in [`docs/internal/`](docs/internal/README.md).
