@@ -76,7 +76,7 @@ object SessionMinter {
         }
     }
 
-    /** The merchant API routes the hyphenated path only, as payx-tkg also normalizes. */
+    /** The merchant API routes the hyphenated path only, so normalize before posting. */
     private fun sessionsUrl(merchant: Merchant) =
         merchant.paymentApiUrl.replace("payment_sessions", "payment-sessions")
 

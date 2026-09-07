@@ -167,9 +167,9 @@ object DemoSeeds {
         val hint: String? = null
     )
 
-    // Mirrors payx-tkg android-demo/scripts/lib/stock-sandbox-scenarios.mjs — names, PANs, and
-    // order must stay in sync with the adb scenario runner. Rows …3055/…0069/…0127 are known
-    // sandbox gaps (unrouted PANs default to approve) and are kept for runner parity.
+    // Names, PANs and order must stay in sync with the adb scenario runner that
+    // drives this harness. Rows …3055/…0069/…0127 are known sandbox gaps
+    // (unrouted PANs default to approve) and are kept for runner parity.
     private val SANDBOX_SCENARIOS = listOf(
         Seed("Instant approve (no 3DS)", "4111111111170000"),
         Seed("Frictionless 3DS", "4111111111153063"),
@@ -193,8 +193,8 @@ object DemoSeeds {
         )
     )
 
-    // Mirrors payx-tkg android-demo/scripts/lib/demo-data.mjs nuveiScenarios — same cards,
-    // labels, and amounts as the E2E threeDsScenarios.
+    // The same cards, labels and amounts as the end-to-end 3-D Secure suite
+    // uses, so a scenario means the same thing in both.
     private val NUVEI_SCENARIOS = listOf(
         Seed("non-3DS approve", "4000027891380961", cardholder = "FL-BRW1"),
         Seed("frictionless 3DS approve", "4761344136141390", cardholder = "FL-BRW2", amount = 15000),
@@ -202,8 +202,8 @@ object DemoSeeds {
         Seed("decline", "5333463046218753", cardholder = "Jane Smith")
     )
 
-    // Mirrors payx-tkg android-demo/scripts/lib/demo-data.mjs shift4Scenarios — the E2E
-    // SHIFT4_FLOW_SCENARIOS labels; challenge passwords are 0101 / 4445 / 9999.
+    // The end-to-end flow labels for this provider; the sandbox challenge
+    // passwords are 0101 / 4445 / 9999.
     private val SHIFT4_SCENARIOS = listOf(
         Seed("Flow A frictionless Visa", "4176660000000027", cardholder = "Test Frictionless Visa", expireYear = "26", amount = 15100),
         Seed("Flow A frictionless Mastercard", "5299990270000368", cardholder = "Test Frictionless Mastercard", expireYear = "26", amount = 15100),

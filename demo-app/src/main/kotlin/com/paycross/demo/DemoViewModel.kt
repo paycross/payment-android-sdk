@@ -370,7 +370,7 @@ class DemoViewModel(
         return phase to "$status · $amount $currency"
     }
 
-    /** Mirrors payx-tkg getPrimaryPaymentTransaction (src/lib/session-actions.mjs). */
+    /** Picks the transaction a session's status is read from, as the E2E suite does. */
     private fun primaryPaymentTransaction(session: JSONObject): JSONObject? {
         val transactions = session.optJSONArray("transactions") ?: return null
         var latest: JSONObject? = null

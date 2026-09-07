@@ -43,8 +43,10 @@ private val payment = registerForActivityResult(PayCrossContract()) { result ->
 payment.launch(sessionToken)
 ```
 
-The full API and the design behind it are in [`docs/API.md`](docs/API.md) and
-[`docs/DESIGN.md`](docs/DESIGN.md).
+The full integration guide is the developer portal at
+<https://docs.pay-cross.com>. The SDK's internals and its wire contract with the
+PayCross backend are written up for maintainers in
+[`docs/internal/`](docs/internal/README.md).
 
 ## Languages
 
@@ -108,8 +110,9 @@ PayCross.init(
 )
 ```
 
-See the UI Customization section of [`docs/DESIGN.md`](docs/DESIGN.md) for the
-colour roles and the precedence rules.
+See the UI Customization section of
+[`docs/internal/DESIGN.md`](docs/internal/DESIGN.md) for the colour roles and
+the precedence rules.
 
 ## Test identifiers
 

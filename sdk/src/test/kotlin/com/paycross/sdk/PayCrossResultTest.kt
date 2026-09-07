@@ -151,8 +151,8 @@ class PayCrossResultTest {
     fun `PendingReason wire names match iOS and the Flutter plugin`() {
         // These strings cross the platform boundary verbatim, so renaming a
         // member silently changes what a host app receives. The order is pinned
-        // too, but only so the reasons table in docs/DESIGN.md stays in step:
-        // names cross the wire, never ordinals.
+        // too, but only so the reasons table in docs/internal/DESIGN.md stays
+        // in step: names cross the wire, never ordinals.
         assertEquals(
             listOf("poll_timeout", "result_lost", "server_verify"),
             PendingReason.entries.map { it.wireName }
