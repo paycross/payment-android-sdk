@@ -12,6 +12,7 @@ plugins {
     // the public ABI drifts from the committed api/sdk.api, so nothing under
     // internal/ can leak back into merchant-visible API unnoticed.
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
+    id("org.jetbrains.dokka")
 }
 
 // com.pay-cross, not com.paycross: Maven Central verifies a namespace by reversing
@@ -86,6 +87,29 @@ apiValidation {
             "com.paycross.sdk.internal.ui.components.ComposableSingletons\$SavedCardSelectorKt"
         )
     )
+}
+
+// The published API reference. reference.yml runs dokkaGeneratePublicationHtml
+// on every v* tag and attaches the output to the GitHub release; the developer
+// portal downloads that asset at build time.
+dokka {
+    // Names the module in the generated pages. Matches the Maven artifactId
+    // rather than the Gradle project name, which is the bare ":sdk".
+    moduleName.set("paycross-android")
+
+    dokkaSourceSets.configureEach {
+        // Belt and braces. Every declaration under com.paycross.sdk.internal is
+        // Kotlin-`internal` today, which Dokka skips anyway - removing this
+        // changes nothing about the current output, verified by generating both
+        // ways. It stays because the package boundary is what the portal
+        // publishes against, and a type promoted to public so another package
+        // inside the SDK can reach it would otherwise land in the merchant
+        // reference. reference.yml asserts the same thing about the archive.
+        perPackageOption {
+            matchingRegex.set("com\\.paycross\\.sdk\\.internal.*")
+            suppress.set(true)
+        }
+    }
 }
 
 publishing {

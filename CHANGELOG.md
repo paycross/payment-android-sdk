@@ -9,6 +9,14 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Added
+
+- **The API reference is published as a release asset.** Every `v*` tag now
+  builds the Dokka HTML for the public `com.paycross.sdk` surface and attaches
+  `paycross-android-reference.zip` to the GitHub release, which is where the
+  developer portal reads it from to serve
+  <https://docs.pay-cross.com/reference/android/>.
+
 ### Changed
 
 - **The licence is MIT**, matching the iOS SDK and the Flutter plugin. It was a
