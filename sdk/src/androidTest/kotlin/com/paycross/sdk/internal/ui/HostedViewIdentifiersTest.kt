@@ -22,11 +22,13 @@ import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.ThreeDsAction
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.fail
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.ByteArrayOutputStream
 
 /**
  * The two identifiers that sit over a hosted Android view, read where the E2E
@@ -52,6 +54,7 @@ class HostedViewIdentifiersTest {
     private val device: UiDevice =
         UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
+
     private val claims = JwtClaims(
         sessionId = "session-123",
         merchantId = "merchant-456",
@@ -65,6 +68,10 @@ class HostedViewIdentifiersTest {
     @Before
     fun setUp() {
         PayCross.init(environment = PayCrossEnvironment.STAGING)
+        // The compressed hierarchy drops nodes it judges uninteresting, and a
+        // wrapper whose whole job is to carry an id is exactly that. The rig
+        // reads the uncompressed tree; so does this.
+        device.setCompressedLayoutHierarchy(false)
     }
 
     @Test
@@ -84,7 +91,7 @@ class HostedViewIdentifiersTest {
             }
         }
         compose.waitForIdle()
-        assumeResourceIdsArePublished()
+        requireResourceIdsArePublished()
 
         assertNotNull(
             "paycross.threeDS is in the semantics tree and not in the dump: the tag " +
@@ -116,7 +123,7 @@ class HostedViewIdentifiersTest {
             }
         }
         compose.waitForIdle()
-        assumeResourceIdsArePublished()
+        requireResourceIdsArePublished()
 
         assertNotNull(
             "paycross.walletButton is in the semantics tree and not in the dump: the " +
@@ -140,12 +147,31 @@ class HostedViewIdentifiersTest {
         }
     }
 
-    private fun assumeResourceIdsArePublished() {
-        assumeTrue(
-            "this device published no resource ids at all, not even for a plain " +
-                "Compose node, so it cannot tell the fix from the bug",
-            device.wait(Until.hasObject(By.res(CANARY)), TIMEOUT_MS)
+    /**
+     * The canary has to be there before the subject means anything. It fails
+     * rather than skipping, and it prints the resource ids the dump does hold:
+     * a suite that quietly skips is the blind spot this class was written to
+     * close, not something to reproduce inside it.
+     */
+    private fun requireResourceIdsArePublished() {
+        if (device.wait(Until.hasObject(By.res(CANARY)), TIMEOUT_MS) == true) return
+        fail(
+            "no resource id for a plain Compose node under testTagsAsResourceId. " +
+                "The dump holds these ids: ${resourceIdsInTheDump()}"
         )
+    }
+
+    private fun resourceIdsInTheDump(): List<String> {
+        val xml = ByteArrayOutputStream().use { out ->
+            device.dumpWindowHierarchy(out)
+            out.toString(Charsets.UTF_8.name())
+        }
+        return Regex("resource-id=\"([^\"]*)\"")
+            .findAll(xml)
+            .map { it.groupValues[1] }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .toList()
     }
 
     private companion object {
