@@ -43,12 +43,12 @@ payment.launch(sessionToken)
 
 ## Documentation
 
-- **[Android guide](https://docs.pay-cross.com/guides/android/)** — appearance,
+- **[Android guide](https://developers.pay-cross.com/guides/android/)** — appearance,
   languages, saved cards, Google Pay, test identifiers and accessibility.
-- **[API reference](https://docs.pay-cross.com/reference/android/)** — every public type.
-- **[Changelog](https://docs.pay-cross.com/resources/changelogs/android/)** —
+- **[API reference](https://developers.pay-cross.com/reference/android/)** — every public type.
+- **[Changelog](https://developers.pay-cross.com/resources/changelogs/android/)** —
   mirrored from [`CHANGELOG.md`](CHANGELOG.md).
-- **[Support](https://docs.pay-cross.com/resources/support/)** — where questions go.
+- **[Support](https://developers.pay-cross.com/resources/support/)** — where questions go.
 
 The SDK's internals and its wire contract with the PayCross backend are written
 up for maintainers in [`docs/internal/`](docs/internal/README.md).

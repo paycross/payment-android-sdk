@@ -1,6 +1,6 @@
 # Localization
 
-This page is also on the developer portal, at <https://docs.pay-cross.com/guides/android/languages/>.
+This page is also on the developer portal, at <https://developers.pay-cross.com/guides/android/languages/>.
 
 The payment sheet ships English and French. This page lists every string it
 draws, says what each one paints, and describes the two ways a merchant changes
