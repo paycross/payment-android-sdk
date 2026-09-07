@@ -19,8 +19,8 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
+import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.ThreeDsAction
-import com.paycross.sdk.internal.ui.components.GooglePaySection
 import org.junit.Assert.assertNotNull
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -51,6 +51,16 @@ class HostedViewIdentifiersTest {
 
     private val device: UiDevice =
         UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+    private val claims = JwtClaims(
+        sessionId = "session-123",
+        merchantId = "merchant-456",
+        customerId = "customer-1",
+        brandingId = null,
+        amount = 1234,
+        currency = "EUR",
+        expiresAt = null
+    )
 
     @Before
     fun setUp() {
@@ -94,7 +104,15 @@ class HostedViewIdentifiersTest {
 
         compose.setContent {
             PublishingWindow {
-                GooglePaySection(allowedPaymentMethodsJson = "[]", onClick = {})
+                // The whole screen rather than the section alone: Google's button
+                // is initialized from the payment methods the session allows, and
+                // a hand-written list is not what it is given in production.
+                CardFormScreen(
+                    claims = claims,
+                    sessionData = null,
+                    googlePayAvailable = true,
+                    onSubmit = { _, _ -> }
+                )
             }
         }
         compose.waitForIdle()
