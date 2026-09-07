@@ -12,7 +12,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -89,6 +95,14 @@ class HostedViewIdentifiersTest {
         compose.waitForIdle()
         assertCanaryIsPublished()
 
+        assertTagIsOnAWrapper(TestTags.THREE_DS)
+        // What propagateMinConstraints buys: the WebView measures to the size the
+        // caller asked of the wrapper, rather than to whatever it prefers inside
+        // a 0..320dp box.
+        hostedViewUnder(TestTags.THREE_DS)
+            .assertWidthIsEqualTo(320.dp)
+            .assertHeightIsEqualTo(320.dp)
+
         assertEquals(
             "paycross.threeDS is in the semantics tree and not in the accessibility " +
                 "tree a dump reads: the tag is on the AndroidView, whose own node " +
@@ -123,6 +137,8 @@ class HostedViewIdentifiersTest {
         compose.waitForIdle()
         assertCanaryIsPublished()
 
+        assertTagIsOnAWrapper(TestTags.WALLET_BUTTON)
+
         assertEquals(
             "paycross.walletButton is in the semantics tree and not in the " +
                 "accessibility tree a dump reads: the tag is on the AndroidView " +
@@ -149,6 +165,29 @@ class HostedViewIdentifiersTest {
             content()
         }
     }
+
+    /**
+     * The assertion that actually fails when the tag slides back onto the
+     * `AndroidView`, and the reason this class exists.
+     *
+     * Asking the accessibility provider for a node *by id* is not that
+     * assertion: it returns the resource id whether or not the node hosts a
+     * view, because the block that writes it never checks. What the defect
+     * breaks is reachability — a hosting node is replaced in its parent's child
+     * list by the view itself, so its own node is orphaned from the tree a dump
+     * walks. `AndroidViewHolder` carries semantics of its own, so the hosted
+     * view is a child of the wrapper once the tag is in the right place, and is
+     * the tagged node itself when it is not.
+     */
+    private fun assertTagIsOnAWrapper(tag: String) {
+        compose.onNodeWithTag(tag, useUnmergedTree = true)
+            .onChildren()
+            .assertCountEquals(1)
+    }
+
+    /** The hosted Android view's own node, below the wrapper carrying [tag]. */
+    private fun hostedViewUnder(tag: String): SemanticsNodeInteraction =
+        compose.onNodeWithTag(tag, useUnmergedTree = true).onChildren().onFirst()
 
     private fun assertCanaryIsPublished() {
         assertEquals(
@@ -179,8 +218,15 @@ class HostedViewIdentifiersTest {
             "no AndroidComposeView under the activity's decor view"
         }
 
+    /**
+     * The outermost view that answers accessibility queries for a virtual tree,
+     * which under a Compose activity is the view hosting the composition. Found
+     * by what the test needs of it rather than by class name, and outermost
+     * because the walk is depth-first from the decor view — a hosted `WebView`
+     * has a provider too, but it is further down.
+     */
     private fun findComposeView(view: View): View? {
-        if (view.javaClass.simpleName == "AndroidComposeView") return view
+        if (view.accessibilityNodeProvider != null) return view
         if (view !is ViewGroup) return null
         for (index in 0 until view.childCount) {
             findComposeView(view.getChildAt(index))?.let { return it }

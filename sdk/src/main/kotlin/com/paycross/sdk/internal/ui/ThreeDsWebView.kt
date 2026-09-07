@@ -73,13 +73,10 @@ internal fun ThreeDsWebView(
             }
         }
 
-        // The caller's modifier goes on a Compose node of its own rather than
-        // on the AndroidView. testTagsAsResourceId writes the resource id onto
-        // Compose's semantics nodes, and a node hosting an Android view hands
-        // its accessibility node to that view instead, so paycross.threeDS was
-        // in every Compose test's tree and in no UiAutomator dump. The Box only
-        // relays: it propagates its constraints, so the WebView measures to the
-        // same size it did when it wore the modifier itself.
+        // The caller's modifier goes on a Compose node of its own rather than on
+        // the AndroidView — see TestTags.THREE_DS for why that matters. The Box
+        // only relays: it propagates its constraints, so the WebView measures to
+        // the same size it did when it wore the modifier itself.
         Box(modifier = modifier, propagateMinConstraints = true) {
             AndroidView(factory = { webView })
         }

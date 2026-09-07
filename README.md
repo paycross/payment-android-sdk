@@ -188,6 +188,10 @@ laid out to the wrapped view's exact bounds, so it is the handle to use:
   which is what a tap on the button is. Google's own node carries no id and
   renders its label in its own language; if you would rather address the button
   itself, its content description is the only handle it offers.
+- **Match the box by id alone.** It holds no click handler of its own — the tap
+  falls through to Google's button — so it is reported as `clickable="false"` in
+  a dump, and the clickable node is the one inside it. A selector that asks for
+  the id *and* `clickable` will find nothing.
 - **Do not look for the challenge's contents under `paycross.threeDS`.** What
   the box holds is the issuer's page, rendered by the WebView. Address the
   fields and buttons in it as the issuer names them.

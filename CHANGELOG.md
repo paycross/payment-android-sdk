@@ -17,9 +17,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   accessibility node to the view it hosts, and the view publishes no resource id,
   so the two ids were visible to a Compose test and absent from every dump. Each
   is now on a box the SDK draws around the hosted view, laid out to the same
-  bounds. Nothing renames and nothing moves on screen; an Espresso or Compose
-  test that already found them still does, and a UiAutomator test that could not
-  now can.
+  bounds. Nothing renames and nothing moves on screen; a Compose test that
+  already found them still does, and a UiAutomator test that could not now can.
 
 ## [0.8.0] - 2026-09-06
 

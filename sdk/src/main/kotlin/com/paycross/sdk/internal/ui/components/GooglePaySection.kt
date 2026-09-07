@@ -71,13 +71,10 @@ internal fun GooglePaySection(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // The tag hangs on this Box, not on the AndroidView inside it.
-        // testTagsAsResourceId writes the resource id onto Compose's own
-        // semantics nodes, and a node hosting an Android view hands its
-        // accessibility node to that view instead — so a tag down there is
-        // visible to a Compose test and absent from every UiAutomator dump. The
-        // Box carries the button's size and propagates it, leaving the measured
-        // result exactly what the AndroidView had before.
+        // The tag hangs on this Box, not on the AndroidView inside it — see
+        // TestTags.WALLET_BUTTON for why that matters. The Box carries the
+        // button's size and propagates it, leaving the measured result exactly
+        // what the AndroidView had before.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
