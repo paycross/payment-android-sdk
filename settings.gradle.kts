@@ -7,7 +7,7 @@ pluginManagement {
 }
 
 plugins {
-    id("com.gradleup.nmcp.settings") version "1.6.1"
+    id("com.gradleup.nmcp.settings") version "1.6.2"
 }
 
 // Uploads the existing maven-publish publications through the Central Portal
