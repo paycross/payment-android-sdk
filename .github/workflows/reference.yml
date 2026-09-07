@@ -1,0 +1,82 @@
+name: Reference
+
+# The generated API reference the developer portal serves at
+# /reference/android/. It is built here rather than in the portal because the
+# Android toolchain lives in this repo, and attached to the release so the
+# portal can download one versioned asset instead of building the SDK.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release to attach the reference to, e.g. v0.8.1'
+        required: true
+        type: string
+      ref:
+        description: 'Source to build from. Leave empty to build the tag itself.'
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  reference:
+    name: Build and attach the Dokka reference
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      # The tag's own tree, except when `ref` overrides it. A tag cut before this
+      # workflow existed has no Dokka in its build files, so building it fails on
+      # a missing task; `ref: main` is how that tag gets a reference anyway, and
+      # it is only honest when main's public API still matches the tag's.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Build the documentation
+        run: ./gradlew :sdk:dokkaGeneratePublicationHtml
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          # From inside the output directory, so index.html sits at the archive
+          # root and the portal can unzip straight into static/reference/android/.
+          (cd sdk/build/dokka/html && zip -qr "$GITHUB_WORKSPACE/paycross-android-reference.zip" .)
+          ls -l paycross-android-reference.zip
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" --title "$TAG" --notes "See CHANGELOG.md" || true
+          gh release upload "$TAG" paycross-android-reference.zip --clobber
+
+      - name: The asset carries the entry point and no module internals
+        run: |
+          set -euo pipefail
+          # Listed to a file: grep -q exits early and the SIGPIPE fails pipefail.
+          unzip -Z1 paycross-android-reference.zip > "$RUNNER_TEMP/listing.txt"
+          grep -qx 'index.html' "$RUNNER_TEMP/listing.txt"
+          # Two things keep com.paycross.sdk.internal out of the reference:
+          # Kotlin `internal` visibility on the declarations, and the
+          # perPackageOption in sdk/build.gradle.kts. Nothing fails loudly when
+          # either stops holding, so the archive is checked rather than trusted.
+          if grep -q 'com\.paycross\.sdk\.internal' "$RUNNER_TEMP/listing.txt"; then
+            echo "::error::internal packages leaked into the published reference"
+            exit 1
+          fi

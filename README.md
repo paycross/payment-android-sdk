@@ -8,7 +8,7 @@ drop-in sheet. Your app hands it a payment session token and gets a result back.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.pay-cross:paycross-android:0.7.0")
+    implementation("com.pay-cross:paycross-android:0.8.1")
 }
 ```
 
@@ -43,10 +43,13 @@ private val payment = registerForActivityResult(PayCrossContract()) { result ->
 payment.launch(sessionToken)
 ```
 
+## Documentation
+
 The full integration guide is the developer portal at
-<https://docs.pay-cross.com>. The SDK's internals and its wire contract with the
-PayCross backend are written up for maintainers in
-[`docs/internal/`](docs/internal/README.md).
+<https://docs.pay-cross.com>, and the generated API reference for every public
+type is at <https://docs.pay-cross.com/reference/android/>. The SDK's internals
+and its wire contract with the PayCross backend are written up for maintainers
+in [`docs/internal/`](docs/internal/README.md).
 
 ## Languages
 
