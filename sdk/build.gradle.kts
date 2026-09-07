@@ -204,5 +204,9 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.03"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    // Reads the accessibility tree the E2E rig dumps, which is the only
+    // place a test identifier can be proved to exist: the Compose test rule
+    // reads the semantics tree, and a tag can be in one and not the other.
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
