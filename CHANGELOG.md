@@ -9,6 +9,18 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`paycross.walletButton` and `paycross.threeDS` now reach a UiAutomator
+  dump.** Both identifiers sat on the Compose node that hosts an Android view —
+  Google's `PayButton` and the 3-D Secure `WebView`. Such a node hands its
+  accessibility node to the view it hosts, and the view publishes no resource id,
+  so the two ids were visible to a Compose test and absent from every dump. Each
+  is now on a box the SDK draws around the hosted view, laid out to the same
+  bounds. Nothing renames and nothing moves on screen; an Espresso or Compose
+  test that already found them still does, and a UiAutomator test that could not
+  now can.
+
 ## [0.8.0] - 2026-09-06
 
 ### Changed — binary-incompatible, and the next release is a MINOR bump

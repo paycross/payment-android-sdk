@@ -175,13 +175,22 @@ builds against the debug variant, so an ordinary instrumented test needs nothing
 extra. If your suite runs against a release build, give it a debuggable variant
 of its own rather than expecting the ids to appear.
 
-### The Google Pay button
+### The two identifiers that wrap a view
 
-`paycross.walletButton` is on the wrapper the SDK owns, not on Google's button
-inside it. Google's `PayButton` is a view from Play services and renders its own
-label in its own language; tapping it by id is not possible, and the wrapper is
-the closest handle there is. Assert its presence by id, and tap it by its
-rendered label if you have to tap it at all.
+`paycross.walletButton` and `paycross.threeDS` name a box the SDK draws around
+something it does not own — Google's `PayButton` and the 3-D Secure `WebView`.
+The identifier is on the box, because a resource id is published for the SDK's
+own elements and a hosted view brings its own, id-less, node instead. The box is
+laid out to the wrapped view's exact bounds, so it is the handle to use:
+
+- **Find both by id**, from a Compose test and from a UiAutomator dump alike.
+- **Tap `paycross.walletButton` by id.** The tap lands inside Google's button,
+  which is what a tap on the button is. Google's own node carries no id and
+  renders its label in its own language; if you would rather address the button
+  itself, its content description is the only handle it offers.
+- **Do not look for the challenge's contents under `paycross.threeDS`.** What
+  the box holds is the issuer's page, rendered by the WebView. Address the
+  fields and buttons in it as the issuer names them.
 
 ### The field-group error
 
