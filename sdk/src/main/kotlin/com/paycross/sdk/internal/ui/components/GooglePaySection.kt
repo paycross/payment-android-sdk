@@ -1,5 +1,6 @@
 package com.paycross.sdk.internal.ui.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,20 +71,31 @@ internal fun GooglePaySection(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        AndroidView(
-            factory = { context -> PayButton(context) },
-            // initialize, not just the listener: it clears the view and rebuilds
-            // from the options, so a changed theme repaints instead of keeping
-            // whatever the first composition drew.
-            update = { button ->
-                button.initialize(buttonOptions)
-                button.setOnClickListener { currentOnClick() }
-            },
+        // The tag hangs on this Box, not on the AndroidView inside it.
+        // testTagsAsResourceId writes the resource id onto Compose's own
+        // semantics nodes, and a node hosting an Android view hands its
+        // accessibility node to that view instead — so a tag down there is
+        // visible to a Compose test and absent from every UiAutomator dump. The
+        // Box carries the button's size and propagates it, leaving the measured
+        // result exactly what the AndroidView had before.
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .testTag(TestTags.WALLET_BUTTON)
-        )
+                .testTag(TestTags.WALLET_BUTTON),
+            propagateMinConstraints = true
+        ) {
+            AndroidView(
+                factory = { context -> PayButton(context) },
+                // initialize, not just the listener: it clears the view and
+                // rebuilds from the options, so a changed theme repaints instead
+                // of keeping whatever the first composition drew.
+                update = { button ->
+                    button.initialize(buttonOptions)
+                    button.setOnClickListener { currentOnClick() }
+                }
+            )
+        }
 
         OrPayWithCardDivider(
             modifier = Modifier
