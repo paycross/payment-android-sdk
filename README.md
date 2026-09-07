@@ -29,7 +29,7 @@ dependencies {
 
 ```kotlin
 PayCross.init(environment = PayCrossEnvironment.PRODUCTION) // Application.onCreate()
-
+// Then, in your Activity or Fragment:
 private val payment = registerForActivityResult(PayCrossContract()) { result ->
     when (result) {
         is PayCrossResult.Success -> // charged; result.transactionId
@@ -45,8 +45,7 @@ payment.launch(sessionToken)
 
 - **[Android guide](https://docs.pay-cross.com/guides/android/)** — appearance,
   languages, saved cards, Google Pay, test identifiers and accessibility.
-- **[API reference](https://docs.pay-cross.com/reference/android/)** — every
-  public type, generated from the source on each release.
+- **[API reference](https://docs.pay-cross.com/reference/android/)** — every public type.
 - **[Changelog](https://docs.pay-cross.com/resources/changelogs/android/)** —
   mirrored from [`CHANGELOG.md`](CHANGELOG.md).
 - **[Support](https://docs.pay-cross.com/resources/support/)** — where questions go.
