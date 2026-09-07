@@ -3,10 +3,14 @@ package com.paycross.sdk.internal.ui
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.common.ConnectionResult
@@ -125,6 +129,16 @@ class SheetIdentifiersTest {
 
         compose.onNodeWithTag("paycross.walletButton").assertExists()
         compose.onNodeWithTag("paycross.walletDivider").assertExists()
+
+        // The wallet tag hangs on a Compose wrapper rather than on Google's
+        // button, so that the identifier reaches a UiAutomator dump. A wrapper
+        // is only a usable handle if it keeps the button's own bounds — so this
+        // measures the button inside it. Measuring the wrapper would pass on its
+        // own explicit height while the button was free to shrink.
+        compose.onNodeWithTag("paycross.walletButton", useUnmergedTree = true)
+            .onChildren()
+            .onFirst()
+            .assertHeightIsEqualTo(48.dp)
     }
 
     @Test

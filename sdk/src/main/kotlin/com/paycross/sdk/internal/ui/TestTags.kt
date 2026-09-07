@@ -39,6 +39,15 @@ import androidx.compose.ui.platform.LocalContext
 internal object TestTags {
     const val SHEET = "paycross.sheet"
     const val AMOUNT = "paycross.amount"
+    /**
+     * Google's Pay button.
+     *
+     * Sits on the Compose box wrapping the `AndroidView` that hosts Google's
+     * `PayButton`, and must not be moved onto the `AndroidView` itself. A node
+     * that hosts an Android view is replaced in its parent's child list by that
+     * view, and the view publishes no resource id — so the tag would reach a
+     * Compose test and no UiAutomator dump. That was #54.
+     */
     const val WALLET_BUTTON = "paycross.walletButton"
     const val WALLET_DIVIDER = "paycross.walletDivider"
     const val SAVED_CARDS = "paycross.savedCards"
@@ -58,6 +67,12 @@ internal object TestTags {
     const val ERROR_BANNER_ICON = "paycross.errorBanner.icon"
     const val PAY_BUTTON = "paycross.payButton"
     const val LOADING = "paycross.loading"
+    /**
+     * The 3-D Secure challenge.
+     *
+     * Sits on the Compose box `ThreeDsWebView` wraps its `AndroidView` in, and
+     * must not be moved onto the `AndroidView` — see [WALLET_BUTTON] for why.
+     */
     const val THREE_DS = "paycross.threeDS"
     const val CANCEL_DIALOG = "paycross.cancelDialog"
     const val CANCEL_CONFIRM = "paycross.cancelConfirm"

@@ -3,7 +3,13 @@ package com.paycross.sdk.internal.ui
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.paycross.sdk.internal.api.models.ThreeDsAction
@@ -89,6 +95,11 @@ class ThreeDsFingerprintRenderingTest {
 
     private fun takeRequest(): RecordedRequest? = server.takeRequest(20, TimeUnit.SECONDS)
 
+    private companion object {
+        /** Test-only: the fingerprint carries no identifier in production. */
+        const val FINGERPRINT = "paycross.test.fingerprint"
+    }
+
     @Test
     fun hiddenFingerprintWebViewStillExecutesScriptAndPosts() {
         enqueueSelfSubmittingPage()
@@ -121,6 +132,39 @@ class ThreeDsFingerprintRenderingTest {
             "the auto-submitted form body did not survive",
             submitted.body.readUtf8().contains("threeDSMethodData=probe")
         )
+    }
+
+    /**
+     * The fingerprint's `size(1.dp).alpha(0f)` now lands on the wrapper instead
+     * of on the `AndroidView`, so the WebView takes its size by propagation.
+     *
+     * Asserts the size, which is what keeps the step out of sight; the alpha is
+     * a draw-layer property with no semantics to read, and the layer still
+     * encloses the interop view's draw either way. A WebView that measured
+     * itself here would put the issuer's page over the sheet, and nothing else
+     * in the suite would notice.
+     */
+    @Test
+    fun theHiddenFingerprintWebViewIsStillOneDipAcross() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("ok"))
+
+        compose.setContent {
+            ThreeDsWebView(
+                action = action(),
+                onComplete = {},
+                onError = {},
+                modifier = Modifier
+                    .size(1.dp)
+                    .alpha(0f)
+                    .testTag(FINGERPRINT)
+            )
+        }
+
+        compose.onNodeWithTag(FINGERPRINT, useUnmergedTree = true)
+            .onChildren()
+            .onFirst()
+            .assertWidthIsEqualTo(1.dp)
+            .assertHeightIsEqualTo(1.dp)
     }
 
     /**

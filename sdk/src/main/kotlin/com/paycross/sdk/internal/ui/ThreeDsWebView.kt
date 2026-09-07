@@ -6,6 +6,7 @@ import android.webkit.SslErrorHandler
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -72,10 +73,13 @@ internal fun ThreeDsWebView(
             }
         }
 
-        AndroidView(
-            factory = { webView },
-            modifier = modifier
-        )
+        // The caller's modifier goes on a Compose node of its own rather than on
+        // the AndroidView — see TestTags.THREE_DS for why that matters. The Box
+        // only relays: it propagates its constraints, so the WebView measures to
+        // the same size it did when it wore the modifier itself.
+        Box(modifier = modifier, propagateMinConstraints = true) {
+            AndroidView(factory = { webView })
+        }
     }
 }
 
