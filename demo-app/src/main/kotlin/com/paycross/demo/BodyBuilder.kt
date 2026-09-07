@@ -33,7 +33,7 @@ private val PRETTY_GSON = GsonBuilder().setPrettyPrinting().create()
 
 /**
  * Structured editor for the create-session request body, mirroring the
- * payment_sessions-create request schema (docs/api/schemas in paycross-core).
+ * create-payment-session request schema the backend publishes.
  * Optional fields toggle the key in and out of the JSON; unknown keys
  * (metadata, account_funding, hand-added extras) pass through untouched
  * because edits mutate the parsed tree.
