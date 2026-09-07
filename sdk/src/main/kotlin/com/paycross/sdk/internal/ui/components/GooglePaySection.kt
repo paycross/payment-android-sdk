@@ -1,6 +1,5 @@
 package com.paycross.sdk.internal.ui.components
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,28 +70,20 @@ internal fun GooglePaySection(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // The tag hangs on this Box, not on the AndroidView inside it — see
-        // TestTags.WALLET_BUTTON for why that matters. The Box carries the
-        // button's size and propagates it, leaving the measured result exactly
-        // what the AndroidView had before.
-        Box(
+        AndroidView(
+            factory = { context -> PayButton(context) },
+            // initialize, not just the listener: it clears the view and rebuilds
+            // from the options, so a changed theme repaints instead of keeping
+            // whatever the first composition drew.
+            update = { button ->
+                button.initialize(buttonOptions)
+                button.setOnClickListener { currentOnClick() }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .testTag(TestTags.WALLET_BUTTON),
-            propagateMinConstraints = true
-        ) {
-            AndroidView(
-                factory = { context -> PayButton(context) },
-                // initialize, not just the listener: it clears the view and
-                // rebuilds from the options, so a changed theme repaints instead
-                // of keeping whatever the first composition drew.
-                update = { button ->
-                    button.initialize(buttonOptions)
-                    button.setOnClickListener { currentOnClick() }
-                }
-            )
-        }
+                .testTag(TestTags.WALLET_BUTTON)
+        )
 
         OrPayWithCardDivider(
             modifier = Modifier
