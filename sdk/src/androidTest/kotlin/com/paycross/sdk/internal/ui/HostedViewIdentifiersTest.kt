@@ -1,59 +1,59 @@
 package com.paycross.sdk.internal.ui
 
+import android.view.View
+import android.view.ViewGroup
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.Until
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.ThreeDsAction
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.fail
+import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayOutputStream
 
 /**
- * The two identifiers that sit over a hosted Android view, read where the E2E
- * rig reads them: the accessibility tree UiAutomator dumps, not the Compose
- * semantics tree.
+ * The two identifiers that sit over a hosted Android view, read out of the
+ * accessibility tree rather than the Compose semantics tree.
  *
  * The rest of the instrumented suite cannot see this class of bug. A tag on an
- * `AndroidView` is in a Compose test's tree and in no dump, because the hosted
- * view supplies its own accessibility node and `testTagsAsResourceId` writes the
- * resource id onto Compose's nodes only. #51 shipped green on that blind spot
- * and #54 is what it cost, so these two read the dump instead.
+ * `AndroidView` is in a Compose test's tree and in no UiAutomator dump, because
+ * the hosted view supplies its own accessibility node and `testTagsAsResourceId`
+ * writes the resource id onto Compose's nodes only. #51 shipped green on that
+ * blind spot and #54 is what it cost.
  *
- * Each test composes a canary beside its subject: a plain Compose node under the
- * same flag. If UiAutomator cannot see even that, the device is not publishing
- * resource ids and the test skips rather than blaming the code.
+ * These ask Compose's own accessibility provider for the node info it would hand
+ * an accessibility client — which is where a dump's `resource-id` comes from —
+ * rather than driving UiAutomator. UiAutomator reads whichever window is in
+ * front, and on the CI emulator that is reliably something else.
+ *
+ * Each test reads a canary first: a plain `Text` under the same flag. If even
+ * that has no resource id then the device is not publishing them at all and the
+ * failure is about the device, which the message says.
  */
 @RunWith(AndroidJUnit4::class)
 class HostedViewIdentifiersTest {
 
     @get:Rule
-    val compose = createComposeRule()
-
-    private val device: UiDevice =
-        UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val claims = JwtClaims(
         sessionId = "session-123",
@@ -68,18 +68,14 @@ class HostedViewIdentifiersTest {
     @Before
     fun setUp() {
         PayCross.init(environment = PayCrossEnvironment.STAGING)
-        // The compressed hierarchy drops nodes it judges uninteresting, and a
-        // wrapper whose whole job is to carry an id is exactly that. The rig
-        // reads the uncompressed tree; so does this.
-        device.setCompressedLayoutHierarchy(false)
     }
 
     @Test
-    fun theThreeDsChallengeReachesTheDumpAsAResourceId() {
+    fun theThreeDsChallengeCarriesItsIdentifierWhereADumpReadsIt() {
         compose.setContent {
             PublishingWindow {
-                // Exactly the modifier PaymentActivity gives the challenge, minus
-                // the fill: the flag is set by the window above it there too.
+                // The modifier PaymentActivity gives the challenge; the flag is
+                // set by the window above it there too.
                 ThreeDsWebView(
                     action = ThreeDsAction(url = BLANK_PAGE, method = "GET", data = null),
                     onComplete = {},
@@ -91,17 +87,19 @@ class HostedViewIdentifiersTest {
             }
         }
         compose.waitForIdle()
-        requireResourceIdsArePublished()
+        assertCanaryIsPublished()
 
-        assertNotNull(
-            "paycross.threeDS is in the semantics tree and not in the dump: the tag " +
-                "is on the AndroidView, whose own node replaces the Compose one",
-            device.findObject(By.res(TestTags.THREE_DS))
+        assertEquals(
+            "paycross.threeDS is in the semantics tree and not in the accessibility " +
+                "tree a dump reads: the tag is on the AndroidView, whose own node " +
+                "replaces the Compose one",
+            TestTags.THREE_DS,
+            resourceIdFor(TestTags.THREE_DS)
         )
     }
 
     @Test
-    fun theWalletButtonReachesTheDumpAsAResourceId() {
+    fun theWalletButtonCarriesItsIdentifierWhereADumpReadsIt() {
         // Guarded as GooglePayButtonVisibilityTest guards the same path: Google's
         // PayButton draws from the wallet AAR and only a device with Play
         // services ever reaches this state.
@@ -123,55 +121,71 @@ class HostedViewIdentifiersTest {
             }
         }
         compose.waitForIdle()
-        requireResourceIdsArePublished()
+        assertCanaryIsPublished()
 
-        assertNotNull(
-            "paycross.walletButton is in the semantics tree and not in the dump: the " +
-                "tag is on the AndroidView holding Google's button, whose own node " +
-                "replaces the Compose one",
-            device.findObject(By.res(TestTags.WALLET_BUTTON))
+        assertEquals(
+            "paycross.walletButton is in the semantics tree and not in the " +
+                "accessibility tree a dump reads: the tag is on the AndroidView " +
+                "holding Google's button, whose own node replaces the Compose one",
+            TestTags.WALLET_BUTTON,
+            resourceIdFor(TestTags.WALLET_BUTTON)
         )
     }
 
     /**
      * Stands in for the sheet's root: one node, one flag, everything below it
-     * published. Setting it here rather than on each subject is the point — the
-     * fix is about which node carries the tag, not about spreading the flag.
+     * published. The flag is set here rather than on each subject because the
+     * fix is about which node carries the tag, not about spreading the flag —
+     * `TestTags` keeps it to one per window.
      */
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     private fun PublishingWindow(content: @Composable () -> Unit) {
         Column(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
-            Column(modifier = Modifier.size(1.dp).testTag(CANARY)) {}
+            // Text, not an empty box: a node carrying nothing but a tag can be
+            // judged unimportant for accessibility and left out of the tree, and
+            // then the canary would be reporting on itself.
+            Text(text = "canary", modifier = Modifier.testTag(CANARY))
             content()
         }
     }
 
-    /**
-     * The canary has to be there before the subject means anything. It fails
-     * rather than skipping, and it prints the resource ids the dump does hold:
-     * a suite that quietly skips is the blind spot this class was written to
-     * close, not something to reproduce inside it.
-     */
-    private fun requireResourceIdsArePublished() {
-        if (device.wait(Until.hasObject(By.res(CANARY)), TIMEOUT_MS) == true) return
-        fail(
-            "no resource id for a plain Compose node under testTagsAsResourceId. " +
-                "The dump holds these ids: ${resourceIdsInTheDump()}"
+    private fun assertCanaryIsPublished() {
+        assertEquals(
+            "a plain Compose node under the flag has no resource id either, so this " +
+                "device is not publishing them at all and cannot tell the fix from " +
+                "the bug",
+            CANARY,
+            resourceIdFor(CANARY)
         )
     }
 
-    private fun resourceIdsInTheDump(): List<String> {
-        val xml = ByteArrayOutputStream().use { out ->
-            device.dumpWindowHierarchy(out)
-            out.toString(Charsets.UTF_8.name())
+    /**
+     * What an accessibility client — a UiAutomator dump among them — would read
+     * as this node's `resource-id`.
+     */
+    private fun resourceIdFor(tag: String): String? {
+        val nodeId = compose.onNodeWithTag(tag).fetchSemanticsNode().id
+        return compose.runOnUiThread {
+            val provider = requireNotNull(composeView().accessibilityNodeProvider) {
+                "the Compose view exposes no accessibility node provider"
+            }
+            provider.createAccessibilityNodeInfo(nodeId)?.viewIdResourceName
         }
-        return Regex("resource-id=\"([^\"]*)\"")
-            .findAll(xml)
-            .map { it.groupValues[1] }
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .toList()
+    }
+
+    private fun composeView(): View =
+        requireNotNull(findComposeView(compose.activity.window.decorView)) {
+            "no AndroidComposeView under the activity's decor view"
+        }
+
+    private fun findComposeView(view: View): View? {
+        if (view.javaClass.simpleName == "AndroidComposeView") return view
+        if (view !is ViewGroup) return null
+        for (index in 0 until view.childCount) {
+            findComposeView(view.getChildAt(index))?.let { return it }
+        }
+        return null
     }
 
     private companion object {
@@ -179,6 +193,5 @@ class HostedViewIdentifiersTest {
         const val BLANK_PAGE = "data:text/html,%3Chtml%3E%3C%2Fhtml%3E"
 
         const val CANARY = "paycross.test.canary"
-        const val TIMEOUT_MS = 10_000L
     }
 }
