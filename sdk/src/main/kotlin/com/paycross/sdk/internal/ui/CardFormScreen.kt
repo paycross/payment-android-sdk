@@ -128,7 +128,8 @@ internal fun CardFormScreen(
     var cvv by remember { mutableStateOf(prefill?.cvv.orEmpty()) }
     var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
     var saveCard by rememberSaveable { mutableStateOf(prefill?.saveCard ?: false) }
-    var showErrors by rememberSaveable { mutableStateOf(false) }
+    var showCardErrors by rememberSaveable { mutableStateOf(false) }
+    var showFieldErrors by rememberSaveable { mutableStateOf(false) }
     var fieldValuesFlat by rememberSaveable {
         mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))
     }
@@ -199,7 +200,7 @@ internal fun CardFormScreen(
                         GooglePayRequests.buildAllowedPaymentMethods(claims, sessionData).toString()
                     },
                     onClick = {
-                        showErrors = true
+                        showFieldErrors = true
                         // Field groups must validate before the sheet opens, like the
                         // web: core validates them unconditionally before the wallet
                         // branch, so an invalid form would open a sheet into a
@@ -236,7 +237,7 @@ internal fun CardFormScreen(
                     cardType = cardType,
                     saveCard = saveCard,
                     canSaveCard = canSaveCard,
-                    showErrors = showErrors,
+                    showErrors = showCardErrors,
                     validation = validation,
                     onCardNumberChange = { cardNumber = it },
                     onExpiryChange = { expiry = it },
@@ -249,7 +250,7 @@ internal fun CardFormScreen(
                     savedCard = selectedSavedCard,
                     cvvCardType = cvvCardType,
                     cvv = cvv,
-                    showErrors = showErrors,
+                    showErrors = showCardErrors,
                     isCvvValid = validation.isCvvValid,
                     onCvvChange = { cvv = it }
                 )
@@ -259,7 +260,7 @@ internal fun CardFormScreen(
                 FieldGroupsSection(
                     groups = fieldGroups,
                     values = fieldValues,
-                    errors = if (showErrors) fieldGroupErrors else emptyMap(),
+                    errors = if (showFieldErrors) fieldGroupErrors else emptyMap(),
                     onValueChange = { group, field, value ->
                         fieldValuesFlat = HashMap(fieldValuesFlat).apply { put("$group|$field", value) }
                     }
@@ -275,7 +276,8 @@ internal fun CardFormScreen(
             amount = formattedAmount,
             isLoading = isLoading,
             onClick = {
-                showErrors = true
+                showCardErrors = true
+                showFieldErrors = true
                 if (validation.isValid && fieldGroupErrors.isEmpty()) {
                     onSubmit(
                         buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard),
