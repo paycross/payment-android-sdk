@@ -9,6 +9,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-08
+
 ### Added
 
 - **The API reference is published as a release asset.** Every `v*` tag now
@@ -454,7 +456,8 @@ Each entry here names what stops compiling and what to do about it.
   `VisualTransformation` over the raw digits. Pasted and prefilled numbers were
   never affected.
 
-[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/paycross/payment-android-sdk/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/paycross/payment-android-sdk/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/paycross/payment-android-sdk/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/paycross/payment-android-sdk/compare/v0.6.0...v0.7.0

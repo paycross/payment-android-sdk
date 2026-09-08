@@ -8,14 +8,14 @@ drop-in sheet. Your app hands it a payment session token and gets a result back.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.pay-cross:paycross-android:0.8.1")
+    implementation("com.pay-cross:paycross-android:0.8.2")
 }
 ```
 
 ```groovy
 // build.gradle
 dependencies {
-    implementation 'com.pay-cross:paycross-android:0.8.1'
+    implementation 'com.pay-cross:paycross-android:0.8.2'
 }
 ```
 
