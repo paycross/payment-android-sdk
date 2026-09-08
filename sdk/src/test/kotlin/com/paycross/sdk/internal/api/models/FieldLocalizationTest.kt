@@ -114,4 +114,18 @@ class FieldLocalizationTest {
         // for that, and a blank string would silently draw an empty error.
         assertNull(email.validation!!.localizedMessage("fr", "pattern"))
     }
+
+    @Test
+    fun `a rule missing from the resolved language falls back on its own`() {
+        val partial = email.validation!!.copy(
+            messages = mapOf("required" to "This field is required", "pattern" to "Wrong format"),
+            messagesI18n = mapOf("fr" to mapOf("required" to "Ce champ est obligatoire"))
+        )
+
+        assertEquals("Ce champ est obligatoire", partial.localizedMessage("fr", "required"))
+        // French is present but carries no `pattern`, so the singular map answers
+        // that one rule. Falling back a whole language at a time would take the
+        // French `required` sentence away with it.
+        assertEquals("Wrong format", partial.localizedMessage("fr", "pattern"))
+    }
 }
