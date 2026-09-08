@@ -9,6 +9,20 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **Merchant field groups now follow the sheet's language.** Their labels,
+  placeholders, select options and validation messages come from the payment
+  session, and the sheet drew them in whatever language the session had been
+  minted for — so a French shopper on an English-minted session read a French
+  sheet with an English "Email address" in the middle of it. The session now
+  carries each of those strings in every language the backend has a translation
+  of, and the sheet reads the one matching the language it already resolved for
+  its own copy. Nothing is translated on the device: one of the strings the
+  session already carries is chosen, or the singular one it came with is kept. A
+  language the backend has no translation for, and a session minted before the
+  translations existed, both draw exactly what they drew before.
+
 ## [0.8.2] - 2026-09-08
 
 ### Added

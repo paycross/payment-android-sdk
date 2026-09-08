@@ -176,8 +176,9 @@ internal fun CardFormScreen(
         cardholderName = cardholderName,
         cvvCardType = cvvCardType
     )
-    val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat) {
-        FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat))
+    val language = LocalPayCrossLanguage.current
+    val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat, language) {
+        FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat), language)
             .associate { "${it.groupKey}|${it.fieldName}" to it.message }
     }
 

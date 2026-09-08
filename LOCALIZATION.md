@@ -82,6 +82,26 @@ between the two languages the SDK ships. `"fr-"` still draws French words while
 leaving the amount to the device. Being eager about which of two languages to
 print is harmless; being eager about how to punctuate a number is not.
 
+## Merchant field groups
+
+The labels, placeholders, select options and validation messages in a session's
+field groups are the merchant's own text rather than the SDK's. They are not in
+`values/`, and no `paycross_` key overrides them.
+
+They do follow the sheet's language. The session carries each of those strings in
+every language the backend holds a translation of, and the sheet reads the one
+matching the language it resolved above — so a French shopper on a session minted
+in English gets a French sheet with French field labels in it, rather than an
+English "Email address" in the middle of it.
+
+Nothing is translated on the device, and no lookup fails. A language the backend
+has no translation for keeps the string the session came with, and so does a
+session minted before the backend published the translations. A field with no
+label at all is still named, after its wire key.
+
+What gets submitted does not change with the language. A select sends the
+option's `value`, never the label drawn over it.
+
 ## Overriding a string
 
 Every `paycross_*` key below is public API. Declare the same name in your own
@@ -166,9 +186,10 @@ button with no amount on it, and `paycross_saved_card_expires` carries two.
 | `paycross_field_invalid` | `%1$s` is invalid | A merchant-configured field that failed its pattern |
 
 Two of these are last resorts. When the server sends a message of its own — a
-rejected submit, or a field group's own `validation.messages` — that message is
-shown instead, exactly as the server wrote it. The SDK never translates it,
-because it has no way to know what language it is in.
+rejected submit, or a field group's own validation message — that message is
+shown instead, exactly as the server wrote it. The SDK never translates one. A
+field group's messages arrive in every language the backend has them in, so the
+sheet picks the one matching its own language; see **Merchant field groups**.
 
 ### Spoken labels
 
@@ -187,8 +208,10 @@ Read by TalkBack, not drawn on screen.
   `default_error_message`, borrowed deliberately. Compose ships it in about forty
   languages, which is more than this SDK does, so a shopper outside `en` and `fr`
   still hears it in their own. Do not declare a `paycross_` key for it.
-- **Merchant-configured field groups** — their labels, placeholders and option
-  names come from the payment session and are the merchant's own text.
+- **Merchant-configured field groups** — their labels, placeholders, option names
+  and validation messages come from the payment session and are the merchant's
+  own text. The sheet chooses between the translations the session carries; it
+  never makes one. See **Merchant field groups** above.
 - **The Google Pay button.** Google's brand guidelines own its label, and Google
   localizes it from the device.
 - **The 3-D Secure challenge**, which is the issuing bank's own page.

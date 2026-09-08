@@ -561,6 +561,127 @@ class ContractSerializationTest {
         assertNull(gson.fromJson(json, StatusResponse::class.java).savedToken)
     }
 
+    @Test
+    fun `field groups carry every rendered string in every language the backend has`() {
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "locale": "en",
+                "field_groups": [
+                  {
+                    "key": "customer_info",
+                    "label": "Your details",
+                    "labels": {"en": "Your details", "fr": "Vos coordonnées"},
+                    "fields": [
+                      {
+                        "name": "email",
+                        "type": "email",
+                        "label": "Email address",
+                        "labels": {"en": "Email address", "fr": "Adresse e-mail"},
+                        "placeholder": "email@example.com",
+                        "placeholders": {"en": "email@example.com", "fr": "email@example.com"},
+                        "required": true,
+                        "readonly": false,
+                        "value": null,
+                        "validation": {
+                          "max_length": 254,
+                          "messages": {"required": "This field is required"},
+                          "messages_i18n": {
+                            "en": {"required": "This field is required"},
+                            "fr": {"required": "Ce champ est obligatoire"}
+                          }
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "type": "select",
+                        "label": "Title",
+                        "labels": {"en": "Title", "fr": "Civilité"},
+                        "required": false,
+                        "readonly": false,
+                        "value": null,
+                        "options": [
+                          {"value": "mrs", "label": "Mrs", "labels": {"en": "Mrs", "fr": "Madame"}}
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val group = gson.fromJson(json, SessionResponse::class.java).data!!.fieldGroups!!.single()
+
+        assertEquals("Vos coordonnées", group.labels!!["fr"])
+        assertEquals("Your details", group.label)
+
+        val fields = group.fields!!
+        val email = fields.first()
+        val emailLabels = email.labels!!
+        assertEquals("Adresse e-mail", emailLabels["fr"])
+        assertEquals("Email address", emailLabels["en"])
+        assertEquals("email@example.com", email.placeholders!!["fr"])
+        // Language outer, rule inner - and the annotation is what gets it here at
+        // all, since a default Gson would otherwise look for a `messagesI18n` key.
+        val messages = email.validation!!.messagesI18n!!
+        assertEquals("Ce champ est obligatoire", messages["fr"]!!["required"])
+        assertEquals("This field is required", messages["en"]!!["required"])
+        assertEquals("This field is required", email.validation.messages!!["required"])
+
+        val title = fields[1]
+        assertEquals("Civilité", title.labels!!["fr"])
+        val option = title.options!!.single()
+        assertEquals("Madame", option.labels!!["fr"])
+        assertEquals("Mrs", option.label)
+    }
+
+    @Test
+    fun `field groups minted before the translations still decode`() {
+        // Every session the backend minted before it started publishing the maps,
+        // and every field whose only string is the one the session's own locale
+        // resolved. The singular keys are still there; the maps are simply absent.
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "field_groups": [
+                  {
+                    "key": "customer_info",
+                    "label": "Your details",
+                    "fields": [
+                      {
+                        "name": "email",
+                        "type": "email",
+                        "label": "Email address",
+                        "placeholder": "email@example.com",
+                        "required": true,
+                        "options": [{"value": "mrs", "label": "Mrs"}],
+                        "validation": {"messages": {"required": "This field is required"}}
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val group = gson.fromJson(json, SessionResponse::class.java).data!!.fieldGroups!!.single()
+        val email = group.fields!!.single()
+
+        assertNull(group.labels)
+        assertNull(email.labels)
+        assertNull(email.placeholders)
+        assertNull(email.options!!.single().labels)
+        assertNull(email.validation!!.messagesI18n)
+        // The singular keys are untouched, which is what the fallback reads.
+        assertEquals("Your details", group.label)
+        assertEquals("Email address", email.label)
+        assertEquals("email@example.com", email.placeholder)
+        assertEquals("This field is required", email.validation.messages!!["required"])
+    }
+
     private fun minimalBrowserInfo() = BrowserInfo(
         userAgent = "ua",
         screenWidth = 1,
