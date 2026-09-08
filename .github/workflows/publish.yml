@@ -71,9 +71,10 @@ jobs:
           {
             echo "### Published \`com.pay-cross:paycross-android:${{ steps.version.outputs.version }}\`"
             echo
-            echo 'Uploaded to the Central Portal as USER_MANAGED: someone must press'
-            echo '**Publish** at <https://central.sonatype.com/publishing> to release it.'
-            echo 'Once released, merchants need no repository config:'
+            echo 'Published to Maven Central: the upload is AUTOMATIC, so a tag that'
+            echo 'passes validation releases without a Portal click. Central artifacts are'
+            echo 'permanent - a bad release is fixed by the next version, never by'
+            echo 'unpublishing. Merchants need no repository config:'
             echo
             echo '```kotlin'
             echo 'implementation("com.pay-cross:paycross-android:${{ steps.version.outputs.version }}")'
