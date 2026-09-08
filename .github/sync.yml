@@ -1,0 +1,3 @@
+paycross/api-docs:
+  - source: .sync/android.md
+    dest: content/resources/changelogs/android.md
