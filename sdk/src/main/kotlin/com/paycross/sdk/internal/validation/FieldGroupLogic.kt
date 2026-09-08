@@ -3,6 +3,8 @@ package com.paycross.sdk.internal.validation
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
+import com.paycross.sdk.internal.api.models.localizedLabel
+import com.paycross.sdk.internal.api.models.localizedMessage
 import com.paycross.sdk.internal.util.UiText
 
 internal data class FieldState(
@@ -55,9 +57,17 @@ internal object FieldGroupLogic {
         }.filterValues { it.isNotEmpty() }
     }
 
+    /**
+     * @param language The tag the sheet resolved. It picks which of the
+     *   merchant's own messages and labels an error carries; the SDK's own
+     *   fallbacks are resources and are translated by the resolved Resources
+     *   instead. Still never a translation of the merchant's words: the backend
+     *   supplied them, and one of the set is chosen rather than made.
+     */
     fun validate(
         groups: List<FieldGroup>,
-        values: Map<String, Map<String, String>>
+        values: Map<String, Map<String, String>>,
+        language: String
     ): List<FieldGroupError> {
         val errors = mutableListOf<FieldGroupError>()
 
@@ -72,11 +82,11 @@ internal object FieldGroupLogic {
                     errors += FieldGroupError(
                         groupKey = group.key,
                         fieldName = field.name,
-                        message = field.validation?.messages?.get("required")
+                        message = field.validation?.localizedMessage(language, "required")
                             ?.let(UiText::Raw)
                             ?: UiText.Resource(
                                 R.string.paycross_field_required,
-                                listOf(field.label ?: field.name)
+                                listOf(field.localizedLabel(language))
                             )
                     )
                     continue
@@ -87,11 +97,11 @@ internal object FieldGroupLogic {
                     errors += FieldGroupError(
                         groupKey = group.key,
                         fieldName = field.name,
-                        message = field.validation.messages?.get("pattern")
+                        message = field.validation.localizedMessage(language, "pattern")
                             ?.let(UiText::Raw)
                             ?: UiText.Resource(
                                 R.string.paycross_field_invalid,
-                                listOf(field.label ?: field.name)
+                                listOf(field.localizedLabel(language))
                             )
                     )
                 }

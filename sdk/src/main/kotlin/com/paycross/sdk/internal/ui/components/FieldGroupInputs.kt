@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.paycross.sdk.internal.api.models.FieldDefinition
 import com.paycross.sdk.internal.api.models.FieldGroup
+import com.paycross.sdk.internal.api.models.localizedLabel
+import com.paycross.sdk.internal.api.models.localizedPlaceholder
+import com.paycross.sdk.internal.ui.LocalPayCrossLanguage
 import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.util.UiText
@@ -57,8 +60,10 @@ private fun FieldGroupCard(
     errors: Map<String, UiText>,
     onValueChange: (field: String, value: String) -> Unit
 ) {
+    val language = LocalPayCrossLanguage.current
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        group.label?.let {
+        group.localizedLabel(language)?.let {
             Text(text = it, style = MaterialTheme.typography.titleSmall)
         }
 
@@ -99,11 +104,13 @@ private fun TextInputField(
     error: UiText?,
     onValueChange: (String) -> Unit
 ) {
+    val language = LocalPayCrossLanguage.current
+
     PayCrossOutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(field.label ?: field.name) },
-        placeholder = field.placeholder?.let { { Text(it) } },
+        label = { Text(field.localizedLabel(language)) },
+        placeholder = field.localizedPlaceholder(language)?.let { { Text(it) } },
         readOnly = readonly,
         isError = error != null,
         supportingText = error?.let { { ErrorText(groupKey, field.name, it) } },
@@ -134,8 +141,9 @@ private fun SelectField(
     onValueChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val language = LocalPayCrossLanguage.current
     val options = field.options.orEmpty()
-    val selectedLabel = options.find { it.value == value }?.label ?: value
+    val selectedLabel = options.find { it.value == value }?.localizedLabel(language) ?: value
 
     ExposedDropdownMenuBox(
         expanded = expanded && !readonly,
@@ -145,7 +153,7 @@ private fun SelectField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
-            label = { Text(field.label ?: field.name) },
+            label = { Text(field.localizedLabel(language)) },
             isError = error != null,
             supportingText = error?.let { { ErrorText(groupKey, field.name, it) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -160,7 +168,7 @@ private fun SelectField(
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label ?: option.value) },
+                    text = { Text(option.localizedLabel(language)) },
                     onClick = {
                         onValueChange(option.value)
                         expanded = false

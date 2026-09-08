@@ -73,7 +73,8 @@ class FieldGroupLogicTest {
 
         val errors = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("country" to "germany"))
+            mapOf("billing_address" to mapOf("country" to "germany")),
+            language = "en"
         )
 
         assertEquals(2, errors.size)
@@ -99,7 +100,8 @@ class FieldGroupLogicTest {
 
         val errors = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("post_code" to "not digits"))
+            mapOf("billing_address" to mapOf("post_code" to "not digits")),
+            language = "en"
         )
 
         // The label is a format argument, so the sentence can be built the other
@@ -137,14 +139,81 @@ class FieldGroupLogicTest {
             )
         )
 
-        val missing = FieldGroupLogic.validate(groups, emptyMap())
+        val missing = FieldGroupLogic.validate(groups, emptyMap(), language = "en")
         assertEquals(UiText.Raw("Pays obligatoire"), missing.single().message)
 
         val badPattern = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("country" to "germany"))
+            mapOf("billing_address" to mapOf("country" to "germany")),
+            language = "en"
         )
         assertEquals(UiText.Raw("Code pays sur deux lettres"), badPattern.single().message)
+    }
+
+    @Test
+    fun `a server-supplied message is chosen in the sheet's language`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "billing_address",
+                label = null,
+                fields = listOf(
+                    field(
+                        "country",
+                        required = true,
+                        validation = FieldValidation(
+                            pattern = null,
+                            maxLength = 2,
+                            messages = mapOf("required" to "Country required"),
+                            messagesI18n = mapOf(
+                                "en" to mapOf("required" to "Country required"),
+                                "fr" to mapOf("required" to "Pays obligatoire")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            UiText.Raw("Pays obligatoire"),
+            FieldGroupLogic.validate(groups, emptyMap(), language = "fr").single().message
+        )
+        assertEquals(
+            UiText.Raw("Country required"),
+            FieldGroupLogic.validate(groups, emptyMap(), language = "en").single().message
+        )
+        // A language the merchant has no translation for keeps the message the
+        // session was minted with rather than losing it.
+        assertEquals(
+            UiText.Raw("Country required"),
+            FieldGroupLogic.validate(groups, emptyMap(), language = "de").single().message
+        )
+    }
+
+    @Test
+    fun `the SDK's own message names the field in the sheet's language`() {
+        // The message is a resource and the resolved Resources translate it; the
+        // argument is the merchant's label and has to be picked, not translated.
+        val groups = listOf(
+            FieldGroup(
+                key = "customer_info",
+                label = null,
+                fields = listOf(
+                    field("email", required = true).copy(
+                        labels = mapOf("en" to "Email address", "fr" to "Adresse e-mail")
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_required, listOf("Adresse e-mail")),
+            FieldGroupLogic.validate(groups, emptyMap(), language = "fr").single().message
+        )
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_required, listOf("Email address")),
+            FieldGroupLogic.validate(groups, emptyMap(), language = "en").single().message
+        )
     }
 
     @Test
@@ -165,7 +234,7 @@ class FieldGroupLogicTest {
 
         assertEquals(
             UiText.Resource(R.string.paycross_field_required, listOf("vat_id")),
-            FieldGroupLogic.validate(groups, emptyMap()).single().message
+            FieldGroupLogic.validate(groups, emptyMap(), language = "en").single().message
         )
     }
 
@@ -181,7 +250,11 @@ class FieldGroupLogicTest {
             )
         )
 
-        val errors = FieldGroupLogic.validate(groups, mapOf("billing_address" to mapOf("country" to "DE")))
+        val errors = FieldGroupLogic.validate(
+            groups,
+            mapOf("billing_address" to mapOf("country" to "DE")),
+            language = "en"
+        )
         assertTrue(errors.isEmpty())
     }
 
@@ -202,7 +275,7 @@ class FieldGroupLogicTest {
         )
         val values = mapOf("billing_address" to mapOf("country" to "DE", "state" to "CA"))
 
-        assertTrue(FieldGroupLogic.validate(groups, values).isEmpty())
+        assertTrue(FieldGroupLogic.validate(groups, values, language = "en").isEmpty())
         assertEquals(
             mapOf("billing_address" to mapOf("country" to "DE")),
             FieldGroupLogic.submissionValues(groups, values)

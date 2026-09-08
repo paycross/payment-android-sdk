@@ -83,14 +83,28 @@ internal val pcFormattingLocale: Locale
         ?: LocalConfiguration.current.locales[0]
 
 /**
+ * The language tag the sheet resolved, for text that does not live in
+ * `values-*`: the merchant's own field-group labels, placeholders, option names
+ * and validation messages, which the session carries in every language the
+ * backend has them in.
+ *
+ * The same answer as [LocalPayCrossResources], carried separately only because a
+ * map lookup needs the tag as a string while `getString` needs the Resources.
+ * Nothing re-resolves the language off this one — both are provided together
+ * from a single [LocaleResolution] call, so the merchant's words and the SDK's
+ * cannot end up in different languages.
+ */
+internal val LocalPayCrossLanguage = compositionLocalOf { LocaleResolution.DEFAULT.language }
+
+/**
  * Runs [content] with the sheet's language and the amount's locale resolved from
  * [merchantLocale], [sessionLocale] and the shopper's own list of preferences.
  *
  * The whole ladder lives here rather than in the activity so that it can be
  * exercised without one: a test renders this with a session locale and reads the
- * words back, which is the wiring rather than the mechanism. The two are
- * provided together because they come from one set of candidates and must never
- * disagree about which session they describe.
+ * words back, which is the wiring rather than the mechanism. They are provided
+ * together because they come from one set of candidates and must never disagree
+ * about which session they describe.
  */
 @Composable
 internal fun PayCrossLocalization(
@@ -114,6 +128,7 @@ internal fun PayCrossLocalization(
     CompositionLocalProvider(
         LocalPayCrossResources provides resources,
         LocalPayCrossFormattingLocale provides locales.amount,
+        LocalPayCrossLanguage provides locales.strings.language,
         content = content
     )
 }
