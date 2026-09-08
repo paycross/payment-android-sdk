@@ -73,6 +73,7 @@ internal data class GooglePayConfig(
 internal data class FieldGroup(
     val key: String,
     val label: String?,
+    @SerializedName("labels") val labels: Map<String, String>? = null,
     val fields: List<FieldDefinition>?
 )
 
@@ -80,7 +81,9 @@ internal data class FieldDefinition(
     val name: String,
     val type: String?,
     val label: String?,
+    @SerializedName("labels") val labels: Map<String, String>? = null,
     val placeholder: String?,
+    @SerializedName("placeholders") val placeholders: Map<String, String>? = null,
     val required: Boolean?,
     val readonly: Boolean?,
     val value: String?,
@@ -98,13 +101,17 @@ internal data class FieldCondition(
 
 internal data class FieldOption(
     val value: String,
-    val label: String?
+    val label: String?,
+    @SerializedName("labels") val labels: Map<String, String>? = null
 )
 
 internal data class FieldValidation(
     val pattern: String?,
     @SerializedName("max_length") val maxLength: Int?,
-    val messages: Map<String, String>?
+    val messages: Map<String, String>?,
+    // Language outer, rule inner - the opposite nesting from `messages`, which
+    // is one language's rules on their own.
+    @SerializedName("messages_i18n") val messagesI18n: Map<String, Map<String, String>>? = null
 )
 
 internal data class SaveCardConfig(
