@@ -470,13 +470,16 @@ Fetch session data for checkout form prefill, field requirements, and saved card
       {
         "key": "customer_info",
         "label": "Customer Information",
+        "labels": { "en": "Customer Information", "fr": "Coordonnées du client" },
         "display": "expanded",
         "fields": [
           {
             "name": "email",
             "type": "email",
             "label": "Email",
+            "labels": { "en": "Email", "fr": "E-mail" },
             "placeholder": "Email address",
+            "placeholders": { "en": "Email address", "fr": "Adresse e-mail" },
             "required": true,
             "readonly": false,
             "value": "john@example.com",
@@ -485,6 +488,16 @@ Fetch session data for checkout form prefill, field requirements, and saved card
               "messages": {
                 "required": "This field is required",
                 "max_length": "Must not exceed 254 characters"
+              },
+              "messages_i18n": {
+                "en": {
+                  "required": "This field is required",
+                  "max_length": "Must not exceed 254 characters"
+                },
+                "fr": {
+                  "required": "Ce champ est obligatoire",
+                  "max_length": "Maximum 254 caractères"
+                }
               }
             }
           },
@@ -522,8 +535,8 @@ Fetch session data for checkout form prefill, field requirements, and saved card
             "readonly": false,
             "value": "LV",
             "options": [
-              { "value": "LV", "label": "Latvia" },
-              { "value": "US", "label": "United States" }
+              { "value": "LV", "label": "Latvia", "labels": { "en": "Latvia", "fr": "Lettonie" } },
+              { "value": "US", "label": "United States", "labels": { "en": "United States", "fr": "États-Unis" } }
             ],
             "validation": {
               "max_length": 2,
@@ -619,7 +632,8 @@ Each entry in `field_groups` represents a section of the checkout form.
 | Field | Type | Description |
 |-------|------|-------------|
 | `key` | string | Group identifier (see Field Groups below) |
-| `label` | string | Localized display label for the group |
+| `label` | string | Display label for the group, in the session's `locale` |
+| `labels` | object | The same label in every language the backend has it in, keyed by language tag (see Translated Strings below) |
 | `display` | string | Display mode: `expanded` (open by default) or `collapsed` (closed) |
 | `fields` | array | Ordered list of fields to render |
 
@@ -629,13 +643,15 @@ Each entry in `field_groups` represents a section of the checkout form.
 |-------|------|-------------|
 | `name` | string | Field identifier |
 | `type` | string | Input type: `text`, `email`, `tel`, `select` |
-| `label` | string | Localized display label |
-| `placeholder` | string | Localized placeholder text |
+| `label` | string | Display label, in the session's `locale` |
+| `labels` | object | The same label keyed by language tag |
+| `placeholder` | string | Placeholder text, in the session's `locale` |
+| `placeholders` | object | The same placeholder keyed by language tag. Absent when the field has no placeholder |
 | `required` | bool | Whether the field is required |
 | `readonly` | bool | Whether the field is read-only (prefilled, not editable) |
 | `value` | mixed | Prefilled value from session/customer data, or `null` |
 | `condition` | object\|null | Conditional display rule (see below) |
-| `options` | array\|null | For `select` type: list of `{ value, label }` objects |
+| `options` | array\|null | For `select` type: list of `{ value, label, labels }` objects |
 | `validation` | object\|null | Validation rules (only present if rules exist) |
 
 ### Condition Object
@@ -655,7 +671,14 @@ Evaluated against sibling values in the same group.
 |-------|------|-------------|
 | `max_length` | int | Maximum character length |
 | `pattern` | string | Regex pattern the value must match |
-| `messages` | object | Localized validation error messages keyed by rule name |
+| `messages` | object | Validation error messages keyed by rule name, in the session's `locale` |
+| `messages_i18n` | object | The same messages keyed by language tag first, then by rule name — the opposite nesting from `messages` |
+
+### Translated Strings
+
+Every rendered string in `field_groups` arrives twice: the singular key, resolved in the session's own `locale`, and beside it a map of the same string in every language the backend holds a translation of. The maps do not depend on the session's `locale`.
+
+The SDK reads `labels[language] ?? label ?? name`, `placeholders[language] ?? placeholder` and `messages_i18n[language][rule] ?? messages[rule]`, where `language` is the tag the sheet already resolved for its own strings. Nothing is translated on the device and the language is never re-resolved from the group. A session minted before the backend published the maps carries none of them, and every read falls back to the singular key it always used.
 
 ### Field Groups
 
