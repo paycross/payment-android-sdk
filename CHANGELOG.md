@@ -9,6 +9,8 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-09-09
+
 ### Added
 
 - **Required merchant fields are marked.** A field the merchant configured as
@@ -500,7 +502,8 @@ Each entry here names what stops compiling and what to do about it.
   `VisualTransformation` over the raw digits. Pasted and prefilled numbers were
   never affected.
 
-[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/paycross/payment-android-sdk/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/paycross/payment-android-sdk/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/paycross/payment-android-sdk/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/paycross/payment-android-sdk/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/paycross/payment-android-sdk/compare/v0.8.0...v0.8.1
