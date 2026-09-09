@@ -99,9 +99,10 @@ class FieldGroupLanguageTest {
         renderGroups(sessionLocale = "fr", groups = translated)
 
         // Unmerged: a labelled field merges its descendants, so the label is a
-        // node of its own only before the merge.
+        // node of its own only before the merge. The marker on the required one
+        // is the label's, not another node; MerchantFieldPresentationTest owns it.
         compose.onNodeWithText("Vos coordonnées", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Adresse e-mail", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Adresse e-mail *", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Civilité", useUnmergedTree = true).assertIsDisplayed()
     }
 
@@ -110,7 +111,7 @@ class FieldGroupLanguageTest {
         renderGroups(sessionLocale = "en", groups = translated)
 
         compose.onNodeWithText("Your details", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Email address", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Email address *", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Title", useUnmergedTree = true).assertIsDisplayed()
     }
 
@@ -139,7 +140,7 @@ class FieldGroupLanguageTest {
         renderGroups(sessionLocale = "fr", groups = untranslated)
 
         compose.onNodeWithText("Your details", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Email address", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Email address *", useUnmergedTree = true).assertIsDisplayed()
     }
 
     private fun renderGroups(sessionLocale: String, groups: List<FieldGroup>) {

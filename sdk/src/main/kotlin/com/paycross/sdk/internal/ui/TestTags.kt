@@ -102,8 +102,10 @@ internal object TestTags {
 
     /**
      * A field's validation message. It sits inside the field's own merged node,
-     * so a Compose test reads it from the unmerged tree and a UiAutomator dump
-     * does not see it at all — there, the field's error state is the signal.
+     * so a Compose test reads it from the unmerged tree — but it keeps its own
+     * resource id in a UiAutomator dump, which is where the sheet's validation
+     * messages were read from when this was last measured. The field's `error`
+     * state carries the same sentence, for anything reading semantics instead.
      */
     fun fieldError(group: String, name: String): String = "${field(group, name)}.error"
 }

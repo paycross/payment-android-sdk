@@ -9,6 +9,34 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Added
+
+- **Required merchant fields are marked.** A field the merchant configured as
+  required now draws ` *` after its label, the same marker the hosted checkout
+  page and the iOS SDK draw — until now a required `Email address` looked
+  exactly like an optional `Phone number` and the shopper found out which was
+  which by tapping Pay. A field made required by another field's value gains the
+  marker when that condition is met. The marker is drawn, not spoken: a screen
+  reader announces the field by its label and then says that it is required.
+- **`max_length` is checked before the sheet submits.** A value over a field's
+  configured limit is now reported under the field, with the merchant's own
+  message for that rule in the sheet's language, or a translated SDK sentence
+  when the merchant wrote none. The value is not truncated as it is typed — a
+  long paste is refused with a message rather than silently cut short.
+
+### Fixed
+
+- **A select draws its placeholder.** The prompt configured for a select — the
+  one string in a field-group configuration that is usually real copy rather
+  than a format example — never reached the field, so an unchosen country sat
+  in an empty box. It is now drawn in the sheet's language while nothing is
+  chosen, and gives way to the chosen option's label.
+- **Merchant field inputs are named for a screen reader.** They carried no
+  accessible name, so a screen reader reaching one announced its value with no
+  indication of what the value was for, and its validation message was not tied
+  to it. Each input is now named by its own label and carries its validation
+  message as the input's error, which is what the SDK's card fields already did.
+
 ## [0.8.3] - 2026-09-08
 
 ### Changed

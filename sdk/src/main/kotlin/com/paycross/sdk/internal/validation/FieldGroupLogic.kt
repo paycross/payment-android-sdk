@@ -22,7 +22,7 @@ internal data class FieldGroupError(
 /**
  * Mirrors the checkout page's field-group semantics: a field's condition is
  * evaluated against sibling values in the same group, and only visible
- * required/pattern rules are enforced on submit.
+ * required/max_length/pattern rules are enforced on submit.
  *
  * Errors name a string rather than carrying one: this is a plain object with no
  * Context, and the field's own server-supplied message - which is never ours to
@@ -87,6 +87,25 @@ internal object FieldGroupLogic {
                             ?: UiText.Resource(
                                 R.string.paycross_field_required,
                                 listOf(field.localizedLabel(language))
+                            )
+                    )
+                    continue
+                }
+
+                // Blocked on submit rather than capped as it is typed. Capping
+                // silently truncates a pasted value, and the page the merchant
+                // already ships blocks — so this is the behaviour a shopper
+                // meets on both surfaces.
+                val maxLength = field.validation?.maxLength
+                if (value.isNotBlank() && maxLength != null && value.length > maxLength) {
+                    errors += FieldGroupError(
+                        groupKey = group.key,
+                        fieldName = field.name,
+                        message = field.validation.localizedMessage(language, "max_length")
+                            ?.let(UiText::Raw)
+                            ?: UiText.Resource(
+                                R.string.paycross_field_too_long,
+                                listOf(field.localizedLabel(language), maxLength.toString())
                             )
                     )
                     continue

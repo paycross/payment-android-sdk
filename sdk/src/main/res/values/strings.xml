@@ -50,11 +50,15 @@
     <string name="paycross_error_submission_failed">Payment submission failed</string>
     <string name="paycross_field_required">%1$s is required</string>
     <string name="paycross_field_invalid">%1$s is invalid</string>
+    <!-- %2$s is a count, rendered before it gets here: see UiText.Resource. -->
+    <string name="paycross_field_too_long">%1$s must be %2$s characters or fewer</string>
 
     <!-- Spoken labels -->
     <string name="paycross_card_number_field">Card number input</string>
     <string name="paycross_expiry_field">Expiry date input</string>
     <string name="paycross_cvv_field">CVV input</string>
     <string name="paycross_cardholder_name_field">Cardholder name input</string>
+    <!-- Spoken in place of the asterisk the label carries, which reads as "star". -->
+    <string name="paycross_field_required_state">Required</string>
 
 </resources>
