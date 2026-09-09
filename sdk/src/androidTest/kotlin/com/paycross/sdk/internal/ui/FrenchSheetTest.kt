@@ -5,6 +5,8 @@ import android.os.LocaleList
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -16,9 +18,13 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.internal.api.JwtClaims
+import com.paycross.sdk.internal.api.models.FieldDefinition
+import com.paycross.sdk.internal.api.models.FieldGroup
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.ui.components.CardNumberField
+import com.paycross.sdk.internal.ui.components.FieldGroupsSection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -65,6 +71,29 @@ class FrenchSheetTest {
         expireMonth = "12",
         expireYear = "2030",
         cardholderName = "JOHN DOE"
+    )
+
+    private val requiredEmail = listOf(
+        FieldGroup(
+            key = "customer_info",
+            label = "Your details",
+            labels = mapOf("en" to "Your details", "fr" to "Vos coordonnées"),
+            fields = listOf(
+                FieldDefinition(
+                    name = "email",
+                    type = "email",
+                    label = "Email address",
+                    labels = mapOf("en" to "Email address", "fr" to "Adresse e-mail"),
+                    placeholder = null,
+                    required = true,
+                    readonly = false,
+                    value = null,
+                    condition = null,
+                    options = null,
+                    validation = null
+                )
+            )
+        )
     )
 
     @Before
@@ -187,6 +216,32 @@ class FrenchSheetTest {
         }
 
         compose.onNodeWithText("Payer 12,34 €").assertIsDisplayed()
+    }
+
+    @Test
+    fun aRequiredMerchantFieldSaysSoInFrenchThroughTheRealWiring() {
+        // Two sources meeting on one node: the name is the merchant's own French
+        // label, the state is values-fr. The marker the label is drawn with stays
+        // out of the name, which is why the state has to carry the word at all.
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "fr", merchantLocale = null) {
+                FieldGroupsSection(
+                    groups = requiredEmail,
+                    values = emptyMap(),
+                    errors = emptyMap(),
+                    onValueChange = { _, _, _ -> }
+                )
+            }
+        }
+
+        val config = compose.onNodeWithTag(TestTags.field("customer_info", "email"))
+            .fetchSemanticsNode().config
+
+        assertEquals("Obligatoire", config.getOrNull(SemanticsProperties.StateDescription))
+        assertEquals(
+            listOf("Adresse e-mail"),
+            config.getOrNull(SemanticsProperties.ContentDescription)
+        )
     }
 
     /**
