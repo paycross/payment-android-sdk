@@ -22,11 +22,14 @@ import com.paycross.sdk.PayCross
 import com.paycross.sdk.PayCrossEnvironment
 import com.paycross.sdk.R
 import com.paycross.sdk.internal.api.JwtClaims
+import com.paycross.sdk.internal.api.models.FieldDefinition
+import com.paycross.sdk.internal.api.models.FieldGroup
 import com.paycross.sdk.internal.api.models.SaveCardConfig
 import com.paycross.sdk.internal.api.models.SavedCard
 import com.paycross.sdk.internal.api.models.SavedCardsConfig
 import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.ui.components.CardNumberField
+import com.paycross.sdk.internal.ui.components.FieldGroupsSection
 import com.paycross.sdk.internal.ui.components.SavedCardSelector
 import com.paycross.sdk.internal.util.UiText
 import org.junit.Assert.assertEquals
@@ -301,6 +304,102 @@ class SheetAccessibilityTest {
             string(R.string.paycross_cancel_payment_title),
             config.getOrNull(SemanticsProperties.PaneTitle)
         )
+    }
+
+    @Test
+    fun aMerchantFieldIsNamedByItsLabelAndSaysThatItIsRequired() {
+        setFieldGroups()
+
+        val config = compose.onNodeWithTag(TestTags.field("customer_info", "email"))
+            .fetchSemanticsNode().config
+
+        // The label without the marker the sheet draws beside it: an asterisk in
+        // the name is read out as "star", which names nothing.
+        assertEquals(
+            listOf("Email address"),
+            config.getOrNull(SemanticsProperties.ContentDescription)
+        )
+        assertEquals(
+            string(R.string.paycross_field_required_state),
+            config.getOrNull(SemanticsProperties.StateDescription)
+        )
+    }
+
+    @Test
+    fun anOptionalMerchantFieldIsNamedWithoutBeingCalledRequired() {
+        setFieldGroups()
+
+        val config = compose.onNodeWithTag(TestTags.field("customer_info", "phone"))
+            .fetchSemanticsNode().config
+
+        assertEquals(
+            listOf("Phone number"),
+            config.getOrNull(SemanticsProperties.ContentDescription)
+        )
+        assertEquals(null, config.getOrNull(SemanticsProperties.StateDescription))
+    }
+
+    @Test
+    fun anInvalidMerchantFieldCarriesTheMessageTheServerSentAsItsError() {
+        setFieldGroups(errors = mapOf("customer_info|email" to UiText.Raw("Email address is required")))
+
+        val config = compose.onNodeWithTag(TestTags.field("customer_info", "email"))
+            .fetchSemanticsNode().config
+
+        // The merchant's own sentence, not Material's generic "Invalid input":
+        // the field sets the property before the text field underneath it does,
+        // and the first one on a node is the one that survives the merge.
+        assertEquals("Email address is required", config.getOrNull(SemanticsProperties.Error))
+        compose.onNodeWithTag(
+            TestTags.fieldError("customer_info", "email"),
+            useUnmergedTree = true
+        ).assertIsDisplayed()
+    }
+
+    private val merchantGroups = listOf(
+        FieldGroup(
+            key = "customer_info",
+            label = "Your details",
+            fields = listOf(
+                FieldDefinition(
+                    name = "email",
+                    type = "email",
+                    label = "Email address",
+                    placeholder = null,
+                    required = true,
+                    readonly = false,
+                    value = null,
+                    condition = null,
+                    options = null,
+                    validation = null
+                ),
+                FieldDefinition(
+                    name = "phone",
+                    type = "tel",
+                    label = "Phone number",
+                    placeholder = null,
+                    required = false,
+                    readonly = false,
+                    value = null,
+                    condition = null,
+                    options = null,
+                    validation = null
+                )
+            )
+        )
+    )
+
+    private fun setFieldGroups(errors: Map<String, UiText> = emptyMap()) {
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "en", merchantLocale = null) {
+                FieldGroupsSection(
+                    groups = merchantGroups,
+                    values = emptyMap(),
+                    errors = errors,
+                    onValueChange = { _, _, _ -> }
+                )
+            }
+        }
     }
 
     private companion object {

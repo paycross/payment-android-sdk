@@ -73,7 +73,7 @@ class FieldGroupLogicTest {
 
         val errors = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("country" to "germany")),
+            mapOf("billing_address" to mapOf("country" to "de")),
             language = "en"
         )
 
@@ -100,7 +100,7 @@ class FieldGroupLogicTest {
 
         val errors = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("post_code" to "not digits")),
+            mapOf("billing_address" to mapOf("post_code" to "abc")),
             language = "en"
         )
 
@@ -144,7 +144,7 @@ class FieldGroupLogicTest {
 
         val badPattern = FieldGroupLogic.validate(
             groups,
-            mapOf("billing_address" to mapOf("country" to "germany")),
+            mapOf("billing_address" to mapOf("country" to "de")),
             language = "en"
         )
         assertEquals(UiText.Raw("Code pays sur deux lettres"), badPattern.single().message)
@@ -307,5 +307,94 @@ class FieldGroupLogicTest {
         assertTrue(
             FieldGroupLogic.submissionValues(groups, mapOf("customer_info" to mapOf("email" to " "))).isEmpty()
         )
+    }
+
+    @Test
+    fun `a value at the max_length passes and one over it carries the merchant's message`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "customer_info",
+                label = null,
+                fields = listOf(
+                    field(
+                        "email",
+                        validation = FieldValidation(
+                            pattern = null,
+                            maxLength = 254,
+                            messages = mapOf("max_length" to "Maximum 254 characters"),
+                            messagesI18n = mapOf(
+                                "en" to mapOf("max_length" to "Maximum 254 characters"),
+                                "fr" to mapOf("max_length" to "Maximum 254 caractères")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val atTheLimit = mapOf("customer_info" to mapOf("email" to "a".repeat(254)))
+        assertTrue(FieldGroupLogic.validate(groups, atTheLimit, language = "fr").isEmpty())
+
+        val overIt = mapOf("customer_info" to mapOf("email" to "a".repeat(255)))
+        assertEquals(
+            UiText.Raw("Maximum 254 caractères"),
+            FieldGroupLogic.validate(groups, overIt, language = "fr").single().message
+        )
+        assertEquals(
+            UiText.Raw("Maximum 254 characters"),
+            FieldGroupLogic.validate(groups, overIt, language = "en").single().message
+        )
+    }
+
+    @Test
+    fun `an over-length field with no server message names the SDK's own string`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "customer_info",
+                label = null,
+                fields = listOf(
+                    field(
+                        "email",
+                        validation = FieldValidation(pattern = null, maxLength = 4, messages = null)
+                    ).copy(labels = mapOf("en" to "Email address", "fr" to "Adresse e-mail"))
+                )
+            )
+        )
+        val values = mapOf("customer_info" to mapOf("email" to "12345"))
+
+        // The limit is an argument like the label, and a rendered string like the
+        // label: a raw Int would be punctuated by the resources' own locale.
+        assertEquals(
+            UiText.Resource(R.string.paycross_field_too_long, listOf("Adresse e-mail", "4")),
+            FieldGroupLogic.validate(groups, values, language = "fr").single().message
+        )
+    }
+
+    @Test
+    fun `an over-length value is reported once, not again for its pattern`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "customer_info",
+                label = null,
+                fields = listOf(
+                    field(
+                        "email",
+                        validation = FieldValidation(
+                            pattern = "^[0-9]+$",
+                            maxLength = 4,
+                            messages = mapOf("max_length" to "Too long", "pattern" to "Digits only")
+                        )
+                    )
+                )
+            )
+        )
+
+        val errors = FieldGroupLogic.validate(
+            groups,
+            mapOf("customer_info" to mapOf("email" to "not digits")),
+            language = "en"
+        )
+
+        assertEquals(UiText.Raw("Too long"), errors.single().message)
     }
 }

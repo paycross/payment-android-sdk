@@ -46,11 +46,13 @@
     <string name="paycross_error_submission_failed">Échec de l\'envoi du paiement</string>
     <string name="paycross_field_required">Champ obligatoire : %1$s</string>
     <string name="paycross_field_invalid">Champ non valide : %1$s</string>
+    <string name="paycross_field_too_long">Champ trop long : %1$s (%2$s caractères maximum)</string>
 
     <!-- Spoken labels -->
     <string name="paycross_card_number_field">Saisie du numéro de carte</string>
     <string name="paycross_expiry_field">Saisie de la date d\'expiration</string>
     <string name="paycross_cvv_field">Saisie du CVV</string>
     <string name="paycross_cardholder_name_field">Saisie du nom du titulaire</string>
+    <string name="paycross_field_required_state">Obligatoire</string>
 
 </resources>

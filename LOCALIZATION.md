@@ -99,6 +99,11 @@ has no translation for keeps the string the session came with, and so does a
 session minted before the backend published the translations. A field with no
 label at all is still named, after its wire key.
 
+A required field's label is drawn with a ` *` after it, the marker the hosted
+checkout page and the iOS SDK both draw. The marker is not spoken — a screen
+reader would read it as "star" — so a merchant field is announced by its label
+alone, and `paycross_field_required_state` says that it is required.
+
 What gets submitted does not change with the language. A select sends the
 option's `value`, never the label drawn over it.
 
@@ -184,8 +189,9 @@ button with no amount on it, and `paycross_saved_card_expires` carries two.
 | `paycross_error_submission_failed` | Payment submission failed | The server refused the submit and sent no message of its own |
 | `paycross_field_required` | `%1$s` is required | A merchant-configured field left empty. `%1$s` is the field's label |
 | `paycross_field_invalid` | `%1$s` is invalid | A merchant-configured field that failed its pattern |
+| `paycross_field_too_long` | `%1$s` must be `%2$s` characters or fewer | A merchant-configured field over its `max_length`. `%2$s` is the limit, rendered before it is passed |
 
-Two of these are last resorts. When the server sends a message of its own — a
+Three of these are last resorts. When the server sends a message of its own — a
 rejected submit, or a field group's own validation message — that message is
 shown instead, exactly as the server wrote it. The SDK never translates one. A
 field group's messages arrive in every language the backend has them in, so the
@@ -201,6 +207,7 @@ Read by TalkBack, not drawn on screen.
 | `paycross_expiry_field` | Expiry date input | The expiry field |
 | `paycross_cvv_field` | CVV input | The CVV field |
 | `paycross_cardholder_name_field` | Cardholder name input | The cardholder field |
+| `paycross_field_required_state` | Required | Said after a merchant-configured field's name when that field is required |
 
 ## What is not translated here
 
