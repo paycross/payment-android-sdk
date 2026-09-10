@@ -2,6 +2,7 @@ package com.paycross.sdk.internal.ui
 
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -120,12 +121,19 @@ class CardFieldErrorTest {
         compose.onNodeWithTag(TestTags.PAY_BUTTON).performClick()
     }
 
+    /**
+     * [ComposeTestRule.waitForIdle] rather than leaving each caller to its own
+     * synchronisation: the three tests that tap Pay get it for free, because
+     * driving a node waits for the composition first, and the one test that only
+     * reads a node was left racing the activity launch on a slow runner.
+     */
     private fun renderSheet(sessionLocale: String) {
         compose.setContent {
             PayCrossLocalization(sessionLocale = sessionLocale, merchantLocale = null) {
                 CardFormScreen(claims = claims, sessionData = null, onSubmit = { _, _ -> })
             }
         }
+        compose.waitForIdle()
     }
 }
 

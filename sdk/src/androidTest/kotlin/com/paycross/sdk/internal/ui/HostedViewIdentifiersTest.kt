@@ -12,14 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertHeightIsEqualTo
-import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onChildren
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -87,7 +85,7 @@ class HostedViewIdentifiersTest {
                     onComplete = {},
                     onError = {},
                     modifier = Modifier
-                        .size(320.dp)
+                        .size(CHALLENGE_SIZE)
                         .testTag(TestTags.THREE_DS)
                 )
             }
@@ -95,13 +93,19 @@ class HostedViewIdentifiersTest {
         compose.waitForIdle()
         assertCanaryIsPublished()
 
+        val measured = awaitHostedViewLayout(TestTags.THREE_DS)
         assertTagIsOnAWrapper(TestTags.THREE_DS)
+
         // What propagateMinConstraints buys: the WebView measures to the size the
         // caller asked of the wrapper, rather than to whatever it prefers inside
         // a 0..320dp box.
-        hostedViewUnder(TestTags.THREE_DS)
-            .assertWidthIsEqualTo(320.dp)
-            .assertHeightIsEqualTo(320.dp)
+        val expected = with(compose.density) { CHALLENGE_SIZE.roundToPx() }
+        assertEquals(
+            "the WebView hosted under ${TestTags.THREE_DS} measured " +
+                "${measured.width}x${measured.height}px inside a ${expected}px box",
+            IntSize(expected, expected),
+            measured
+        )
 
         assertEquals(
             "paycross.threeDS is in the semantics tree and not in the accessibility " +
@@ -185,9 +189,45 @@ class HostedViewIdentifiersTest {
             .assertCountEquals(1)
     }
 
-    /** The hosted Android view's own node, below the wrapper carrying [tag]. */
-    private fun hostedViewUnder(tag: String): SemanticsNodeInteraction =
-        compose.onNodeWithTag(tag, useUnmergedTree = true).onChildren().onFirst()
+    /**
+     * The size the hosted Android view settles at, once the view system has laid
+     * it out.
+     *
+     * [ComposeTestRule.waitForIdle] waits on the composition. A hosted view is
+     * measured by the view system afterwards, so the wrapper can still be
+     * childless, or carry a 0x0 child, at the moment Compose reports itself
+     * idle. On an unloaded machine the two land close enough together to hide
+     * that; on a busy one they do not, which is the whole of the flake this
+     * replaces.
+     *
+     * Reading the children as a list rather than through [onFirst] is what makes
+     * the wait safe to run before the child exists: an empty list is a state to
+     * poll again, not an exception.
+     */
+    private fun awaitHostedViewLayout(tag: String): IntSize {
+        var size = IntSize.Zero
+        try {
+            compose.waitUntil(LAYOUT_TIMEOUT_MILLIS) {
+                size = hostedViewSize(tag)
+                size != IntSize.Zero
+            }
+        } catch (timeout: ComposeTimeoutException) {
+            throw AssertionError(
+                "the WebView hosted under $tag was still ${size.width}x${size.height}px " +
+                    "after $LAYOUT_TIMEOUT_MILLIS ms, so the view system had not laid it out",
+                timeout
+            )
+        }
+        return size
+    }
+
+    private fun hostedViewSize(tag: String): IntSize =
+        compose.onNodeWithTag(tag, useUnmergedTree = true)
+            .onChildren()
+            .fetchSemanticsNodes()
+            .firstOrNull()
+            ?.size
+            ?: IntSize.Zero
 
     private fun assertCanaryIsPublished() {
         assertEquals(
@@ -239,5 +279,10 @@ class HostedViewIdentifiersTest {
         const val BLANK_PAGE = "data:text/html,%3Chtml%3E%3C%2Fhtml%3E"
 
         const val CANARY = "paycross.test.canary"
+
+        /** Named once so the box asked for and the size asserted cannot drift apart. */
+        val CHALLENGE_SIZE = 320.dp
+
+        const val LAYOUT_TIMEOUT_MILLIS = 5_000L
     }
 }
