@@ -104,8 +104,17 @@ checkout page and the iOS SDK both draw. The marker is not spoken — a screen
 reader would read it as "star" — so a merchant field is announced by its label
 alone, and `paycross_field_required_state` says that it is required.
 
+A group the merchant has opened up — one a payment can go through without — is
+drawn behind a switch, and the switch is captioned by the group's own label in
+the sheet's language. No `paycross_` key names it: the merchant has already named
+the thing being declined, in every language the session carries it in, and a
+caption of the SDK's beside theirs would put two names on one row. A group with
+no label at all falls back to its wire key, the way a nameless field falls back
+to its own.
+
 What gets submitted does not change with the language. A select sends the
-option's `value`, never the label drawn over it.
+option's `value`, never the label drawn over it. A select showing its prompt has
+chosen nothing and sends nothing.
 
 ## Overriding a string
 
@@ -190,8 +199,17 @@ button with no amount on it, and `paycross_saved_card_expires` carries two.
 | `paycross_field_required` | `%1$s` is required | A merchant-configured field left empty. `%1$s` is the field's label |
 | `paycross_field_invalid` | `%1$s` is invalid | A merchant-configured field that failed its pattern |
 | `paycross_field_too_long` | `%1$s` must be `%2$s` characters or fewer | A merchant-configured field over its `max_length`. `%2$s` is the limit, rendered before it is passed |
+| `paycross_card_number_invalid` | Enter a valid card number | Under the card number field once Pay has been tapped on an invalid one |
+| `paycross_expiry_invalid` | Enter a valid expiry date | Under the expiry field, same moment |
+| `paycross_cvv_invalid` | Enter a valid CVV | Under the CVV field, same moment, and under the CVV asked for a stored card |
+| `paycross_cardholder_name_invalid` | Enter the cardholder name | Under the cardholder field, same moment |
 
-Three of these are last resorts. When the server sends a message of its own — a
+The four card messages are the SDK's own copy and have no server-supplied
+counterpart: the card is validated on the device before anything is sent. Each
+is drawn under its field and set as that input's error, so it reaches a shopper
+reading the screen and a shopper being read to.
+
+Three of the field-group messages are last resorts. When the server sends a message of its own — a
 rejected submit, or a field group's own validation message — that message is
 shown instead, exactly as the server wrote it. The SDK never translates one. A
 field group's messages arrive in every language the backend has them in, so the
@@ -211,10 +229,11 @@ Read by TalkBack, not drawn on screen.
 
 ## What is not translated here
 
-- **The invalid-field announcement** on a card field is Material's own
-  `default_error_message`, borrowed deliberately. Compose ships it in about forty
-  languages, which is more than this SDK does, so a shopper outside `en` and `fr`
-  still hears it in their own. Do not declare a `paycross_` key for it.
+- **Material's `default_error_message`**, the generic invalid-field
+  announcement, is still set under every field the sheet marks invalid, and no
+  shopper reaches it: each of those fields now attaches its own sentence over it,
+  and the specific one wins. It stays as the floor under a field put in error
+  with nothing of its own to say. Do not declare a `paycross_` key for it.
 - **Merchant-configured field groups** — their labels, placeholders, option names
   and validation messages come from the payment session and are the merchant's
   own text. The sheet chooses between the translations the session carries; it

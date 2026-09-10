@@ -9,6 +9,46 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
 
 ## [Unreleased]
 
+### Added
+
+- **A group the shopper may skip is offered rather than enforced.** A merchant
+  can open a field group up so a payment goes through without it — a shipping
+  address a shopper does not want to give — and the sheet had no way of knowing,
+  so it demanded every required field in the group and left the shopper inventing
+  an address to get past it. Such a group now draws a switch captioned by the
+  merchant's own label for it, off to begin with. While it is off the group's
+  fields are not drawn, not checked, and left out of the submission entirely,
+  prefilled values included. Turned on, it behaves exactly like any other group.
+  A group the merchant has not opened up is unaffected.
+- **Card fields say what is wrong with them.** An invalid card number, expiry,
+  CVV or cardholder name now draws a sentence under the field and carries the
+  same sentence as the input's error, in the sheet's language — until now the
+  only sign was a red outline, which tells a screen reader nothing and does not
+  distinguish an empty expiry from an impossible month. The merchant's own field
+  groups have named their errors since 0.8.4; the card fields now match them.
+
+### Fixed
+
+- **A select's prompt is drawn before the shopper touches it.** The prompt
+  reached the field through Material's placeholder, which paints only over a
+  field that is both empty and focused — and a select can never be both, because
+  tapping one opens the picker. So the prompt only ever appeared after the
+  shopper had already seen the options. It is now the field's own text until an
+  option replaces it, drawn from the first render, in the sheet's language and
+  in the placeholder's colour — Material floats its label off an occupied box,
+  so a prompt at full contrast would have left an untouched select looking
+  answered. Nothing is submitted for a select showing its prompt, and the name a
+  screen reader reads is still the field's label.
+- **A read-only field looks and announces itself as one.** It refused input
+  correctly and said so nowhere: same border, same background and a node a screen
+  reader announced as an ordinary editable field, plus — when the merchant left
+  it empty — a placeholder inviting exactly the text it was about to discard. It
+  now takes the theme's muted container, border and label, drops the caret and
+  the placeholder, and announces itself as unwritable, while its value stays at
+  full contrast. A read-only select drops its dropdown arrow and its prompt too:
+  a prompt to choose is an invitation, and that one has nothing to open. One
+  consequence worth knowing: the value can no longer be selected and copied.
+
 ## [0.8.4] - 2026-09-09
 
 ### Added

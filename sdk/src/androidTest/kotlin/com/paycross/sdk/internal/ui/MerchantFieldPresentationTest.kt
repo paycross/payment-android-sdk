@@ -1,5 +1,7 @@
 package com.paycross.sdk.internal.ui
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -11,6 +13,7 @@ import com.google.gson.Gson
 import com.paycross.sdk.internal.api.models.FieldGroup
 import com.paycross.sdk.internal.api.models.SessionResponse
 import com.paycross.sdk.internal.ui.components.FieldGroupsSection
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -129,19 +132,61 @@ class MerchantFieldPresentationTest {
     }
 
     @Test
-    fun anUnsetSelectDrawsItsPlaceholderInTheSheetsLanguage() {
+    fun anUnsetSelectDrawsItsPromptWithNothingTappedFirst() {
         renderGroups(sessionLocale = "fr")
 
-        // Material floats the label out of the box before it draws a placeholder
-        // underneath, and only a focused field does that — the same state the
-        // text fields' own placeholders appear in.
-        compose.onNodeWithTag(TestTags.field("billing_address", "country")).performClick()
-
-        compose.onNodeWithText("Sélectionnez un pays...", useUnmergedTree = true).assertIsDisplayed()
+        // No interaction before the assertion, which is the whole point. Material
+        // paints a placeholder only over a field that is empty AND focused, and a
+        // select can never be both — tapping one opens the picker. So the prompt
+        // is the field's own displayed text until an option replaces it.
+        compose.onNodeWithTag(TestTags.field("billing_address", "country"))
+            .assertTextContains("Sélectionnez un pays...")
     }
 
     @Test
-    fun aSelectWithAChoiceDrawsTheChoiceRatherThanThePlaceholder() {
+    fun theSelectsPromptIsDrawnInWhicheverLanguageTheSheetChose() {
+        renderGroups(sessionLocale = "en")
+
+        compose.onNodeWithTag(TestTags.field("billing_address", "country"))
+            .assertTextContains("Select a country...")
+    }
+
+    @Test
+    fun openingThePickerWritesNothingAndPickingWritesTheValue() {
+        val changes = mutableListOf<Triple<String, String, String>>()
+        renderGroups(sessionLocale = "en", onValueChange = { g, f, v -> changes += Triple(g, f, v) })
+
+        // Opening the picker is not answering it: the prompt sits in the value
+        // slot the whole time and the slot is all it is.
+        compose.onNodeWithTag(TestTags.field("billing_address", "country")).performClick()
+        compose.onNodeWithText("Latvia").assertIsDisplayed()
+        assertEquals(emptyList<Triple<String, String, String>>(), changes)
+
+        compose.onNodeWithText("Latvia").performClick()
+
+        // And what a pick writes is the option's wire value, never the label
+        // drawn over it — which is the half of this that can go wrong now that
+        // a label occupies the same slot a prompt did a moment ago.
+        assertEquals(listOf(Triple("billing_address", "country", "LV")), changes)
+    }
+
+    @Test
+    fun aPromptIsNotTheSelectsName() {
+        renderGroups(sessionLocale = "en")
+
+        // The prompt is drawn where the answer will be and is still not the name
+        // a screen reader reads, which stays the field's own label.
+        assertEquals(
+            listOf("Country"),
+            compose.onNodeWithTag(TestTags.field("billing_address", "country"))
+                .fetchSemanticsNode()
+                .config
+                .getOrNull(SemanticsProperties.ContentDescription)
+        )
+    }
+
+    @Test
+    fun aSelectWithAChoiceDrawsTheChoiceRatherThanThePrompt() {
         renderGroups(
             sessionLocale = "fr",
             values = mapOf("billing_address" to mapOf("country" to "LV"))
@@ -149,15 +194,13 @@ class MerchantFieldPresentationTest {
 
         val country = compose.onNodeWithTag(TestTags.field("billing_address", "country"))
         country.assertTextContains("Lettonie")
-
-        // Focused, the state a placeholder would be drawn in if one were passed.
-        country.performClick()
         compose.onNodeWithText("Sélectionnez un pays...", useUnmergedTree = true).assertDoesNotExist()
     }
 
     private fun renderGroups(
         sessionLocale: String,
-        values: Map<String, Map<String, String>> = emptyMap()
+        values: Map<String, Map<String, String>> = emptyMap(),
+        onValueChange: (String, String, String) -> Unit = { _, _, _ -> }
     ) {
         compose.setContent {
             PayCrossLocalization(sessionLocale = sessionLocale, merchantLocale = null) {
@@ -165,7 +208,9 @@ class MerchantFieldPresentationTest {
                     groups = groups,
                     values = values,
                     errors = emptyMap(),
-                    onValueChange = { _, _, _ -> }
+                    optedInGroups = emptySet(),
+                    onOptInChange = { _, _ -> },
+                    onValueChange = onValueChange
                 )
             }
         }

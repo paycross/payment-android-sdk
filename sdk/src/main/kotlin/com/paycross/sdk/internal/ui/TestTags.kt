@@ -101,13 +101,28 @@ internal object TestTags {
     fun field(group: String, name: String): String = "paycross.field.$group.$name"
 
     /**
+     * The toggle over a group the shopper may decline as a whole. Named for the
+     * group rather than built with [field], because it is not one of the
+     * merchant's fields and shares no namespace with them: a group whose key
+     * collided with a field name would otherwise produce one identifier twice.
+     */
+    fun groupOptIn(group: String): String = "paycross.group.$group.optIn"
+
+    /**
      * A field's validation message. It sits inside the field's own merged node,
      * so a Compose test reads it from the unmerged tree — but it keeps its own
      * resource id in a UiAutomator dump, which is where the sheet's validation
      * messages were read from when this was last measured. The field's `error`
      * state carries the same sentence, for anything reading semantics instead.
      */
-    fun fieldError(group: String, name: String): String = "${field(group, name)}.error"
+    fun fieldError(group: String, name: String): String = errorFor(field(group, name))
+
+    /**
+     * The validation message under any tagged field, the merchant's and the
+     * SDK's card fields alike. One suffix so a merchant writes one selector rule
+     * rather than learning two.
+     */
+    fun errorFor(tag: String): String = "$tag.error"
 }
 
 /**

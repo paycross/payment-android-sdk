@@ -70,10 +70,21 @@ internal data class GooglePayConfig(
     @SerializedName("billing_address_required") val billingAddressRequired: Boolean?
 )
 
+/**
+ * One section of the merchant's form.
+ *
+ * [optIn] marks a group the shopper may decline as a whole - a shipping address
+ * they do not want to give. The backend accepts a payment whose submission omits
+ * such a group even when every field in it is configured required, so the sheet
+ * offers it behind a toggle rather than enforcing it. It arrives only on the
+ * groups the merchant opened up, so an absent member reads as not opt-in, which
+ * is also what a session minted before the flag existed reads as.
+ */
 internal data class FieldGroup(
     val key: String,
     val label: String?,
     @SerializedName("labels") val labels: Map<String, String>? = null,
+    @SerializedName("opt_in") val optIn: Boolean? = null,
     val fields: List<FieldDefinition>?
 )
 

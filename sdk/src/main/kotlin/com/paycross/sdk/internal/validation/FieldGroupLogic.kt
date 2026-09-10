@@ -49,6 +49,14 @@ internal object FieldGroupLogic {
         )
     }
 
+    /**
+     * Whether the shopper has left an opt-in group switched off. A group with no
+     * opt-in flag is never declined, however [optedInGroups] is spelled, so a
+     * caller that knows nothing about the toggle keeps today's behaviour.
+     */
+    fun isDeclined(group: FieldGroup, optedInGroups: Set<String>): Boolean =
+        group.optIn == true && group.key !in optedInGroups
+
     fun initialValues(groups: List<FieldGroup>): Map<String, Map<String, String>> {
         return groups.associate { group ->
             group.key to (group.fields.orEmpty()
@@ -67,11 +75,13 @@ internal object FieldGroupLogic {
     fun validate(
         groups: List<FieldGroup>,
         values: Map<String, Map<String, String>>,
-        language: String
+        language: String,
+        optedInGroups: Set<String> = emptySet()
     ): List<FieldGroupError> {
         val errors = mutableListOf<FieldGroupError>()
 
         for (group in groups) {
+            if (isDeclined(group, optedInGroups)) continue
             val groupValues = values[group.key].orEmpty()
             for (field in group.fields.orEmpty()) {
                 val state = computeFieldState(field, groupValues)
@@ -133,12 +143,19 @@ internal object FieldGroupLogic {
     /**
      * Values to submit under `field_groups`: visible fields with non-blank
      * values, empty groups dropped.
+     *
+     * A declined opt-in group is dropped by name rather than by being empty.
+     * The trailing filter would already drop one the shopper never typed into,
+     * but not one the session prefilled - and a group the shopper declined must
+     * not reach the wire with the merchant's own prefill standing in for a
+     * choice they did not make.
      */
     fun submissionValues(
         groups: List<FieldGroup>,
-        values: Map<String, Map<String, String>>
+        values: Map<String, Map<String, String>>,
+        optedInGroups: Set<String> = emptySet()
     ): Map<String, Map<String, String>> {
-        return groups.associate { group ->
+        return groups.filterNot { isDeclined(it, optedInGroups) }.associate { group ->
             val groupValues = values[group.key].orEmpty()
             group.key to group.fields.orEmpty()
                 .filter { computeFieldState(it, groupValues).visible }

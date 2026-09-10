@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -19,21 +20,40 @@ private const val MAX_CARD_NUMBER_LENGTH = 19
 private const val EXPIRY_LENGTH = 4
 
 /**
- * The spoken label and the identifier, on the node that merges the field.
+ * The spoken label, the identifier, and what is wrong with the field, on the
+ * node that merges it.
  *
  * The merge is stated here rather than left to [PayCrossOutlinedTextField]'s
  * label branch because this is where it matters: a contentDescription on an
  * unmerged field would speak instead of the label and the error the decoration
  * box sets, not alongside them.
+ *
+ * [message] is set here rather than left to [PayCrossOutlinedTextField], whose
+ * `error` is Material's generic sentence: peer semantics on a node collapse
+ * outermost-first, so the specific message only survives if it is attached on
+ * the modifier passed in. The merchant field inputs carry the same note.
  */
-private fun Modifier.fieldSemantics(description: String, tag: String): Modifier =
-    this.testTag(tag).semantics(mergeDescendants = true) { contentDescription = description }
+private fun Modifier.fieldSemantics(description: String, tag: String, message: String?): Modifier =
+    this.testTag(tag).semantics(mergeDescendants = true) {
+        contentDescription = description
+        if (message != null) error(message)
+    }
+
+/**
+ * The message under a card field. Tagged so it keeps a resource id of its own in
+ * a device dump, where it sits inside the field's merged node and would
+ * otherwise be unaddressable.
+ */
+@Composable
+private fun CardErrorText(tag: String, message: String) {
+    Text(text = message, modifier = Modifier.testTag(TestTags.errorFor(tag)))
+}
 
 @Composable
 internal fun CardNumberField(
     value: String,
     modifier: Modifier = Modifier,
-    isError: Boolean = false,
+    error: String? = null,
     onValueChange: (String) -> Unit
 ) {
     val description = pcStringResource(R.string.paycross_card_number_field)
@@ -49,7 +69,8 @@ internal fun CardNumberField(
             }
         },
         label = { Text(pcStringResource(R.string.paycross_card_number)) },
-        isError = isError,
+        isError = error != null,
+        supportingText = error?.let { { CardErrorText(TestTags.CARD_NUMBER, it) } },
         visualTransformation = CardNumberVisualTransformation,
         // NumberPassword, not Number: the framework treats the password variation
         // as a password input type, and EditorInfo then refuses to hand the field's
@@ -59,7 +80,7 @@ internal fun CardNumberField(
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .fieldSemantics(description, TestTags.CARD_NUMBER)
+            .fieldSemantics(description, TestTags.CARD_NUMBER, error)
     )
 }
 
@@ -67,7 +88,7 @@ internal fun CardNumberField(
 internal fun ExpiryField(
     value: String,
     modifier: Modifier = Modifier,
-    isError: Boolean = false,
+    error: String? = null,
     onValueChange: (String) -> Unit
 ) {
     val description = pcStringResource(R.string.paycross_expiry_field)
@@ -80,11 +101,12 @@ internal fun ExpiryField(
             }
         },
         label = { Text(pcStringResource(R.string.paycross_expiry_label)) },
-        isError = isError,
+        isError = error != null,
+        supportingText = error?.let { { CardErrorText(TestTags.EXPIRY, it) } },
         visualTransformation = ExpiryVisualTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
-        modifier = modifier.fieldSemantics(description, TestTags.EXPIRY)
+        modifier = modifier.fieldSemantics(description, TestTags.EXPIRY, error)
     )
 }
 
@@ -93,7 +115,7 @@ internal fun CvvField(
     value: String,
     cardType: CardType,
     modifier: Modifier = Modifier,
-    isError: Boolean = false,
+    error: String? = null,
     onValueChange: (String) -> Unit
 ) {
     val description = pcStringResource(R.string.paycross_cvv_field)
@@ -106,11 +128,12 @@ internal fun CvvField(
             }
         },
         label = { Text(pcStringResource(R.string.paycross_cvv)) },
-        isError = isError,
+        isError = error != null,
+        supportingText = error?.let { { CardErrorText(TestTags.CVV, it) } },
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
-        modifier = modifier.fieldSemantics(description, TestTags.CVV)
+        modifier = modifier.fieldSemantics(description, TestTags.CVV, error)
     )
 }
 
@@ -118,7 +141,7 @@ internal fun CvvField(
 internal fun CardholderNameField(
     value: String,
     modifier: Modifier = Modifier,
-    isError: Boolean = false,
+    error: String? = null,
     onValueChange: (String) -> Unit
 ) {
     val description = pcStringResource(R.string.paycross_cardholder_name_field)
@@ -128,10 +151,11 @@ internal fun CardholderNameField(
         value = value,
         onValueChange = { onValueChange(it.uppercase()) },
         label = { Text(pcStringResource(R.string.paycross_cardholder_name)) },
-        isError = isError,
+        isError = error != null,
+        supportingText = error?.let { { CardErrorText(TestTags.CARDHOLDER_NAME, it) } },
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .fieldSemantics(description, TestTags.CARDHOLDER_NAME)
+            .fieldSemantics(description, TestTags.CARDHOLDER_NAME, error)
     )
 }

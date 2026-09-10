@@ -229,6 +229,8 @@ class FrenchSheetTest {
                     groups = requiredEmail,
                     values = emptyMap(),
                     errors = emptyMap(),
+                    optedInGroups = emptySet(),
+                    onOptInChange = { _, _ -> },
                     onValueChange = { _, _, _ -> }
                 )
             }
