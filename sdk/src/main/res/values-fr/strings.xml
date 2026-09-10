@@ -47,6 +47,10 @@
     <string name="paycross_field_required">Champ obligatoire : %1$s</string>
     <string name="paycross_field_invalid">Champ non valide : %1$s</string>
     <string name="paycross_field_too_long">Champ trop long : %1$s (%2$s caractères maximum)</string>
+    <string name="paycross_card_number_invalid">Entrez un numéro de carte valide</string>
+    <string name="paycross_expiry_invalid">Entrez une date d\'expiration valide</string>
+    <string name="paycross_cvv_invalid">Entrez un CVV valide</string>
+    <string name="paycross_cardholder_name_invalid">Entrez le nom du titulaire</string>
 
     <!-- Spoken labels -->
     <string name="paycross_card_number_field">Saisie du numéro de carte</string>

@@ -634,6 +634,7 @@ Each entry in `field_groups` represents a section of the checkout form.
 | `key` | string | Group identifier (see Field Groups below) |
 | `label` | string | Display label for the group, in the session's `locale` |
 | `labels` | object | The same label in every language the backend has it in, keyed by language tag (see Translated Strings below) |
+| `opt_in` | bool | Present and `true` only on a group the shopper may decline as a whole. A submission that omits such a group is accepted even when every field in it is `required`; the group's own validation loop is skipped when it is absent. Omitted on every other group |
 | `display` | string | Display mode: `expanded` (open by default) or `collapsed` (closed) |
 | `fields` | array | Ordered list of fields to render |
 
@@ -689,6 +690,8 @@ Groups are ordered by sort priority. Only groups with at least one visible field
 | `customer_info` | `email`, `phone`, `full_name` | expanded | 1 |
 | `billing_address` | `line1`, `line2`, `city`, `state`, `postal_code`, `country` | expanded | 2 |
 | `shipping_address` | `line1`, `line2`, `city`, `state`, `postal_code`, `country` | collapsed | 3 |
+
+A group carrying `opt_in` is drawn by the SDKs behind a switch that starts off, and while it is off the group is omitted from `field_groups` in the submission — including any `value` the session prefilled it with.
 
 Fields with `display: hidden` in merchant configuration are omitted from the response. Select fields (e.g., `country`) may have a restricted set of options configured per merchant.
 

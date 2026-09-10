@@ -140,7 +140,11 @@ class SheetAccessibilityTest {
     @Test
     fun anInvalidCardFieldSpeaksItsLabelAndItsErrorTogether() {
         setContent {
-            CardNumberField(value = "4", isError = true, onValueChange = {})
+            CardNumberField(
+                value = "4",
+                error = string(R.string.paycross_card_number_invalid),
+                onValueChange = {}
+            )
         }
 
         val config = compose.onNodeWithTag(TestTags.CARD_NUMBER).fetchSemanticsNode().config
@@ -167,7 +171,7 @@ class SheetAccessibilityTest {
     @Test
     fun aValidCardFieldCarriesNoErrorState() {
         setContent {
-            CardNumberField(value = "4532015112830366", isError = false, onValueChange = {})
+            CardNumberField(value = "4532015112830366", onValueChange = {})
         }
 
         val config = compose.onNodeWithTag(TestTags.CARD_NUMBER).fetchSemanticsNode().config
@@ -396,6 +400,8 @@ class SheetAccessibilityTest {
                     groups = merchantGroups,
                     values = emptyMap(),
                     errors = errors,
+                    optedInGroups = emptySet(),
+                    onOptInChange = { _, _ -> },
                     onValueChange = { _, _, _ -> }
                 )
             }

@@ -397,4 +397,93 @@ class FieldGroupLogicTest {
 
         assertEquals(UiText.Raw("Too long"), errors.single().message)
     }
+
+    @Test
+    fun `an opt-in group the shopper left off is not validated`() {
+        val groups = listOf(optInShipping(), requiredBilling())
+
+        val errors = FieldGroupLogic.validate(
+            groups,
+            values = emptyMap(),
+            language = "en",
+            optedInGroups = emptySet()
+        )
+
+        // Only billing. The shopper who does not want to give a shipping address
+        // is not asked for one, and the backend would take the payment without it.
+        assertEquals(listOf("billing_address"), errors.map { it.groupKey }.distinct())
+    }
+
+    @Test
+    fun `an opt-in group the shopper turned on is validated like any other`() {
+        val groups = listOf(optInShipping())
+
+        val errors = FieldGroupLogic.validate(
+            groups,
+            values = emptyMap(),
+            language = "en",
+            optedInGroups = setOf("shipping_address")
+        )
+
+        assertEquals(listOf("city", "line1"), errors.map { it.fieldName })
+    }
+
+    @Test
+    fun `a group with no opt-in flag is validated whether or not it is named`() {
+        val groups = listOf(requiredBilling())
+
+        assertEquals(
+            2,
+            FieldGroupLogic.validate(groups, emptyMap(), "en", optedInGroups = emptySet()).size
+        )
+        assertEquals(
+            2,
+            FieldGroupLogic.validate(groups, emptyMap(), "en", optedInGroups = setOf("billing_address")).size
+        )
+    }
+
+    @Test
+    fun `an opt-in group left off is dropped from the submission, prefill and all`() {
+        val groups = listOf(
+            FieldGroup(
+                key = "shipping_address",
+                label = "Shipping",
+                optIn = true,
+                fields = listOf(field("city", value = "Riga"))
+            )
+        )
+        val values = FieldGroupLogic.initialValues(groups)
+
+        // The prefill is real - initialValues picked it up - so this is the case
+        // filterValues cannot catch: a group with values in it that must still
+        // not reach the wire, because the shopper never asked for it.
+        assertEquals(mapOf("shipping_address" to mapOf("city" to "Riga")), values)
+        assertTrue(
+            FieldGroupLogic.submissionValues(groups, values, optedInGroups = emptySet()).isEmpty()
+        )
+    }
+
+    @Test
+    fun `an opt-in group turned on is submitted like any other`() {
+        val groups = listOf(optInShipping())
+        val values = mapOf("shipping_address" to mapOf("line1" to "1 Rue de Rivoli", "city" to "Paris"))
+
+        assertEquals(
+            values,
+            FieldGroupLogic.submissionValues(groups, values, optedInGroups = setOf("shipping_address"))
+        )
+    }
+
+    private fun optInShipping() = FieldGroup(
+        key = "shipping_address",
+        label = "Shipping",
+        optIn = true,
+        fields = listOf(field("city", required = true), field("line1", required = true))
+    )
+
+    private fun requiredBilling() = FieldGroup(
+        key = "billing_address",
+        label = "Billing",
+        fields = listOf(field("city", required = true), field("line1", required = true))
+    )
 }

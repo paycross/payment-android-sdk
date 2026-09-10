@@ -693,4 +693,39 @@ class ContractSerializationTest {
         javaEnabled = false,
         javascriptEnabled = true
     )
+
+    @Test
+    fun `a field group carries opt_in, and a group without it reads as not opt-in`() {
+        // The flag arrives on the group the merchant let the shopper skip and
+        // nowhere else, so an absent member is the ordinary case rather than an
+        // old session - both readings have to be the same one: not opt-in.
+        val json = """
+            {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": "open",
+              "data": {
+                "field_groups": [
+                  {
+                    "key": "billing_address",
+                    "label": "Billing address",
+                    "labels": {"en": "Billing address", "fr": "Adresse de facturation"},
+                    "fields": [{"name": "city", "type": "text", "label": "City", "required": true}]
+                  },
+                  {
+                    "key": "shipping_address",
+                    "label": "Shipping address",
+                    "labels": {"en": "Shipping address", "fr": "Adresse de livraison"},
+                    "opt_in": true,
+                    "fields": [{"name": "city", "type": "text", "label": "City", "required": true}]
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val groups = gson.fromJson(json, SessionResponse::class.java).data!!.fieldGroups!!
+
+        assertNull(groups[0].optIn)
+        assertEquals(true, groups[1].optIn)
+    }
 }

@@ -1,5 +1,6 @@
 package com.paycross.sdk.internal.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -133,8 +134,13 @@ internal fun CardFormScreen(
     var fieldValuesFlat by rememberSaveable {
         mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))
     }
+    // The groups the shopper has asked to fill in. Held as a list because saved
+    // instance state is a Bundle and a Set is not something a Bundle holds —
+    // the same reason the values above are kept flat.
+    var optedInList by rememberSaveable { mutableStateOf(ArrayList<String>()) }
 
     val fieldValues = remember(fieldValuesFlat) { unflattenValues(fieldValuesFlat) }
+    val optedInGroups = remember(optedInList) { optedInList.toSet() }
     val selectedSavedCard by remember(selectedSavedCardUuid, savedCards) {
         derivedStateOf { savedCards.find { it.uuid == selectedSavedCardUuid } }
     }
@@ -177,8 +183,8 @@ internal fun CardFormScreen(
         cvvCardType = cvvCardType
     )
     val language = LocalPayCrossLanguage.current
-    val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat, language) {
-        FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat), language)
+    val fieldGroupErrors = remember(fieldGroups, fieldValuesFlat, optedInList, language) {
+        FieldGroupLogic.validate(fieldGroups, unflattenValues(fieldValuesFlat), language, optedInGroups)
             .associate { "${it.groupKey}|${it.fieldName}" to it.message }
     }
 
@@ -209,7 +215,9 @@ internal fun CardFormScreen(
                         // guard — the sheet closes on resolve while settlement is
                         // still polling and the button stays on screen.
                         if (!isLoading && fieldGroupErrors.isEmpty()) {
-                            onGooglePay(FieldGroupLogic.submissionValues(fieldGroups, fieldValues))
+                            onGooglePay(
+                                FieldGroupLogic.submissionValues(fieldGroups, fieldValues, optedInGroups)
+                            )
                         }
                     }
                 )
@@ -262,6 +270,12 @@ internal fun CardFormScreen(
                     groups = fieldGroups,
                     values = fieldValues,
                     errors = if (showFieldErrors) fieldGroupErrors else emptyMap(),
+                    optedInGroups = optedInGroups,
+                    onOptInChange = { group, optedIn ->
+                        optedInList = ArrayList(
+                            if (optedIn) optedInGroups + group else optedInGroups - group
+                        )
+                    },
                     onValueChange = { group, field, value ->
                         fieldValuesFlat = HashMap(fieldValuesFlat).apply { put("$group|$field", value) }
                     }
@@ -282,7 +296,7 @@ internal fun CardFormScreen(
                 if (validation.isValid && fieldGroupErrors.isEmpty()) {
                     onSubmit(
                         buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard),
-                        FieldGroupLogic.submissionValues(fieldGroups, fieldValues)
+                        FieldGroupLogic.submissionValues(fieldGroups, fieldValues, optedInGroups)
                     )
                     // Drop the form's reference once it is handed over; the CVV
                     // has no further use in the UI after submission.
@@ -330,21 +344,21 @@ private fun NewCardForm(
 ) {
     CardNumberField(
         value = cardNumber,
-        isError = showErrors && !validation.isCardNumberValid,
+        error = cardFieldError(showErrors, validation.isCardNumberValid, R.string.paycross_card_number_invalid),
         onValueChange = onCardNumberChange
     )
 
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         ExpiryField(
             value = expiry,
-            isError = showErrors && !validation.isExpiryValid,
+            error = cardFieldError(showErrors, validation.isExpiryValid, R.string.paycross_expiry_invalid),
             onValueChange = onExpiryChange,
             modifier = Modifier.weight(1f)
         )
         CvvField(
             value = cvv,
             cardType = cardType,
-            isError = showErrors && !validation.isCvvValid,
+            error = cardFieldError(showErrors, validation.isCvvValid, R.string.paycross_cvv_invalid),
             onValueChange = onCvvChange,
             modifier = Modifier.weight(1f)
         )
@@ -352,7 +366,7 @@ private fun NewCardForm(
 
     CardholderNameField(
         value = cardholderName,
-        isError = showErrors && !validation.isNameValid,
+        error = cardFieldError(showErrors, validation.isNameValid, R.string.paycross_cardholder_name_invalid),
         onValueChange = onCardholderNameChange
     )
 
@@ -360,6 +374,18 @@ private fun NewCardForm(
         SaveCardCheckbox(checked = saveCard, onCheckedChange = onSaveCardChange)
     }
 }
+
+/**
+ * The sentence under a card field, or null while the field has nothing to answer
+ * for.
+ *
+ * One message per field rather than one per way of being wrong: [FormValidation]
+ * knows which of the four the shopper has to go back to, and that is what the
+ * red outline was already failing to say.
+ */
+@Composable
+private fun cardFieldError(showErrors: Boolean, valid: Boolean, @StringRes message: Int): String? =
+    if (showErrors && !valid) pcStringResource(message) else null
 
 /**
  * The toggle is on the row, not on the box: a bare [Checkbox] carries no label
@@ -404,7 +430,7 @@ private fun SavedCardCvvInput(
     CvvField(
         value = cvv,
         cardType = cvvCardType,
-        isError = showErrors && !isCvvValid,
+        error = cardFieldError(showErrors, isCvvValid, R.string.paycross_cvv_invalid),
         onValueChange = onCvvChange,
         modifier = Modifier.widthIn(min = SAVED_CARD_CVV_MIN_WIDTH)
     )

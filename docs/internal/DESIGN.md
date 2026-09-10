@@ -771,8 +771,13 @@ submit, and a field group's `required` and `pattern` messages. A server's
 sentence is never translated, because there is no way to know what language it is
 already in.
 
-Material's `default_error_message`, borrowed for the invalid-field announcement,
-stays borrowed. Compose ships it in about forty languages; this SDK ships two.
+Material's `default_error_message` is still what `PayCrossOutlinedTextField` sets
+on an invalid field, and nothing reaches it any more: every field that can be in
+error — the four card fields and the merchant's own — now attaches its own
+sentence on the modifier passed in, and peer semantics collapse outermost-first,
+so the specific message wins. It stays as the floor under a field put in error
+with nothing to say, and as a compile-time reference that fails the build if a
+Compose release drops the string rather than degrading the sheet quietly.
 
 ### The amount is not clamped
 

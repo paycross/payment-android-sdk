@@ -52,6 +52,12 @@
     <string name="paycross_field_invalid">%1$s is invalid</string>
     <!-- %2$s is a count, rendered before it gets here: see UiText.Resource. -->
     <string name="paycross_field_too_long">%1$s must be %2$s characters or fewer</string>
+    <!-- One per card field. The validator knows which of the four is wrong; the
+         red outline was already saying that much and nothing more. -->
+    <string name="paycross_card_number_invalid">Enter a valid card number</string>
+    <string name="paycross_expiry_invalid">Enter a valid expiry date</string>
+    <string name="paycross_cvv_invalid">Enter a valid CVV</string>
+    <string name="paycross_cardholder_name_invalid">Enter the cardholder name</string>
 
     <!-- Spoken labels -->
     <string name="paycross_card_number_field">Card number input</string>

@@ -36,6 +36,17 @@ private val LABEL_TOP_PADDING = 8.sp
 /**
  * Material's outlined text field, reassembled from the pieces Material exposes.
  *
+ * [locked] and [readOnly] are not the same thing and must not be collapsed into
+ * one. [readOnly] is Compose's input plumbing and a select sets it always, since
+ * a select is chosen from rather than typed into. [locked] says the shopper
+ * cannot change this value at all, and is what paints the field as such: it
+ * takes Material's disabled container, border and label, and with them the
+ * caret, the click action and the focusability, so the field stops inviting the
+ * keystrokes it was going to discard and announces itself as unwritable. The
+ * value itself stays at full contrast, because it is the reason the field is on
+ * the sheet — the inner text takes its colour from [textStyle] here rather than
+ * from the decoration box's colour set, so muting the box does not mute it.
+ *
  * [androidx.compose.material3.OutlinedTextField] takes a shape and a colour set
  * but no border thickness, and [OutlinedTextFieldDefaults.Container] is the only
  * seam that carries one. Reaching it means driving the decoration box directly,
@@ -62,6 +73,7 @@ internal fun PayCrossOutlinedTextField(
     supportingText: @Composable (() -> Unit)? = null,
     isError: Boolean = false,
     readOnly: Boolean = false,
+    locked: Boolean = false,
     singleLine: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
@@ -116,6 +128,7 @@ internal fun PayCrossOutlinedTextField(
                     minWidth = OutlinedTextFieldDefaults.MinWidth,
                     minHeight = OutlinedTextFieldDefaults.MinHeight
                 ),
+            enabled = !locked,
             readOnly = readOnly,
             textStyle = textStyle.merge(TextStyle(color = textColor)),
             keyboardOptions = keyboardOptions,
@@ -128,7 +141,7 @@ internal fun PayCrossOutlinedTextField(
                 OutlinedTextFieldDefaults.DecorationBox(
                     value = value,
                     innerTextField = innerTextField,
-                    enabled = true,
+                    enabled = !locked,
                     singleLine = singleLine,
                     visualTransformation = visualTransformation,
                     interactionSource = interactionSource,
@@ -140,7 +153,7 @@ internal fun PayCrossOutlinedTextField(
                     colors = colors,
                     container = {
                         OutlinedTextFieldDefaults.Container(
-                            enabled = true,
+                            enabled = !locked,
                             isError = isError,
                             interactionSource = interactionSource,
                             colors = colors,
