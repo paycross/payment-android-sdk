@@ -47,7 +47,7 @@ payment.launch(sessionToken)
   languages, saved cards, Google Pay, test identifiers and accessibility.
 - **[API reference](https://developers.pay-cross.com/reference/android/)** — every public type.
 - **[Changelog](https://developers.pay-cross.com/resources/changelogs/android/)** —
-  mirrored from [`CHANGELOG.md`](CHANGELOG.md).
+  built from this repo's [`CHANGELOG.md`](CHANGELOG.md) at the latest released version.
 - **[Support](https://developers.pay-cross.com/resources/support/)** — questions go to support@pay-cross.com.
 
 The SDK's internals and its wire contract with the PayCross backend are written
