@@ -52,8 +52,8 @@ internal fun FieldGroupsSection(
     values: Map<String, Map<String, String>>,
     errors: Map<String, UiText>,
     optedInGroups: Set<String>,
-    modifier: Modifier = Modifier,
     onOptInChange: (group: String, optedIn: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
     onValueChange: (group: String, field: String, value: String) -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -262,6 +262,10 @@ private fun SelectField(
     val options = field.options.orEmpty()
     val chosenLabel = options.find { it.value == value }?.localizedLabel(language) ?: value
     val prompt = field.localizedPlaceholder(language)
+    // Not on a locked select, for the reason a locked text field draws no
+    // placeholder either: a prompt to choose is an invitation, and this one has
+    // nothing to open.
+    val showsPrompt = chosenLabel.isEmpty() && !state.readonly && !prompt.isNullOrEmpty()
 
     ExposedDropdownMenuBox(
         expanded = expanded && !state.readonly,
@@ -273,10 +277,12 @@ private fun SelectField(
             // is empty AND focused, and a select can never be both: tapping one
             // opens the picker, so the prompt only ever appeared after the
             // shopper had seen the options and no longer needed telling to pick.
-            // Drawn here it is where the chosen label will be, from first render.
+            // Drawn here it is where the chosen label will be, from first render,
+            // and in the placeholder's colour so it does not read as a choice.
             // It is text, not a value: nothing is submitted until an option is
             // picked, and the accessible name below stays the bare label.
-            value = chosenLabel.ifEmpty { prompt.orEmpty() },
+            value = if (showsPrompt) prompt.orEmpty() else chosenLabel,
+            valueIsPrompt = showsPrompt,
             onValueChange = {},
             readOnly = true,
             locked = state.readonly,

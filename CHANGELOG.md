@@ -34,16 +34,19 @@ Releases before 0.3.2 predate this file; they are recorded as `v*` git tags.
   field that is both empty and focused — and a select can never be both, because
   tapping one opens the picker. So the prompt only ever appeared after the
   shopper had already seen the options. It is now the field's own text until an
-  option replaces it, drawn from the first render, in the sheet's language.
-  Nothing is submitted for a select showing its prompt, and the name a screen
-  reader reads is still the field's label.
+  option replaces it, drawn from the first render, in the sheet's language and
+  in the placeholder's colour — Material floats its label off an occupied box,
+  so a prompt at full contrast would have left an untouched select looking
+  answered. Nothing is submitted for a select showing its prompt, and the name a
+  screen reader reads is still the field's label.
 - **A read-only field looks and announces itself as one.** It refused input
   correctly and said so nowhere: same border, same background and a node a screen
   reader announced as an ordinary editable field, plus — when the merchant left
   it empty — a placeholder inviting exactly the text it was about to discard. It
   now takes the theme's muted container, border and label, drops the caret and
   the placeholder, and announces itself as unwritable, while its value stays at
-  full contrast. A read-only select also drops the dropdown arrow. One
+  full contrast. A read-only select drops its dropdown arrow and its prompt too:
+  a prompt to choose is an invitation, and that one has nothing to open. One
   consequence worth knowing: the value can no longer be selected and copied.
 
 ## [0.8.4] - 2026-09-09

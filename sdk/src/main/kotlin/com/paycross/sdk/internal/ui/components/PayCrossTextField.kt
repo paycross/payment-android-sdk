@@ -47,6 +47,12 @@ private val LABEL_TOP_PADDING = 8.sp
  * the sheet — the inner text takes its colour from [textStyle] here rather than
  * from the decoration box's colour set, so muting the box does not mute it.
  *
+ * [valueIsPrompt] is for the one caller that has to put a prompt where a value
+ * goes: a select, which cannot use the placeholder slot because Material paints
+ * that slot only over a field that is empty and focused, and a select opens its
+ * picker instead of focusing. Saying so here keeps the prompt in the placeholder
+ * colour, so a select nobody has answered does not read as answered.
+ *
  * [androidx.compose.material3.OutlinedTextField] takes a shape and a colour set
  * but no border thickness, and [OutlinedTextFieldDefaults.Container] is the only
  * seam that carries one. Reaching it means driving the decoration box directly,
@@ -74,6 +80,7 @@ internal fun PayCrossOutlinedTextField(
     isError: Boolean = false,
     readOnly: Boolean = false,
     locked: Boolean = false,
+    valueIsPrompt: Boolean = false,
     singleLine: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
@@ -100,6 +107,11 @@ internal fun PayCrossOutlinedTextField(
     val textColor = textStyle.color.takeOrElse {
         when {
             isError -> colors.errorTextColor
+            // The value slot is carrying a prompt rather than an answer, so it
+            // takes the colour the placeholder slot would have given it. A
+            // merchant who branded that colour keeps it on the prompt it used to
+            // apply to, and the prompt stops reading as a choice already made.
+            valueIsPrompt -> placeholderColor.takeOrElse { colors.unfocusedPlaceholderColor }
             focused -> colors.focusedTextColor
             else -> colors.unfocusedTextColor
         }

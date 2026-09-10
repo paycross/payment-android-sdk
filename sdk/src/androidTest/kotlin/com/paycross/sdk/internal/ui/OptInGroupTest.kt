@@ -189,6 +189,48 @@ class OptInGroupTest {
         assertEquals(mapOf("billing_address" to mapOf("city" to "Riga")), submitted)
     }
 
+    /**
+     * Errors on a declined group are gone because they were never stored.
+     *
+     * They are derived inside a `remember` keyed on the toggle, so turning the
+     * group off recomputes them away and turning it back on brings them back
+     * without a second tap on Pay. That last step is the one worth asserting:
+     * a fix that merely cleared the errors would pass the first half and fail here.
+     */
+    @Test
+    fun decliningAGroupAfterAFailedSubmitTakesItsErrorsWithIt() {
+        PayCross.init(environment = PayCrossEnvironment.STAGING)
+        compose.setContent {
+            PayCrossLocalization(sessionLocale = "en", merchantLocale = null) {
+                CardFormScreen(claims = claims, sessionData = sessionData, onSubmit = { _, _ -> })
+            }
+        }
+
+        val toggle = { compose.onNodeWithTag(TestTags.groupOptIn("shipping_address")) }
+        val shippingError = { compose.onNodeWithTag(shippingLine1Error, useUnmergedTree = true) }
+        val billingError = { compose.onNodeWithTag(billingCityError, useUnmergedTree = true) }
+
+        toggle().performScrollTo().performClick()
+        compose.onNodeWithTag(TestTags.PAY_BUTTON).performClick()
+
+        shippingError().assertExists()
+        billingError().assertExists()
+
+        toggle().performScrollTo().performClick()
+
+        shippingError().assertDoesNotExist()
+        // The group beside it is untouched: the recompute is scoped to the group
+        // that moved, not a blanket clear of everything the submit turned up.
+        billingError().assertExists()
+
+        toggle().performScrollTo().performClick()
+
+        shippingError().assertExists()
+    }
+
+    private val shippingLine1Error = TestTags.fieldError("shipping_address", "line1")
+    private val billingCityError = TestTags.fieldError("billing_address", "city")
+
     private val claims = JwtClaims(
         sessionId = "session-123",
         merchantId = "merchant-456",

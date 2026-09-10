@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.gson.Gson
 import com.paycross.sdk.internal.api.models.FieldGroup
@@ -151,13 +152,30 @@ class MerchantFieldPresentationTest {
     }
 
     @Test
-    fun aPromptIsNotASelectionAndIsNotTheSelectsName() {
+    fun openingThePickerWritesNothingAndPickingWritesTheValue() {
         val changes = mutableListOf<Triple<String, String, String>>()
         renderGroups(sessionLocale = "en", onValueChange = { g, f, v -> changes += Triple(g, f, v) })
 
-        // Drawn in the value slot, and still not a value: nothing was chosen, so
-        // nothing is submitted and the name a screen reader reads is the label.
+        // Opening the picker is not answering it: the prompt sits in the value
+        // slot the whole time and the slot is all it is.
+        compose.onNodeWithTag(TestTags.field("billing_address", "country")).performClick()
+        compose.onNodeWithText("Latvia").assertIsDisplayed()
         assertEquals(emptyList<Triple<String, String, String>>(), changes)
+
+        compose.onNodeWithText("Latvia").performClick()
+
+        // And what a pick writes is the option's wire value, never the label
+        // drawn over it — which is the half of this that can go wrong now that
+        // a label occupies the same slot a prompt did a moment ago.
+        assertEquals(listOf(Triple("billing_address", "country", "LV")), changes)
+    }
+
+    @Test
+    fun aPromptIsNotTheSelectsName() {
+        renderGroups(sessionLocale = "en")
+
+        // The prompt is drawn where the answer will be and is still not the name
+        // a screen reader reads, which stays the field's own label.
         assertEquals(
             listOf("Country"),
             compose.onNodeWithTag(TestTags.field("billing_address", "country"))
