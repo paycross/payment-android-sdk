@@ -28,7 +28,7 @@ version = providers.gradleProperty("paycrossVersion").getOrElse("0.1.0-SNAPSHOT"
 
 android {
     namespace = "com.paycross.sdk"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
@@ -179,23 +179,24 @@ signing {
 
 dependencies {
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    implementation(platform("androidx.compose:compose-bom:2026.06.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     // api, not implementation: ActivityResultContract is the public supertype of
     // PayCrossContract and @ColorInt appears in PayCross.init's signature, so both
     // must be on the consumer's compile classpath.
-    api("androidx.activity:activity-compose:1.8.2")
-    api("androidx.annotation:annotation:1.7.1")
-    implementation("androidx.core:core-ktx:1.12.0")
+    api("androidx.activity:activity-compose:1.13.0")
+    api("androidx.annotation:annotation:1.11.0")
+    implementation("androidx.core:core-ktx:1.18.0")
 
     // Lifecycle
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.10.0")
 
     // Networking
     // Retrofit 2.11+, not 2.9: 2.9 predates OkHttp 5, and Gradle resolves to the
@@ -210,10 +211,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Google Pay. The sheet, IsReadyToPay, the ActivityResult contract and the
-    // official PayButton view all come from this one artifact. The Compose
-    // wrapper (com.google.pay.button:compose-pay-button) is deliberately not
-    // used: 1.1.0 drags androidx.core 1.15.0, whose AAR metadata demands
-    // compileSdk 35 while this project pins 34.
+    // official PayButton view all come from this one artifact.
     implementation("com.google.android.gms:play-services-wallet:20.0.0")
 
     // Coroutines
@@ -225,7 +223,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.14.11")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.06.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
