@@ -32,6 +32,7 @@ buildscript {
         "com.google.protobuf:protobuf-java:3.25.9",
         "com.google.protobuf:protobuf-java-util:3.25.9",
         "com.google.protobuf:protobuf-kotlin:3.25.9",
+        "com.google.guava:guava:33.7.2-jre",
         "com.fasterxml.jackson.core:jackson-annotations:2.18.12",
         "com.fasterxml.jackson.core:jackson-core:2.18.12",
         "com.fasterxml.jackson.core:jackson-databind:2.18.12",
@@ -41,8 +42,8 @@ buildscript {
     )
 
     fun isOlder(version: String, floor: String): Boolean {
-        val a = version.split('.').map { it.toIntOrNull() ?: 0 }
-        val b = floor.split('.').map { it.toIntOrNull() ?: 0 }
+        val a = version.split('.').map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
+        val b = floor.split('.').map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
         for (i in 0 until maxOf(a.size, b.size)) {
             val x = a.getOrElse(i) { 0 }
             val y = b.getOrElse(i) { 0 }
