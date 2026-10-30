@@ -75,7 +75,7 @@ buildscript {
 
 plugins {
     id("com.android.application") version "8.13.2" apply false
-    id("com.android.library") version "8.13.2" apply false
+    id("com.android.library") version "9.5.0" apply false
     // Kotlin 2.x is not optional. Any dependency compiled against Kotlin 2.x
     // metadata - OkHttp 5 among them - is unreadable to a 1.9 compiler, and the
     // Flutter plugin templates a merchant would consume this from are themselves
