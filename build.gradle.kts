@@ -8,37 +8,37 @@ buildscript {
     // listed release when something asks for an older one, never lowered; drop
     // entries as AGP catches up.
     fun patchedBuildDeps(): List<String> = listOf(
-        "io.netty:netty-buffer:4.1.139.Final",
-        "io.netty:netty-codec:4.1.139.Final",
-        "io.netty:netty-codec-http:4.1.139.Final",
-        "io.netty:netty-codec-http2:4.1.139.Final",
-        "io.netty:netty-codec-socks:4.1.139.Final",
-        "io.netty:netty-common:4.1.139.Final",
-        "io.netty:netty-handler:4.1.139.Final",
-        "io.netty:netty-handler-proxy:4.1.139.Final",
-        "io.netty:netty-resolver:4.1.139.Final",
-        "io.netty:netty-transport:4.1.139.Final",
-        "io.netty:netty-transport-native-unix-common:4.1.139.Final",
+        "io.netty:netty-buffer:4.2.19.Final",
+        "io.netty:netty-codec:4.2.19.Final",
+        "io.netty:netty-codec-http:4.2.19.Final",
+        "io.netty:netty-codec-http2:4.2.19.Final",
+        "io.netty:netty-codec-socks:4.2.19.Final",
+        "io.netty:netty-common:4.2.19.Final",
+        "io.netty:netty-handler:4.2.19.Final",
+        "io.netty:netty-handler-proxy:4.2.19.Final",
+        "io.netty:netty-resolver:4.2.19.Final",
+        "io.netty:netty-transport:4.2.19.Final",
+        "io.netty:netty-transport-native-unix-common:4.2.19.Final",
         "org.bouncycastle:bcprov-jdk18on:1.86",
         "org.bouncycastle:bcpkix-jdk18on:1.86",
         "org.bouncycastle:bcutil-jdk18on:1.86",
         "org.bouncycastle:bcpg-jdk18on:1.86",
         "org.apache.commons:commons-compress:1.28.0",
-        "commons-io:commons-io:2.16.1",
+        "commons-io:commons-io:2.22.0",
         "org.jdom:jdom2:2.0.6.1",
         "org.bitbucket.b_c:jose4j:0.9.7",
         "org.freemarker:freemarker:2.3.35",
         "org.jsoup:jsoup:1.23.2",
-        "com.google.protobuf:protobuf-java:3.25.9",
-        "com.google.protobuf:protobuf-java-util:3.25.9",
-        "com.google.protobuf:protobuf-kotlin:3.25.9",
+        "com.google.protobuf:protobuf-java:4.36.2",
+        "com.google.protobuf:protobuf-java-util:4.36.2",
+        "com.google.protobuf:protobuf-kotlin:4.36.2",
         "com.google.guava:guava:33.7.2-jre",
-        "com.fasterxml.jackson.core:jackson-annotations:2.18.12",
-        "com.fasterxml.jackson.core:jackson-core:2.18.12",
-        "com.fasterxml.jackson.core:jackson-databind:2.18.12",
-        "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.18.12",
-        "com.fasterxml.jackson:jackson-bom:2.18.12",
-        "com.fasterxml.jackson.module:jackson-module-kotlin:2.18.12",
+        "com.fasterxml.jackson.core:jackson-annotations:2.22",
+        "com.fasterxml.jackson.core:jackson-core:2.22",
+        "com.fasterxml.jackson.core:jackson-databind:2.22",
+        "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.22.4",
+        "com.fasterxml.jackson:jackson-bom:2.22.4",
+        "com.fasterxml.jackson.module:jackson-module-kotlin:2.22.4",
     )
 
     fun isOlder(version: String, floor: String): Boolean {
@@ -74,8 +74,8 @@ buildscript {
 }
 
 plugins {
-    id("com.android.application") version "8.13.2" apply false
-    id("com.android.library") version "8.13.2" apply false
+    id("com.android.application") version "9.5.0" apply false
+    id("com.android.library") version "9.5.0" apply false
     // Kotlin 2.x is not optional. Any dependency compiled against Kotlin 2.x
     // metadata - OkHttp 5 among them - is unreadable to a 1.9 compiler, and the
     // Flutter plugin templates a merchant would consume this from are themselves
@@ -84,7 +84,7 @@ plugins {
     // From Kotlin 2.0 the Compose compiler ships with Kotlin itself and is
     // applied as a plugin instead of pinned via composeOptions.
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
-    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1" apply false
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.2" apply false
     id("org.jetbrains.dokka") version "2.2.0" apply false
 }
 
