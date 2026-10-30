@@ -84,7 +84,7 @@ plugins {
     // From Kotlin 2.0 the Compose compiler ships with Kotlin itself and is
     // applied as a plugin instead of pinned via composeOptions.
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
-    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1" apply false
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.2" apply false
     id("org.jetbrains.dokka") version "2.2.0" apply false
 }
 
