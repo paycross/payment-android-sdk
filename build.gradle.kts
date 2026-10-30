@@ -42,8 +42,8 @@ buildscript {
     )
 
     fun isOlder(version: String, floor: String): Boolean {
-        val a = version.split('.').map { it.toIntOrNull() ?: 0 }
-        val b = floor.split('.').map { it.toIntOrNull() ?: 0 }
+        val a = version.split('.').map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
+        val b = floor.split('.').map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
         for (i in 0 until maxOf(a.size, b.size)) {
             val x = a.getOrElse(i) { 0 }
             val y = b.getOrElse(i) { 0 }
