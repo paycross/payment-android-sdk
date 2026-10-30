@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.paycross.demo"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.paycross.demo"
