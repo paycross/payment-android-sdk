@@ -73,6 +73,22 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "com.fasterxml.jackson*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Need AGP 9 and compileSdk 37: remove with the AGP 9 migration.
+      - dependency-name: "androidx.compose:compose-bom"
+        versions: ["[2026.08.00,)"]
+      - dependency-name: "androidx.core:core-ktx"
+        versions: ["[1.19.0,)"]
+      - dependency-name: "androidx.lifecycle:*"
+        versions: ["[2.11.0,)"]
+      - dependency-name: "com.android.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "gradle-wrapper"
+        update-types: ["version-update:semver-major"]
+      # Merchants inherit these: a major is a decision, not an update.
+      - dependency-name: "com.squareup.okhttp3:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.squareup.retrofit2:*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
