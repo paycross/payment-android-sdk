@@ -205,8 +205,8 @@ dependencies {
     // forcing okhttp 5.3.2 through the whole graph and rebuilding. Note the
     // Kotlin version above does the heavier lifting here - OkHttp 5 carries
     // Kotlin 2.2 metadata, which a 1.9 compiler cannot read at all.
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
