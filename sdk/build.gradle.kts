@@ -205,10 +205,10 @@ dependencies {
     // forcing okhttp 5.3.2 through the whole graph and rebuilding. Note the
     // Kotlin version above does the heavier lifting here - OkHttp 5 carries
     // Kotlin 2.2 metadata, which a 1.9 compiler cannot read at all.
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.12.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.12.0")
+    implementation("com.google.code.gson:gson:2.15.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.1")
 
     // Google Pay. The sheet, IsReadyToPay, the ActivityResult contract and the
     // official PayButton view all come from this one artifact.
@@ -225,6 +225,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.06.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
