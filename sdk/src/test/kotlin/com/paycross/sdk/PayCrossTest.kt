@@ -9,7 +9,7 @@ import org.junit.Test
 class PayCrossTest {
     @Before
     fun setup() {
-        PayCross.reset() // Reset state between tests
+        PayCross.reset()
     }
 
     @Test

@@ -14,18 +14,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Proves the merchant's own field copy follows the sheet's language, end to end:
- * a real session blob decoded by the real Gson, through the real locale ladder,
- * onto a rendered field group.
- *
- * The groups are the one part of the sheet whose words the SDK does not own. They
- * used to be drawn in whatever language the session was minted for, so a French
- * shopper on an English-minted session read a French sheet with an English
- * "Email address" in the middle of it. Nothing here re-translates them: the
- * session carries every language the backend has, and the sheet picks the one it
- * already resolved for its own strings.
- */
 @RunWith(AndroidJUnit4::class)
 class FieldGroupLanguageTest {
 
@@ -98,9 +86,6 @@ class FieldGroupLanguageTest {
     fun aFrenchSheetDrawsTheMerchantsFrenchLabels() {
         renderGroups(sessionLocale = "fr", groups = translated)
 
-        // Unmerged: a labelled field merges its descendants, so the label is a
-        // node of its own only before the merge. The marker on the required one
-        // is the label's, not another node; MerchantFieldPresentationTest owns it.
         compose.onNodeWithText("Vos coordonnées", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Adresse e-mail *", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Civilité", useUnmergedTree = true).assertIsDisplayed()
@@ -128,8 +113,6 @@ class FieldGroupLanguageTest {
     fun aPlaceholderIsDrawnInTheSheetsLanguage() {
         renderGroups(sessionLocale = "fr", groups = translated)
 
-        // The placeholder of a labelled field appears once the field has focus;
-        // before that the label is sitting where it would be drawn.
         compose.onNodeWithTag(TestTags.field("customer_info", "email")).performClick()
 
         compose.onNodeWithText("courriel@exemple.com", useUnmergedTree = true).assertIsDisplayed()

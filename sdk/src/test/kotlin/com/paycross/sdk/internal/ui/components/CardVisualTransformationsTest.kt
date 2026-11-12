@@ -5,10 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The caret lives in the mapping, so it is checked at every offset rather than
- * at the few a hand-written example would reach.
- */
 class CardVisualTransformationsTest {
 
     @Test
@@ -82,11 +78,9 @@ class CardVisualTransformationsTest {
     @Test
     fun `card number offsets for a 16 digit pan`() {
         val mapping = CardNumberOffsetMapping(16)
-        // "1234 5678 9012 3456" - one extra step at each of the three spaces.
         val expected = listOf(0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19)
         assertEquals(expected, (0..16).map { mapping.originalToTransformed(it) })
 
-        // Both sides of a space collapse onto the digit index before it.
         val back = listOf(0, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8, 9, 10, 11, 12, 12, 13, 14, 15, 16)
         assertEquals(back, (0..19).map { mapping.transformedToOriginal(it) })
     }
@@ -124,8 +118,6 @@ class CardVisualTransformationsTest {
 
     @Test
     fun `offsets outside the text are clamped rather than throwing`() {
-        // Compose queries the previous frame's mapping while the digit count is
-        // changing, and it treats an out-of-range result as a crash.
         val card = CardNumberOffsetMapping(16)
         assertEquals(0, card.originalToTransformed(-5))
         assertEquals(19, card.originalToTransformed(99))

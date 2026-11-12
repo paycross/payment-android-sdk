@@ -34,14 +34,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * The identifier contract, walked element by element.
- *
- * These strings are what a merchant's UI test types, and iOS publishes the same
- * ones, so a rename is a breaking change rather than a refactor. Asserting them
- * by their literal value rather than through [TestTags] is the point: a typo in
- * the constant would otherwise agree with itself.
- */
 @RunWith(AndroidJUnit4::class)
 class SheetIdentifiersTest {
 
@@ -99,20 +91,12 @@ class SheetIdentifiersTest {
             "paycross.errorBanner",
             "paycross.payButton"
         ).forEach { tag ->
-            // Exists, not displayed: the form scrolls, so on a short screen the
-            // lower half of the list is composed and off-screen. What a merchant
-            // needs is that the identifier is there to be found and scrolled to.
             compose.onNodeWithTag(tag).assertExists()
         }
     }
 
     @Test
     fun theWalletIdentifiersAreCarriedWhereGooglePayCanRender() {
-        // Guarded the way GooglePayButtonVisibilityTest guards the same path:
-        // Google's PayButton draws from the wallet AAR, and only a device with
-        // Play services ever reaches this state. Split out rather than folded
-        // into the walk above so that a GMS-less device skips these two ids
-        // instead of skipping the other thirteen with them.
         val gmsAvailable = GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(InstrumentationRegistry.getInstrumentation().targetContext)
         assumeTrue(gmsAvailable == ConnectionResult.SUCCESS)
@@ -130,11 +114,6 @@ class SheetIdentifiersTest {
         compose.onNodeWithTag("paycross.walletButton").assertExists()
         compose.onNodeWithTag("paycross.walletDivider").assertExists()
 
-        // The wallet tag hangs on a Compose wrapper rather than on Google's
-        // button, so that the identifier reaches a UiAutomator dump. A wrapper
-        // is only a usable handle if it keeps the button's own bounds — so this
-        // measures the button inside it. Measuring the wrapper would pass on its
-        // own explicit height while the button was free to shrink.
         compose.onNodeWithTag("paycross.walletButton", useUnmergedTree = true)
             .onChildren()
             .onFirst()
@@ -152,12 +131,8 @@ class SheetIdentifiersTest {
             )
         }
 
-        // Tapping Pay with an empty required field is what raises it.
         compose.onNodeWithTag("paycross.payButton").performClick()
 
-        // Unmerged: the message is the field's supporting text, and the field
-        // merges its descendants, so it has no node of its own once merged. A
-        // UiAutomator dump sees the field's error state instead.
         compose.onNodeWithTag("paycross.field.billing.city.error", useUnmergedTree = true)
             .assertExists()
     }
@@ -193,17 +168,6 @@ class SheetIdentifiersTest {
         assertPublishesItsTags("paycross.cancelDialog")
     }
 
-    /**
-     * A tag becomes a resource id in a UiAutomator dump only when the flag is
-     * set in the same window, and Compose stops looking at the semantics root it
-     * finds the node under. A dialog is a window of its own, so the sheet's copy
-     * of the flag does not reach it — and nothing else in this suite would
-     * notice, because the Compose test rule reads every window whether the flag
-     * is there or not.
-     *
-     * This asserts the flag, not the dump. Only the rig can see a dump, and the
-     * E2E driver task is where these six ids get exercised for real.
-     */
     @OptIn(ExperimentalComposeUiApi::class)
     private fun assertPublishesItsTags(tag: String) {
         assertEquals(

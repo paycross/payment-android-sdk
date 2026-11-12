@@ -42,8 +42,6 @@ class GooglePayRequestsTest {
         googlePay = googlePay
     )
 
-    // --- Gating: strict-false semantics, mirroring the web's walletVisibility ---
-
     @Test
     fun `session without wallets block is eligible for back-compat`() {
         assertTrue(GooglePayRequests.isSessionEligible(sessionData()))
@@ -100,8 +98,6 @@ class GooglePayRequestsTest {
         assertTrue(GooglePayRequests.isSessionEligible(sessionData(accountFunding = false)))
     }
 
-    // --- IsReadyToPay request ---
-
     @Test
     fun `isReadyToPay request carries only the base card method`() {
         val request = GooglePayRequests.buildIsReadyToPayRequest()
@@ -131,14 +127,11 @@ class GooglePayRequestsTest {
 
     @Test
     fun `isReadyToPay request never asks for billing address regardless of session config`() {
-        // The probe is built without session input at all; this pins the shape.
         val request = GooglePayRequests.buildIsReadyToPayRequest()
         val parameters = request.getAsJsonArray("allowedPaymentMethods")[0]
             .asJsonObject.getAsJsonObject("parameters")
         assertFalse(parameters.has("billingAddressRequired"))
     }
-
-    // --- PaymentData request ---
 
     private fun cardMethod(request: JsonObject): JsonObject =
         request.getAsJsonArray("allowedPaymentMethods")[0].asJsonObject
@@ -274,8 +267,6 @@ class GooglePayRequestsTest {
 
     @Test
     fun `the total line carries whatever label it was handed`() {
-        // Google draws this string to the shopper and does not translate it, so
-        // it arrives already resolved and this object must not second-guess it.
         val request = GooglePayRequests.buildPaymentDataRequest(
             claims(),
             sessionData(),
@@ -289,8 +280,7 @@ class GooglePayRequestsTest {
         )
     }
 
-    // The English value of paycross_total. The resource itself is resolved by the
-    // sheet, which has a Context; this object is handed the result.
+    // The English value of paycross_total.
     private companion object {
         const val TOTAL = "Total"
     }

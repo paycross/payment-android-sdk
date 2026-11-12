@@ -20,14 +20,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * What the sheet does when the shopper turns their text size up.
- *
- * Three times the default, not two: Android's accessibility font sizes stop at
- * 2×, but display size multiplies on top of them, and a control pinned to a
- * fixed size crops its label rather than growing. Both sizes here were fixed
- * before this test existed.
- */
 @RunWith(AndroidJUnit4::class)
 class FontScaleTest {
 
@@ -89,8 +81,6 @@ class FontScaleTest {
 
         val width = compose.onNodeWithTag(TestTags.CVV).fetchSemanticsNode().size.width
         val floor = with(compose.density) { 100.dp.roundToPx() }
-        // A fixed width(100.dp), which is what this replaced, would measure
-        // exactly the floor at every text size.
         assertTrue("CVV box was $width px, still pinned to $floor px", width > floor)
     }
 
@@ -105,9 +95,6 @@ class FontScaleTest {
             )
         }
 
-        // Between the two: never under the floor, and never Material's 280dp
-        // default width, which is what a field with no width modifier at all
-        // would take right across the sheet.
         val width = compose.onNodeWithTag(TestTags.CVV).fetchSemanticsNode().size.width
         val floor = with(compose.density) { 100.dp.roundToPx() }
         val materialDefault = with(compose.density) { 280.dp.roundToPx() }

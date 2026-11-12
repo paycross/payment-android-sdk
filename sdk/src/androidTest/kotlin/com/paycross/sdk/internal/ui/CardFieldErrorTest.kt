@@ -20,18 +20,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Locale
 
-/**
- * What a card field says when it is wrong.
- *
- * It said it in red and in nothing else: no sentence under the box, and nothing
- * on the input's semantics beyond Material's generic one — while the merchant's
- * own fields on the same sheet had been naming the problem since 0.8.4. Colour
- * on its own reaches neither a screen reader nor a shopper who cannot tell the
- * red from the black.
- *
- * Asserting the sentence rather than `isError` is the point. `isError` is what
- * these fields already had.
- */
 @RunWith(AndroidJUnit4::class)
 class CardFieldErrorTest {
 
@@ -83,11 +71,6 @@ class CardFieldErrorTest {
         )
     }
 
-    /**
-     * The keys above prove the sheet reaches values-fr; this pins what values-fr
-     * actually says, so a French shopper cannot end up reading English through a
-     * correctly-resolved key.
-     */
     @Test
     fun theFrenchExpiryMessageIsTheCopySheetsOwnSentence() {
         payWithAnEmptyForm(sessionLocale = "fr")
@@ -106,9 +89,6 @@ class CardFieldErrorTest {
     private fun assertMessage(tag: String, expected: String) {
         val config = compose.onNodeWithTag(tag).fetchSemanticsNode().config
 
-        // Both routes, because they reach different people: the sentence under
-        // the box for anyone reading the screen, and the same sentence as the
-        // input's error for anyone being read to.
         assertEquals("$tag carries the wrong error", expected, config.getOrNull(SemanticsProperties.Error))
         assertTrue(
             "$tag does not draw the message",
@@ -121,12 +101,6 @@ class CardFieldErrorTest {
         compose.onNodeWithTag(TestTags.PAY_BUTTON).performClick()
     }
 
-    /**
-     * [ComposeTestRule.waitForIdle] rather than leaving each caller to its own
-     * synchronisation: the three tests that tap Pay get it for free, because
-     * driving a node waits for the composition first, and the one test that only
-     * reads a node was left racing the activity launch on a slow runner.
-     */
     private fun renderSheet(sessionLocale: String) {
         compose.setContent {
             PayCrossLocalization(sessionLocale = sessionLocale, merchantLocale = null) {

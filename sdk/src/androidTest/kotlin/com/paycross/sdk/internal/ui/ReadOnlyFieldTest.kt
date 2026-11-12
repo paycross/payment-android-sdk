@@ -27,18 +27,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * What a locked field tells a shopper before they waste a keystroke on it.
- *
- * A read-only field already refused input correctly and said so nowhere: same
- * border, same background, a node a screen reader announced as an editable text
- * field, and — when the merchant left it empty — a placeholder inviting exactly
- * the input it was about to discard.
- *
- * The two fields compared here are configured identically apart from `readonly`,
- * down to sharing a label and a value, so anything that separates them on screen
- * is the locked state and nothing else.
- */
 @RunWith(AndroidJUnit4::class)
 class ReadOnlyFieldTest {
 
@@ -94,16 +82,9 @@ class ReadOnlyFieldTest {
         val locked = compose.onNodeWithTag(field("locked")).assertIsNotEnabled().fetchSemanticsNode()
         val editable = compose.onNodeWithTag(field("editable")).assertIsEnabled().fetchSemanticsNode()
 
-        // Disabled is the property the accessibility bridge reads to decide
-        // whether a node is announced as enabled, clickable and focusable, which
-        // is the trio a device dump showed a read-only field claiming. Compose
-        // leaves OnClick in the action list of a disabled node either way, so the
-        // click action is not the thing to assert on.
         assertEquals(false, locked.config.getOrNull(SemanticsProperties.IsEditable))
         assertEquals(true, editable.config.getOrNull(SemanticsProperties.IsEditable))
 
-        // And no way to change the text, offered to anything driving the node
-        // rather than tapping it.
         assertTrue("a locked field offers a way to set its text", SemanticsActions.SetText !in locked.config)
         assertTrue("the editable field lost its SetText action", SemanticsActions.SetText in editable.config)
     }
@@ -112,8 +93,6 @@ class ReadOnlyFieldTest {
     fun aLockedFieldStillShowsWhatIsInIt() {
         renderGroups()
 
-        // The value is the reason a locked field is on the sheet at all, so the
-        // muting stops short of it.
         compose.onNodeWithTag(field("locked")).assertTextContains("Riga")
     }
 
@@ -123,8 +102,6 @@ class ReadOnlyFieldTest {
 
         compose.onNodeWithText("10001", useUnmergedTree = true).assertDoesNotExist()
 
-        // Tapped as well as untouched: focus was the state that used to bring
-        // the hint out, on the one field guaranteed never to accept what it asks for.
         compose.onNodeWithTag(field("locked_empty")).performClick()
         compose.onNodeWithText("10001", useUnmergedTree = true).assertDoesNotExist()
     }
@@ -148,9 +125,6 @@ class ReadOnlyFieldTest {
             }
         }
 
-        // Deliberately not a colour constant. What must not regress is the two
-        // states looking identical; which muted role paints the border is a
-        // theme's business and changes with light and dark.
         val fraction = differing.toDouble() / (locked.width * locked.height)
         assertTrue("a locked field is painted exactly like an editable one", fraction > 0.01)
     }

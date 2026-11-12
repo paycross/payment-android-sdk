@@ -34,25 +34,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * The two identifiers that sit over a hosted Android view, read out of the
- * accessibility tree rather than the Compose semantics tree.
- *
- * The rest of the instrumented suite cannot see this class of bug. A tag on an
- * `AndroidView` is in a Compose test's tree and in no UiAutomator dump, because
- * the hosted view supplies its own accessibility node and `testTagsAsResourceId`
- * writes the resource id onto Compose's nodes only. #51 shipped green on that
- * blind spot and #54 is what it cost.
- *
- * These ask Compose's own accessibility provider for the node info it would hand
- * an accessibility client — which is where a dump's `resource-id` comes from —
- * rather than driving UiAutomator. UiAutomator reads whichever window is in
- * front, and on the CI emulator that is reliably something else.
- *
- * Each test reads a canary first: a plain `Text` under the same flag. If even
- * that has no resource id then the device is not publishing them at all and the
- * failure is about the device, which the message says.
- */
 @RunWith(AndroidJUnit4::class)
 class HostedViewIdentifiersTest {
 
@@ -78,8 +59,6 @@ class HostedViewIdentifiersTest {
     fun theThreeDsChallengeCarriesItsIdentifierWhereADumpReadsIt() {
         compose.setContent {
             PublishingWindow {
-                // The modifier PaymentActivity gives the challenge; the flag is
-                // set by the window above it there too.
                 ThreeDsWebView(
                     action = ThreeDsAction(url = BLANK_PAGE, method = "GET", data = null),
                     onComplete = {},
@@ -96,9 +75,6 @@ class HostedViewIdentifiersTest {
         val measured = awaitHostedViewLayout(TestTags.THREE_DS)
         assertTagIsOnAWrapper(TestTags.THREE_DS)
 
-        // What propagateMinConstraints buys: the WebView measures to the size the
-        // caller asked of the wrapper, rather than to whatever it prefers inside
-        // a 0..320dp box.
         val expected = with(compose.density) { CHALLENGE_SIZE.roundToPx() }
         assertEquals(
             "the WebView hosted under ${TestTags.THREE_DS} measured " +
@@ -118,18 +94,12 @@ class HostedViewIdentifiersTest {
 
     @Test
     fun theWalletButtonCarriesItsIdentifierWhereADumpReadsIt() {
-        // Guarded as GooglePayButtonVisibilityTest guards the same path: Google's
-        // PayButton draws from the wallet AAR and only a device with Play
-        // services ever reaches this state.
         val gmsAvailable = GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(InstrumentationRegistry.getInstrumentation().targetContext)
         assumeTrue(gmsAvailable == ConnectionResult.SUCCESS)
 
         compose.setContent {
             PublishingWindow {
-                // The whole screen rather than the section alone: Google's button
-                // is initialized from the payment methods the session allows, and
-                // a hand-written list is not what it is given in production.
                 CardFormScreen(
                     claims = claims,
                     sessionData = null,
@@ -152,58 +122,21 @@ class HostedViewIdentifiersTest {
         )
     }
 
-    /**
-     * Stands in for the sheet's root: one node, one flag, everything below it
-     * published. The flag is set here rather than on each subject because the
-     * fix is about which node carries the tag, not about spreading the flag —
-     * `TestTags` keeps it to one per window.
-     */
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     private fun PublishingWindow(content: @Composable () -> Unit) {
         Column(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
-            // Text, not an empty box: a node carrying nothing but a tag can be
-            // judged unimportant for accessibility and left out of the tree, and
-            // then the canary would be reporting on itself.
             Text(text = "canary", modifier = Modifier.testTag(CANARY))
             content()
         }
     }
 
-    /**
-     * The assertion that actually fails when the tag slides back onto the
-     * `AndroidView`, and the reason this class exists.
-     *
-     * Asking the accessibility provider for a node *by id* is not that
-     * assertion: it returns the resource id whether or not the node hosts a
-     * view, because the block that writes it never checks. What the defect
-     * breaks is reachability — a hosting node is replaced in its parent's child
-     * list by the view itself, so its own node is orphaned from the tree a dump
-     * walks. `AndroidViewHolder` carries semantics of its own, so the hosted
-     * view is a child of the wrapper once the tag is in the right place, and is
-     * the tagged node itself when it is not.
-     */
     private fun assertTagIsOnAWrapper(tag: String) {
         compose.onNodeWithTag(tag, useUnmergedTree = true)
             .onChildren()
             .assertCountEquals(1)
     }
 
-    /**
-     * The size the hosted Android view settles at, once the view system has laid
-     * it out.
-     *
-     * [ComposeTestRule.waitForIdle] waits on the composition. A hosted view is
-     * measured by the view system afterwards, so the wrapper can still be
-     * childless, or carry a 0x0 child, at the moment Compose reports itself
-     * idle. On an unloaded machine the two land close enough together to hide
-     * that; on a busy one they do not, which is the whole of the flake this
-     * replaces.
-     *
-     * Reading the children as a list rather than through [onFirst] is what makes
-     * the wait safe to run before the child exists: an empty list is a state to
-     * poll again, not an exception.
-     */
     private fun awaitHostedViewLayout(tag: String): IntSize {
         var size = IntSize.Zero
         try {
@@ -239,10 +172,6 @@ class HostedViewIdentifiersTest {
         )
     }
 
-    /**
-     * What an accessibility client — a UiAutomator dump among them — would read
-     * as this node's `resource-id`.
-     */
     private fun resourceIdFor(tag: String): String? {
         val nodeId = compose.onNodeWithTag(tag).fetchSemanticsNode().id
         return compose.runOnUiThread {
@@ -258,13 +187,6 @@ class HostedViewIdentifiersTest {
             "no AndroidComposeView under the activity's decor view"
         }
 
-    /**
-     * The outermost view that answers accessibility queries for a virtual tree,
-     * which under a Compose activity is the view hosting the composition. Found
-     * by what the test needs of it rather than by class name, and outermost
-     * because the walk is depth-first from the decor view — a hosted `WebView`
-     * has a provider too, but it is further down.
-     */
     private fun findComposeView(view: View): View? {
         if (view.accessibilityNodeProvider != null) return view
         if (view !is ViewGroup) return null
@@ -275,12 +197,10 @@ class HostedViewIdentifiersTest {
     }
 
     private companion object {
-        /** Loads without a network: the wrapper's identifier is what is under test. */
         const val BLANK_PAGE = "data:text/html,%3Chtml%3E%3C%2Fhtml%3E"
 
         const val CANARY = "paycross.test.canary"
 
-        /** Named once so the box asked for and the size asserted cannot drift apart. */
         val CHALLENGE_SIZE = 320.dp
 
         const val LAYOUT_TIMEOUT_MILLIS = 5_000L

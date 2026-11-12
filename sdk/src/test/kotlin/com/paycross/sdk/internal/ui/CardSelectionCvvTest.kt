@@ -3,12 +3,6 @@ package com.paycross.sdk.internal.ui
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * A CVV belongs to the card it was typed for. If one survives a change of card,
- * the shopper submits card A's CVV against card B's token: the issuer's check
- * fails and the decline gives them nothing to correct, because the prompt for
- * card B sat over a box that already looked filled.
- */
 class CardSelectionCvvTest {
 
     @Test

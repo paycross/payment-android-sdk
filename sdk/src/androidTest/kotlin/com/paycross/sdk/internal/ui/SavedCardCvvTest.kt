@@ -22,14 +22,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * What the form does with a typed CVV when a card is removed under it.
- *
- * The CVV belongs to the card it was typed for, and the removal path is the one
- * way a selection can end without the shopper touching the picker. A removal
- * that failed must not cost them what they typed, which is why the clearing
- * hangs off the card leaving the list rather than off the confirm tap.
- */
 @RunWith(AndroidJUnit4::class)
 class SavedCardCvvTest {
 
@@ -79,8 +71,6 @@ class SavedCardCvvTest {
         compose.waitForIdle()
         assertEquals(3, cvvLength())
 
-        // What a confirmed removal looks like from the form's side: the card
-        // leaves the list and the selection goes with it, in one update.
         cards.value = listOf(amex)
         selected.value = null
         compose.waitForIdle()
@@ -98,9 +88,6 @@ class SavedCardCvvTest {
         compose.onNodeWithTag(TestTags.CVV).performTextInput("123")
         compose.waitForIdle()
 
-        // What a refused removal looks like from the form's side: the banner
-        // appears and the form recomposes, but the card is still on the list and
-        // still selected. The shopper keeps what they typed.
         error.value = UiText.Resource(R.string.paycross_remove_card_failed)
         compose.waitForIdle()
 
@@ -153,8 +140,6 @@ class SavedCardCvvTest {
         googlePay = null
     )
 
-    // Length, not content: the field masks its value, so what semantics reports
-    // is bullets. The distinction the tests need is emptied versus untouched.
     private fun cvvLength(): Int =
         compose.onNodeWithTag(TestTags.CVV)
             .fetchSemanticsNode()

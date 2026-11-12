@@ -39,8 +39,6 @@ class NightUiModeTest {
 
     @Test
     fun `the UI type survives a pinned mode`() {
-        // The same field says whether the sheet is on a watch, a TV or a car.
-        // Clearing that would hand the window the wrong resources entirely.
         val onTv = Configuration.UI_MODE_TYPE_TELEVISION or Configuration.UI_MODE_NIGHT_NO
 
         val pinned = nightUiMode(ThemeMode.DARK, onTv)

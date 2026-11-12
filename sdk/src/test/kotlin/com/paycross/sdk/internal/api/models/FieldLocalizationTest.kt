@@ -4,16 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * The one ladder every merchant-supplied string in `field_groups` is read
- * through: the resolved language's translation, else the singular key the
- * session was minted with, else the wire name.
- *
- * The middle rung is the one worth pinning. A language the backend has no
- * translation for and a session minted before the maps existed are the same case
- * here, and both have to keep the string the session did carry rather than fall
- * all the way to a field named `vat_id` on screen.
- */
 class FieldLocalizationTest {
 
     private val group = FieldGroup(
@@ -110,8 +100,6 @@ class FieldLocalizationTest {
 
     @Test
     fun `a rule the merchant wrote no message for stays unanswered`() {
-        // The SDK's own translated fallback covers it; a null here is what asks
-        // for that, and a blank string would silently draw an empty error.
         assertNull(email.validation!!.localizedMessage("fr", "pattern"))
     }
 
@@ -123,9 +111,6 @@ class FieldLocalizationTest {
         )
 
         assertEquals("Ce champ est obligatoire", partial.localizedMessage("fr", "required"))
-        // French is present but carries no `pattern`, so the singular map answers
-        // that one rule. Falling back a whole language at a time would take the
-        // French `required` sentence away with it.
         assertEquals("Wrong format", partial.localizedMessage("fr", "pattern"))
     }
 }

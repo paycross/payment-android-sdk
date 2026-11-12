@@ -104,8 +104,6 @@ class FieldGroupLogicTest {
             language = "en"
         )
 
-        // The label is a format argument, so the sentence can be built the other
-        // way round in another language.
         assertEquals(
             UiText.Resource(R.string.paycross_field_required, listOf("line1")),
             errors[0].message
@@ -182,8 +180,6 @@ class FieldGroupLogicTest {
             UiText.Raw("Country required"),
             FieldGroupLogic.validate(groups, emptyMap(), language = "en").single().message
         )
-        // A language the merchant has no translation for keeps the message the
-        // session was minted with rather than losing it.
         assertEquals(
             UiText.Raw("Country required"),
             FieldGroupLogic.validate(groups, emptyMap(), language = "de").single().message
@@ -192,8 +188,6 @@ class FieldGroupLogicTest {
 
     @Test
     fun `the SDK's own message names the field in the sheet's language`() {
-        // The message is a resource and the resolved Resources translate it; the
-        // argument is the merchant's label and has to be picked, not translated.
         val groups = listOf(
             FieldGroup(
                 key = "customer_info",
@@ -362,8 +356,6 @@ class FieldGroupLogicTest {
         )
         val values = mapOf("customer_info" to mapOf("email" to "12345"))
 
-        // The limit is an argument like the label, and a rendered string like the
-        // label: a raw Int would be punctuated by the resources' own locale.
         assertEquals(
             UiText.Resource(R.string.paycross_field_too_long, listOf("Adresse e-mail", "4")),
             FieldGroupLogic.validate(groups, values, language = "fr").single().message
@@ -409,8 +401,6 @@ class FieldGroupLogicTest {
             optedInGroups = emptySet()
         )
 
-        // Only billing. The shopper who does not want to give a shipping address
-        // is not asked for one, and the backend would take the payment without it.
         assertEquals(listOf("billing_address"), errors.map { it.groupKey }.distinct())
     }
 
@@ -454,9 +444,6 @@ class FieldGroupLogicTest {
         )
         val values = FieldGroupLogic.initialValues(groups)
 
-        // The prefill is real - initialValues picked it up - so this is the case
-        // filterValues cannot catch: a group with values in it that must still
-        // not reach the wire, because the shopper never asked for it.
         assertEquals(mapOf("shipping_address" to mapOf("city" to "Riga")), values)
         assertTrue(
             FieldGroupLogic.submissionValues(groups, values, optedInGroups = emptySet()).isEmpty()

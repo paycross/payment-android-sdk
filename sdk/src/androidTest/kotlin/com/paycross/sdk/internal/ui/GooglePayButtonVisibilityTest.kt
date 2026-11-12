@@ -53,10 +53,6 @@ class GooglePayButtonVisibilityTest {
 
     @Test
     fun buttonShownAboveTheCardFormWhenAvailable() {
-        // PayButton draws from resources bundled in the wallet AAR, but only a
-        // device with Google Play services would ever pass isReadyToPay and
-        // reach this state; on a GMS-less CI emulator the button is absent by
-        // design, so the test is vacuous there rather than failing.
         val gmsAvailable = GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(InstrumentationRegistry.getInstrumentation().targetContext)
         assumeTrue(gmsAvailable == ConnectionResult.SUCCESS)

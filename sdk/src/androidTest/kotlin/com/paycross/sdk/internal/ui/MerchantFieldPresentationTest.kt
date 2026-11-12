@@ -18,16 +18,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * What a merchant-configured field tells a shopper before they tap Pay: which
- * fields they have to fill, and what a select expects when nothing is chosen.
- *
- * Both were only knowable by submitting. The sheet computed `required` for the
- * validator and drew a required field exactly like an optional one, and a
- * select's placeholder — the one string in a whole field-group configuration
- * that is genuinely translated rather than a format example — never reached the
- * field at all.
- */
 @RunWith(AndroidJUnit4::class)
 class MerchantFieldPresentationTest {
 
@@ -100,8 +90,6 @@ class MerchantFieldPresentationTest {
     fun aRequiredFieldCarriesTheMarkerAndAnOptionalOneDoesNot() {
         renderGroups(sessionLocale = "fr")
 
-        // Unmerged: a labelled field merges its descendants, so the label is a
-        // node of its own only before the merge.
         compose.onNodeWithText("Adresse e-mail *", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Pays *", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Numéro de téléphone", useUnmergedTree = true).assertIsDisplayed()
@@ -117,8 +105,6 @@ class MerchantFieldPresentationTest {
 
     @Test
     fun aConditionallyRequiredFieldGainsTheMarkerWhenItsConditionIsMet() {
-        // The marker follows the state the validator computes, not the `required`
-        // flag on the wire — which is false for this field either way.
         renderGroups(sessionLocale = "en", values = mapOf("billing_address" to mapOf("country" to "US")))
 
         compose.onNodeWithText("State *", useUnmergedTree = true).assertIsDisplayed()
@@ -135,10 +121,6 @@ class MerchantFieldPresentationTest {
     fun anUnsetSelectDrawsItsPromptWithNothingTappedFirst() {
         renderGroups(sessionLocale = "fr")
 
-        // No interaction before the assertion, which is the whole point. Material
-        // paints a placeholder only over a field that is empty AND focused, and a
-        // select can never be both — tapping one opens the picker. So the prompt
-        // is the field's own displayed text until an option replaces it.
         compose.onNodeWithTag(TestTags.field("billing_address", "country"))
             .assertTextContains("Sélectionnez un pays...")
     }
@@ -156,17 +138,12 @@ class MerchantFieldPresentationTest {
         val changes = mutableListOf<Triple<String, String, String>>()
         renderGroups(sessionLocale = "en", onValueChange = { g, f, v -> changes += Triple(g, f, v) })
 
-        // Opening the picker is not answering it: the prompt sits in the value
-        // slot the whole time and the slot is all it is.
         compose.onNodeWithTag(TestTags.field("billing_address", "country")).performClick()
         compose.onNodeWithText("Latvia").assertIsDisplayed()
         assertEquals(emptyList<Triple<String, String, String>>(), changes)
 
         compose.onNodeWithText("Latvia").performClick()
 
-        // And what a pick writes is the option's wire value, never the label
-        // drawn over it — which is the half of this that can go wrong now that
-        // a label occupies the same slot a prompt did a moment ago.
         assertEquals(listOf(Triple("billing_address", "country", "LV")), changes)
     }
 
@@ -174,8 +151,6 @@ class MerchantFieldPresentationTest {
     fun aPromptIsNotTheSelectsName() {
         renderGroups(sessionLocale = "en")
 
-        // The prompt is drawn where the answer will be and is still not the name
-        // a screen reader reads, which stays the field's own label.
         assertEquals(
             listOf("Country"),
             compose.onNodeWithTag(TestTags.field("billing_address", "country"))
