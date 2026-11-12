@@ -22,26 +22,13 @@ import java.net.URLEncoder
 private val RETURN_HOSTS_SUFFIXES = listOf("pay-cross.com", "test-pay-cross.com")
 private const val URL_ENCODING = "UTF-8"
 
-// EMV 3DS requires exact form field names; providers emit variants (e.g.
-// Nuvei's cReq), so normalize like the checkout page does before posting.
+// WHY: EMV 3DS requires exact form field names, and some providers send variants such as cReq.
 private val FORM_FIELD_NORMALIZATION = mapOf(
     "cReq" to "creq",
     "CReq" to "creq",
     "threeds_method_data" to "threeDSMethodData"
 )
 
-/**
- * WebView composable for handling 3DS fingerprint and challenge flows.
- *
- * POSTs the action data to the ACS exactly once per action and notifies the
- * caller when the flow returns to a PayCross domain. The caller controls
- * visibility: fingerprint runs hidden, the challenge is shown fullscreen.
- *
- * @param action 3DS action containing the URL and POST data
- * @param onComplete Called when 3DS flow completes (returns to our domain)
- * @param onError Called when an SSL or loading error occurs
- * @param modifier Modifier for the composable
- */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 internal fun ThreeDsWebView(
@@ -73,10 +60,7 @@ internal fun ThreeDsWebView(
             }
         }
 
-        // The caller's modifier goes on a Compose node of its own rather than on
-        // the AndroidView — see TestTags.THREE_DS for why that matters. The Box
-        // only relays: it propagates its constraints, so the WebView measures to
-        // the same size it did when it wore the modifier itself.
+        // WHY: The modifier sits on a wrapping Box, not the AndroidView, so the WebView measures to the Box's constraints.
         Box(modifier = modifier, propagateMinConstraints = true) {
             AndroidView(factory = { webView })
         }
@@ -140,11 +124,7 @@ private fun createWebViewClient(
     }
 }
 
-/**
- * A navigation back to a PayCross host signals 3DS completion — except the
- * action URL itself, which is on our host for the sandbox provider's
- * simulated ACS and must not complete the step on initial load.
- */
+// WHY: The action URL can itself be on a PayCross host (the sandbox's simulated ACS) and must not complete the step.
 internal fun isCompletionUrl(url: String, actionUrl: String): Boolean =
     url.trimEnd('/') != actionUrl.trimEnd('/') && isReturnUrl(url)
 

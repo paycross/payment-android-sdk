@@ -10,13 +10,6 @@ private const val EXPIRY_MONTH_LENGTH = 2
 private const val GROUP_SEPARATOR = " "
 private const val EXPIRY_SEPARATOR = "/"
 
-/**
- * Draws raw PAN digits as space-separated groups of four.
- *
- * The field's own text stays the unformatted digits, so every caret index the
- * shopper edits at is a digit index. A separator that appears between two
- * keystrokes therefore cannot push the caret off the digit just typed.
- */
 internal object CardNumberVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText =
         TransformedText(
@@ -25,7 +18,6 @@ internal object CardNumberVisualTransformation : VisualTransformation {
         )
 }
 
-/** Draws raw expiry digits as `MM/YY`. Same reasoning as the card number. */
 internal object ExpiryVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText =
         TransformedText(
@@ -46,13 +38,7 @@ internal fun formatExpiry(digits: String): String =
             digits.substring(EXPIRY_MONTH_LENGTH)
     }
 
-/**
- * Maps digit offsets to offsets in the grouped rendering and back.
- *
- * Compose throws on an offset outside the text being mapped, and a stale
- * mapping is still queried for the frame in which the digit count changes, so
- * both directions clamp rather than trusting the caller.
- */
+// WHY: Compose throws on an offset outside the mapped text, and a stale mapping is queried as the digit count changes.
 internal class CardNumberOffsetMapping(private val digitCount: Int) : OffsetMapping {
 
     private val transformedLength = digitCount + separatorsBefore(digitCount)
@@ -64,7 +50,6 @@ internal class CardNumberOffsetMapping(private val digitCount: Int) : OffsetMapp
 
     override fun transformedToOriginal(offset: Int): Int {
         val rendered = offset.coerceIn(0, transformedLength)
-        // One separator per rendered group of GROUP_SIZE digits + its space.
         val separators = rendered / (CARD_NUMBER_GROUP_SIZE + 1)
         return (rendered - separators).coerceIn(0, digitCount)
     }
@@ -73,7 +58,6 @@ internal class CardNumberOffsetMapping(private val digitCount: Int) : OffsetMapp
         if (digits == 0) 0 else (digits - 1) / CARD_NUMBER_GROUP_SIZE
 }
 
-/** @see CardNumberOffsetMapping - one separator, after the month. */
 internal class ExpiryOffsetMapping(private val digitCount: Int) : OffsetMapping {
 
     private val hasSeparator = digitCount > EXPIRY_MONTH_LENGTH

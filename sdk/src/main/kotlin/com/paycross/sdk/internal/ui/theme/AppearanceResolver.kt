@@ -20,19 +20,12 @@ private const val HEX_FULL = 6
 private const val OPAQUE = 0xFF000000L
 private const val RGB_MASK = 0xFFFFFF
 
-/**
- * Radii and thickness in dp. Null means Material's own value stands.
- */
 internal data class ResolvedShapes(
     val cornerRadius: Dp?,
     val buttonCornerRadius: Dp?,
     val borderWidth: Dp?
 )
 
-/**
- * Pay button overrides. Null means the caller's fallback stands — the brand for
- * the background, `onBrand` for the label, Material for the disabled pair.
- */
 internal data class ResolvedPrimaryButton(
     val background: Color?,
     val textColor: Color?,
@@ -42,15 +35,6 @@ internal data class ResolvedPrimaryButton(
     val height: Dp?
 )
 
-/**
- * Everything the sheet's theme needs, for one mode.
- *
- * [colorScheme] carries the roles Material has a slot for, already merged with
- * the platform scheme, so a role nobody set is simply the Material colour.
- * [component] and [placeholder] have no scheme slot the outlined fields read —
- * their container is transparent by default — so they stay nullable and the
- * field seam falls back to Material when they are null.
- */
 internal data class ResolvedAppearance(
     val dark: Boolean,
     val colorScheme: ColorScheme,
@@ -62,14 +46,6 @@ internal data class ResolvedAppearance(
     val sizeScaleFactor: Float
 )
 
-/**
- * Merges the merchant's appearance, the back office's brand colour and the
- * platform defaults into one resolved theme, per role: what the merchant set in
- * code wins, then the server's brand colour, then Material.
- *
- * Pure by design — no Android framework types, no composition — so the whole
- * precedence table is covered by JVM tests rather than on an emulator.
- */
 internal object AppearanceResolver {
 
     fun resolve(
@@ -93,8 +69,6 @@ internal object AppearanceResolver {
             onPrimary = onBrand ?: base.onPrimary,
             background = surface ?: base.background,
             surface = surface ?: base.surface,
-            // The dialog and menu container, which is the one place `component`
-            // maps onto a Material slot; the fields read it through the seam.
             surfaceContainerHigh = component ?: base.surfaceContainerHigh,
             outline = colors.componentBorder?.let(::Color) ?: base.outline,
             onBackground = text ?: base.onBackground,
@@ -123,22 +97,12 @@ internal object AppearanceResolver {
         ThemeMode.DARK -> true
     }
 
-    // Named onBrandColor rather than contentColorFor: Material 3 already exports a
-    // contentColorFor and the two would collide at every call site. 0.179 is the
-    // WCAG crossover, where black and white content contrast equally against the
-    // background; a midpoint of 0.5 would keep white text well past the point where
-    // black reads better.
+    // WHY: Not named contentColorFor, which Material 3 already exports.
+    // WHY: 0.179 is the WCAG crossover where black and white content contrast equally.
     fun onBrandColor(background: Color): Color =
         if (background.luminance() > 0.179f) Color.Black else Color.White
 
-    /**
-     * `#RRGGBB` or `#RGB`, in either case. The hash is required and eight digits
-     * are refused: core normalises the field to `#RRGGBB` before it reaches the
-     * blob, so anything else is a value nobody meant, and iOS parses the same
-     * two shapes. Alpha has no meaning on a brand colour the sheet fills with.
-     *
-     * Anything unparseable is null, which costs the colour and nothing else.
-     */
+    // WHY: iOS parses the same two shapes, so eight-digit hex is refused.
     fun parseHexColor(hex: String?): Color? {
         val trimmed = hex?.trim() ?: return null
         if (!trimmed.startsWith("#")) return null
@@ -155,11 +119,6 @@ internal object AppearanceResolver {
         return Color(full.toLong(16) or OPAQUE)
     }
 
-    /**
-     * Colour pairs the sheet will draw one on the other that fall below the WCAG
-     * AA ratio for body text. Returned rather than logged so the rule is a unit
-     * test, and so the caller can keep the warning out of release builds.
-     */
     fun contrastWarnings(resolved: ResolvedAppearance): List<String> = buildList {
         val brand = resolved.colorScheme.primary
         val onBrand = resolved.colorScheme.onPrimary
@@ -214,8 +173,6 @@ internal object AppearanceResolver {
         val background = button?.background?.let(::Color)
         return ResolvedPrimaryButton(
             background = background,
-            // A background with no label colour would otherwise keep the one the
-            // brand derived, which is white on a white button.
             textColor = button?.textColor?.let(::Color) ?: background?.let(::onBrandColor),
             disabledBackground = button?.disabledBackground?.let(::Color),
             disabledTextColor = button?.disabledTextColor?.let(::Color),
@@ -224,16 +181,9 @@ internal object AppearanceResolver {
         )
     }
 
-    /**
-     * A merchant's float as a dimension, or null when it is not one. Every value
-     * here arrives from a public API and reaches a layout: NaN survives both
-     * coerceIn and the Dp constructor, and Dp.roundToPx throws on it rather than
-     * rounding, which the Google Pay button's radius would hit. A negative
-     * radius, height or thickness has no meaning either.
-     */
+    // WHY: NaN passes coerceIn and the Dp constructor, and Dp.roundToPx throws on it.
     private fun Float?.asDimension(): Dp? = this?.takeIf { it.isFinite() && it >= 0f }?.dp
 
-    /** The size scale, clamped, with anything that is not a number ignored. */
     private fun Float?.asScale(): Float =
         this?.takeIf { it.isFinite() }?.coerceIn(MIN_SCALE, MAX_SCALE) ?: 1f
 }

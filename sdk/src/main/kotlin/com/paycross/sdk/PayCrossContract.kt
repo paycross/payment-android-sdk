@@ -8,10 +8,8 @@ import androidx.core.content.IntentCompat
 import com.paycross.sdk.internal.ui.PaymentActivity
 
 /**
- * Activity result contract for launching the PayCross payment flow.
- *
- * Use with [androidx.activity.result.ActivityResultLauncher] to start the payment flow
- * and receive the result:
+ * Activity result contract that runs the payment sheet. The input is the session token and the
+ * result is a [PayCrossResult].
  *
  * ```kotlin
  * val paymentLauncher = registerForActivityResult(PayCrossContract()) { result ->
@@ -24,19 +22,15 @@ import com.paycross.sdk.internal.ui.PaymentActivity
  *     }
  * }
  *
- * // Launch payment flow with session token
  * paymentLauncher.launch(sessionToken)
  * ```
  */
 class PayCrossContract : ActivityResultContract<String, PayCrossResult>() {
-
     override fun createIntent(context: Context, input: String): Intent {
         return PaymentActivity.newIntent(context, input)
     }
 
     override fun parseResult(resultCode: Int, intent: Intent?): PayCrossResult {
-        // No id on these two paths by construction: the activity was torn down
-        // without setting a result, so nothing it learned survived to be read.
         if (resultCode != Activity.RESULT_OK || intent == null) {
             return PayCrossResult.Cancelled(transactionId = null)
         }

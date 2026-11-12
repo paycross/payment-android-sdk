@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The framework has no Theme.Material.DayNight; Theme.DeviceDefault.DayNight
-         is API 29 and OEM-skinned, and AppCompat is not a dependency of this SDK.
-         Two qualified copies of one name give the payment window a dark background
-         under night mode from minSdk 24, matching what PayCrossTheme draws inside. -->
+    <!-- No framework DayNight theme below API 29; the night variant is the copy in values-night. -->
     <style name="Theme.PayCross.Payment" parent="@android:style/Theme.Material.Light.NoActionBar" />
 </resources>

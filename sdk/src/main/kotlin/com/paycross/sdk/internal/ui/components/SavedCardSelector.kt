@@ -43,24 +43,6 @@ import com.paycross.sdk.internal.ui.theme.LocalIconTint
 
 private const val UNKNOWN_BRAND = "unknown"
 
-/**
- * The stored-card picker: one selectable row per card, then "Use a new card".
- *
- * Rows rather than a dropdown because a per-row delete button and the dialog it
- * raises do not belong inside a menu that closes on the first touch, and because
- * iOS already draws the same list. Removal is a session-level merchant opt-in, so
- * [allowRemoval] gates the trailing icon; the dialog stands between it and
- * [onCardRemoved], since a delete cannot be undone from here.
- *
- * @param savedCards Most-recently-used first, as the session blob orders them.
- * @param selectedCard The card currently selected, or null for a new card.
- * @param allowRemoval Whether the session permits deleting a stored card.
- * @param removalEnabled Whether the delete buttons accept a tap. False while a
- * payment is in flight: the icons stay visible and greyed rather than vanishing,
- * so the row does not reflow under the shopper mid-authorization.
- * @param onCardSelected Called with the picked card, or null for "Use a new card".
- * @param onCardRemoved Called with a card's uuid once removal is confirmed.
- */
 @Composable
 internal fun SavedCardSelector(
     savedCards: List<SavedCard>,
@@ -71,9 +53,6 @@ internal fun SavedCardSelector(
     onCardSelected: (SavedCard?) -> Unit,
     onCardRemoved: (String) -> Unit = {}
 ) {
-    // The uuid rather than the card: this survives rotation, and it resolves to
-    // null once the card leaves the list, which closes the dialog on its own
-    // after a removal completes.
     var pendingRemovalUuid by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(modifier = modifier.selectableGroup().testTag(TestTags.SAVED_CARDS)) {
@@ -138,9 +117,7 @@ private fun SavedCardRow(
             IconButton(
                 onClick = onRemoveClick,
                 enabled = removalEnabled,
-                // Material's icon button measures 40dp, and its interactive-size
-                // enforcement does not reach the bounds an accessibility service
-                // reads, so the 48dp floor is set here rather than assumed.
+                // Material's IconButton does not enforce the 48dp bounds that accessibility services read.
                 modifier = Modifier
                     .testTag(TestTags.savedCardDelete(card.uuid))
                     .size(MIN_TOUCH_TARGET)
@@ -148,9 +125,7 @@ private fun SavedCardRow(
                 Icon(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = removeDescription,
-                    // Unspecified while disabled, so the icon keeps the greyed
-                    // content colour IconButton hands it rather than a merchant
-                    // colour that would make a dead control look live.
+                    // Unspecified while disabled, so IconButton's greyed content colour applies.
                     tint = (if (removalEnabled) LocalIconTint.current else Color.Unspecified)
                         .takeOrElse { LocalContentColor.current }
                 )
@@ -185,11 +160,7 @@ private fun RemoveCardDialog(
     val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
-        // paneTitle rather than a contentDescription: the dialog is a window of
-        // its own, and a description here would merge the two buttons into one
-        // unreadable node. TalkBack announces a pane by its title when it opens.
-        // Being its own window is also why the resource-id flag is set again:
-        // the one on the sheet's root does not reach across.
+        // The dialog is its own window, labelled by paneTitle: a contentDescription would merge its buttons.
         modifier = Modifier
             .testTag(TestTags.REMOVE_DIALOG)
             .semantics {
@@ -224,11 +195,7 @@ private fun SavedCard.rowTitle(): String {
     return displayBrand()?.let { "$it $lastFour" } ?: lastFour
 }
 
-/**
- * `card_brand` is the BIN lookup's value passed straight through, so one list can
- * hold "visa", "MASTERCARD" and the literal "unknown" at once. Title-casing gives
- * the rows one voice; an unknown brand drops out rather than being shown as a word.
- */
+// The BIN lookup returns the literal "unknown" for a brand it cannot name, which is dropped.
 private fun SavedCard.displayBrand(): String? {
     val brand = cardBrand?.trim()?.takeIf {
         it.isNotEmpty() && !it.equals(UNKNOWN_BRAND, ignoreCase = true)

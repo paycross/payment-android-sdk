@@ -23,37 +23,18 @@ internal data class SessionData(
     @SerializedName("google_pay") val googlePay: GooglePayConfig?,
     val branding: Branding? = null
 ) {
-    /**
-     * Whether the sheet may offer to delete a stored card. Both this and
-     * [preselectsSavedCard] read an absent config as off: `saved_cards_config` is
-     * a sibling the backend added after these sessions' shape was fixed, so every
-     * session minted before it, and every merchant who did not opt in, arrives
-     * without the object at all.
-     */
+    // WHY: an absent saved_cards_config reads as off, since not every session carries it.
     val allowsSavedCardRemoval: Boolean
         get() = savedCardsConfig?.allowRemoval == true
 
-    /** Whether the first stored card starts selected. Merchant opt-in. */
     val preselectsSavedCard: Boolean
         get() = savedCardsConfig?.preselect == true
 }
 
-/**
- * The merchant's back-office branding, as far as a native sheet reads it.
- *
- * Defaulted and nullable all the way down: the key arrives only on sessions
- * minted after core started publishing it, and a colour the back office cannot
- * express should cost the colour rather than the session.
- */
 internal data class Branding(
     @SerializedName("brand_color") val brandColor: String? = null
 )
 
-/**
- * Merchant opt-ins that govern the saved-card picker, carried alongside
- * `saved_cards` rather than inside it: the list is a flat array on the wire and
- * has nowhere to hang a flag.
- */
 internal data class SavedCardsConfig(
     @SerializedName("allow_removal") val allowRemoval: Boolean?,
     val preselect: Boolean?
@@ -70,16 +51,7 @@ internal data class GooglePayConfig(
     @SerializedName("billing_address_required") val billingAddressRequired: Boolean?
 )
 
-/**
- * One section of the merchant's form.
- *
- * [optIn] marks a group the shopper may decline as a whole - a shipping address
- * they do not want to give. The backend accepts a payment whose submission omits
- * such a group even when every field in it is configured required, so the sheet
- * offers it behind a toggle rather than enforcing it. It arrives only on the
- * groups the merchant opened up, so an absent member reads as not opt-in, which
- * is also what a session minted before the flag existed reads as.
- */
+// WHY: the backend accepts a submission without an opt-in group even when its fields are required.
 internal data class FieldGroup(
     val key: String,
     val label: String?,
@@ -120,8 +92,7 @@ internal data class FieldValidation(
     val pattern: String?,
     @SerializedName("max_length") val maxLength: Int?,
     val messages: Map<String, String>?,
-    // Language outer, rule inner - the opposite nesting from `messages`, which
-    // is one language's rules on their own.
+    // WHY: the language is the outer key here, the opposite nesting from messages.
     @SerializedName("messages_i18n") val messagesI18n: Map<String, Map<String, String>>? = null
 )
 
@@ -135,10 +106,7 @@ internal data class SavedCard(
     @SerializedName("card_brand") val cardBrand: String?,
     @SerializedName("expire_month") val expireMonth: String,
     @SerializedName("expire_year") val expireYear: String,
-    // Nullable because the column is: core projects cardholder_name straight
-    // out of customer_saved_cards, and Gson will happily write a null into a
-    // non-null Kotlin property, so the crash lands at the first read instead of
-    // at the decode.
+    // WHY: nullable, because Gson would otherwise write a null into a non-null property.
     @SerializedName("cardholder_name") val cardholderName: String?
 )
 

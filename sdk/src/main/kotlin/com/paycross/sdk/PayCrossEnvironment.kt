@@ -1,18 +1,14 @@
 package com.paycross.sdk
 
 /**
- * Represents the target environment for PayCross SDK operations.
+ * Environment that the SDK sends its API requests to.
  *
- * @property baseUrl The base URL for API requests in this environment.
+ * @property baseUrl Base URL of the API in this environment.
  */
 enum class PayCrossEnvironment(val baseUrl: String) {
-    /**
-     * Staging environment for testing and development.
-     */
+    /** Test environment for development. */
     STAGING("https://checkout.test-pay-cross.com/api"),
 
-    /**
-     * Production environment for live transactions.
-     */
+    /** Live environment for real payments. */
     PRODUCTION("https://checkout.pay-cross.com/api")
 }
