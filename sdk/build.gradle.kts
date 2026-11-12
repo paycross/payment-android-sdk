@@ -14,7 +14,7 @@ plugins {
 }
 
 // Central verifies the pay-cross.com domain, so the groupId cannot be com.paycross.
-group ="com.pay-cross"
+group = "com.pay-cross"
 version = providers.gradleProperty("paycrossVersion").getOrElse("0.1.0-SNAPSHOT")
 
 android {
