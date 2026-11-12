@@ -1,8 +1,5 @@
 name: Publish
 
-# A tag is what merchants and the Flutter plugin resolve against, so cutting one
-# has to actually produce an artifact. Without this the version exists in git and
-# nowhere else, which is the state that made the SDK unconsumable to begin with.
 on:
   push:
     tags: ['v*']
@@ -15,8 +12,7 @@ jobs:
   publish:
     name: Publish to GitHub Packages
     runs-on: ubuntu-latest
-    # Job-level because the secrets context is not allowed in a step-level if;
-    # an empty value means the Central upload is skipped.
+    # Job-level because the secrets context is not allowed in a step-level if.
     env:
       CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
     steps:
@@ -34,16 +30,12 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          # Refuse anything that is not a plain semver, so a mistyped tag cannot
-          # publish a coordinate nobody can resolve.
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::tag '$GITHUB_REF_NAME' is not vMAJOR.MINOR.PATCH"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # Publishing an untested artifact is worse than publishing none: it cannot
-      # be withdrawn once a merchant has resolved it.
       - name: Test before publishing
         run: ./gradlew :sdk:testDebugUnitTest :sdk:lintRelease
 
@@ -54,8 +46,6 @@ jobs:
           ./gradlew :sdk:publishReleasePublicationToGitHubPackagesRepository \
             -PpaycrossVersion=${{ steps.version.outputs.version }}
 
-      # Skipped rather than failed when the Central secrets are absent, so forks
-      # and a mid-rotation repo can still cut a GitHub Packages release.
       - name: Upload to Maven Central
         if: ${{ env.CENTRAL_TOKEN_USERNAME != '' }}
         env:

@@ -19,9 +19,6 @@ class AmountsTest {
 
     @Test
     fun `French puts the symbol last and the comma in the middle`() {
-        // The separator CLDR picks here is a no-break space of one width or
-        // another, and which one has changed between ICU releases. The point of
-        // the assertion is the comma and the trailing symbol.
         assertEquals("12,34 EUR".replace("EUR", "\u20AC"), spaces(Amounts.formatMinor(1234, "EUR", Locale.FRENCH)))
         assertEquals("1 234,00 EUR".replace("EUR", "\u20AC"), spaces(Amounts.formatMinor(123400, "EUR", Locale.FRENCH)))
     }
@@ -45,7 +42,6 @@ class AmountsTest {
         assertEquals("15100", Amounts.toMajorString(15100, "krw"))
     }
 
-    // Every no-break space CLDR might use, flattened to a plain one.
     private fun spaces(formatted: String): String =
         formatted.replace('\u00A0', ' ').replace('\u202F', ' ')
 

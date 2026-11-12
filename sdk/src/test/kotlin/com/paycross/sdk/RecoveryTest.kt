@@ -28,15 +28,11 @@ class RecoveryTest {
 
     @Test
     fun `the SDK's own unknown-outcome value survives a round trip`() {
-        // The server never sends it; a host that carries recoveries as their wire
-        // token does, and it must not come back as a terminal decline.
         assertEquals(Recovery.VERIFY_BEFORE_RETRY, Recovery.fromString("verify_before_retry"))
     }
 
     @Test
     fun `unknown recovery is kept apart from a terminal decline`() {
-        // Both fail closed, but only one of them means "the server said something
-        // this version cannot read", and the raw value has to stay recoverable.
         assertEquals(Recovery.UNRECOGNIZED, Recovery.fromString("some_future_value"))
         assertEquals(Recovery.UNRECOGNIZED, Recovery.fromString("ISSUER_WANTS_A_PHONE_CALL"))
     }

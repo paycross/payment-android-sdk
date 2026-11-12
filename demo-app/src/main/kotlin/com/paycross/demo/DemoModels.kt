@@ -52,10 +52,6 @@ data class Scenario(
     val hint: String? = null
 )
 
-/**
- * One minted session, on any checkout surface. Fields are nullable where
- * Gson may hydrate old persisted data written before they existed.
- */
 data class RunRecord(
     val id: String = UUID.randomUUID().toString(),
     val timestamp: Long = 0L,
@@ -121,7 +117,6 @@ object DemoSeeds {
 
     val DEFAULT_BODY = bodyWithAmount(1000)
 
-    /** Stable customer for the COF pair, so saved cards survive across runs. */
     const val COF_CUSTOMER_REF = "harness_cof_customer"
 
     private fun cofBody(extraTopLevel: String) = """
@@ -167,9 +162,6 @@ object DemoSeeds {
         val hint: String? = null
     )
 
-    // Names, PANs and order must stay in sync with the adb scenario runner that
-    // drives this harness. Rows …3055/…0069/…0127 are known sandbox gaps
-    // (unrouted PANs default to approve) and are kept for runner parity.
     private val SANDBOX_SCENARIOS = listOf(
         Seed("Instant approve (no 3DS)", "4111111111170000"),
         Seed("Frictionless 3DS", "4111111111153063"),
@@ -182,7 +174,6 @@ object DemoSeeds {
         Seed("Decline: card_expired", "4111111111150069"),
         Seed("Decline: invalid_cvv", "4111111111150127"),
         Seed("Provider timeout", "4111111111150051"),
-        // Harness extras beyond the stock list (adb runner matches by name and ignores them).
         Seed(
             "Store card (COF)", "4111111111170000", save = true,
             body = COF_STORE_BODY, hint = "Saves to customer $COF_CUSTOMER_REF"
@@ -193,8 +184,6 @@ object DemoSeeds {
         )
     )
 
-    // The same cards, labels and amounts as the end-to-end 3-D Secure suite
-    // uses, so a scenario means the same thing in both.
     private val NUVEI_SCENARIOS = listOf(
         Seed("non-3DS approve", "4000027891380961", cardholder = "FL-BRW1"),
         Seed("frictionless 3DS approve", "4761344136141390", cardholder = "FL-BRW2", amount = 15000),
@@ -202,8 +191,6 @@ object DemoSeeds {
         Seed("decline", "5333463046218753", cardholder = "Jane Smith")
     )
 
-    // The end-to-end flow labels for this provider; the sandbox challenge
-    // passwords are 0101 / 4445 / 9999.
     private val SHIFT4_SCENARIOS = listOf(
         Seed("Flow A frictionless Visa", "4176660000000027", cardholder = "Test Frictionless Visa", expireYear = "26", amount = 15100),
         Seed("Flow A frictionless Mastercard", "5299990270000368", cardholder = "Test Frictionless Mastercard", expireYear = "26", amount = 15100),

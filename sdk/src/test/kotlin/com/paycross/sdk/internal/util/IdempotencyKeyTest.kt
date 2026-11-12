@@ -9,7 +9,6 @@ class IdempotencyKeyTest {
     @Test
     fun `generate returns valid UUID format`() {
         val key = IdempotencyKey.generate()
-        // Should not throw - validates UUID format
         UUID.fromString(key)
     }
 

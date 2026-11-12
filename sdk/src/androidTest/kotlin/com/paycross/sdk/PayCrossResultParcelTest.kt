@@ -7,14 +7,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Every result crosses a process boundary on its way back to the host app: the
- * payment sheet is a separate activity and the outcome travels as a parcelled
- * extra. A member that does not survive the trip is silently null on arrival,
- * which for [PayCrossResult.Pending] would mean a merchant losing the id they
- * need to reconcile with. Instrumented rather than local because a real
- * [Parcel] only exists on a device.
- */
 @RunWith(AndroidJUnit4::class)
 class PayCrossResultParcelTest {
 

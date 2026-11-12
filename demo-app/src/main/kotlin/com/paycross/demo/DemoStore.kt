@@ -3,12 +3,7 @@ package com.paycross.demo
 import android.content.Context
 import com.google.gson.Gson
 
-/**
- * Local persistence for the test harness. The app ships with no
- * credentials — merchants are entered manually and live in
- * SharedPreferences on the test device. Acceptable for staging
- * credentials, never store production secrets here.
- */
+/** Local harness persistence. Merchants are entered by hand and kept in SharedPreferences: staging credentials only. Do not store production secrets here. */
 class DemoStore(context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

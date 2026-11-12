@@ -10,24 +10,11 @@ private const val CONNECT_TIMEOUT_SECONDS = 30L
 private const val READ_TIMEOUT_SECONDS = 30L
 private const val WRITE_TIMEOUT_SECONDS = 30L
 
-/**
- * Singleton factory for creating and caching the PayCross API client.
- *
- * The API instance is lazily created on first access and cached for reuse.
- * Call [reset] when SDK configuration changes to force recreation.
- *
- * No logging interceptor is installed: request bodies carry PAN/CVV and
- * must never reach logcat.
- */
+// Request bodies carry PAN/CVV, so no logging interceptor is installed.
 internal object ApiClient {
     @Volatile
     private var api: PayCrossApi? = null
 
-    /**
-     * Returns the cached API instance or creates a new one.
-     *
-     * @throws IllegalStateException if PayCross SDK is not initialized.
-     */
     fun get(): PayCrossApi = api ?: synchronized(this) {
         api ?: createApi().also { api = it }
     }
@@ -50,15 +37,7 @@ internal object ApiClient {
         return retrofit.create(PayCrossApi::class.java)
     }
 
-    /**
-     * Clears the cached API instance.
-     *
-     * Call this when SDK configuration changes to ensure the next [get] call
-     * creates a fresh instance with updated settings.
-     */
-    // Not @VisibleForTesting: PayCross.init calls this on an environment change
-    // to invalidate the cached base URL, which is the production reason it
-    // exists. The object is already internal, so this is not public API.
+    // PayCross.init calls this on an environment change, so it is not test-only.
     internal fun reset() {
         api = null
     }

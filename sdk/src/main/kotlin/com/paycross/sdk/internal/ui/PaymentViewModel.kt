@@ -39,24 +39,6 @@ import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * UI state for the payment flow.
- *
- * @property isLoading Whether an operation is in progress
- * @property error User-facing error, named rather than built: this class has
- *   no Context, so the sheet resolves the string in the language it drew in
- * @property sessionData Session data from the server
- * @property claims Parsed JWT claims from the session token
- * @property threeDs 3DS step requiring a WebView, if any
- * @property result Final payment result, signals flow completion
- * @property googlePayAvailable Whether to show the Google Pay button (session
- *   gates and device readiness combined)
- * @property selectedSavedCardUuid The stored card the form is on, or null for a
- *   new card. Held here rather than in the form because removing a card has to
- *   drop it from [sessionData] and drop the selection in the same update; split
- *   between two owners, the form would be left pointing at a card that no longer
- *   exists.
- */
 internal data class PaymentUiState(
     val isLoading: Boolean = true,
     val error: UiText? = null,
@@ -68,21 +50,11 @@ internal data class PaymentUiState(
     val selectedSavedCardUuid: String? = null
 )
 
-/**
- * A 3DS step to render. Fingerprint runs in an invisible WebView;
- * only the challenge is shown to the user.
- */
 internal data class ThreeDsUi(
     val action: ThreeDsAction,
     val isChallenge: Boolean
 )
 
-/**
- * ViewModel managing the payment flow state and operations.
- *
- * Handles session initialization, card submission, and status polling with
- * support for process death recovery via [SavedStateHandle].
- */
 internal class PaymentViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val repository: PaymentRepository = PaymentRepository(),
@@ -98,9 +70,7 @@ internal class PaymentViewModel(
     private var sessionExpiryJob: Job? = null
     private val handledThreeDsActions = mutableSetOf<String>()
 
-    // Added from the UI thread and dropped from a background dispatcher, so
-    // it cannot be a plain HashSet. add() returning false is the guard: a
-    // second confirm for a card already being removed does nothing.
+    // Added on the UI thread and removed on a background dispatcher, so the set must be concurrent. add() returning false is the guard against a second confirm.
     private val removalsInFlight: MutableSet<String> =
         Collections.newSetFromMap(ConcurrentHashMap())
 
@@ -112,31 +82,11 @@ internal class PaymentViewModel(
         get() = savedStateHandle[KEY_TRANSACTION_ID]
         set(value) { savedStateHandle[KEY_TRANSACTION_ID] = value }
 
-    /**
-     * The last transaction this sheet learned of, for a shopper who cancels.
-     *
-     * Separate from [transactionId], which is the resume pointer and is cleared
-     * when a retryable decline re-arms the form so a fresh poll cannot chase a
-     * dead transaction. A cancel after that decline still has to name the attempt,
-     * or the merchant is left with a transaction the host app cannot correlate.
-     */
     var lastTransactionId: String?
         get() = savedStateHandle[KEY_LAST_TRANSACTION_ID]
         private set(value) { savedStateHandle[KEY_LAST_TRANSACTION_ID] = value }
 
-    /**
-     * Initializes the payment flow with the given session token.
-     *
-     * Parses the JWT, fetches session data, and resolves already-terminal
-     * sessions (completed/expired) without showing the form. If a transaction
-     * is already in flight (process death recovery or a completed submit on a
-     * reloaded session), resumes status polling.
-     *
-     * @param token JWT session token from the merchant backend
-     */
     fun initialize(token: String) {
-        // Idempotent: the activity calls this on every onCreate so that a
-        // fresh ViewModel after process death still initializes and resumes.
         if (_uiState.value.claims != null) return
 
         sessionToken = token
@@ -208,45 +158,13 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * The card the form starts on. Null unless the merchant opted in, because a
-     * preselected card is one unnoticed tap from a charge; the CVV stays
-     * mandatory for exactly that reason, so the tap alone cannot pay.
-     *
-     * Cards arrive most-recently-used first, so the first is the likely one.
-     */
     private fun preselectedSavedCardUuid(data: SessionData?): String? =
         if (data?.preselectsSavedCard == true) data.savedCards?.firstOrNull()?.uuid else null
 
-    /**
-     * Records the shopper's pick.
-     *
-     * @param uuid The stored card, or null for "Use a new card".
-     */
     fun selectSavedCard(uuid: String?) {
         _uiState.update { it.copy(selectedSavedCardUuid = uuid) }
     }
 
-    /**
-     * Removes a stored card, then takes it off the list the sheet is showing.
-     *
-     * Only the local copy is rewritten: the session blob is written once at
-     * creation, so a reload of the same session lists the card again even after
-     * the server has disabled it. Nothing but the local list can be kept honest
-     * from here.
-     *
-     * Ignored while a payment is in flight — the sheet is behind the processing
-     * overlay and an authorization is the only thing that should be happening —
-     * and ignored for a card whose removal has not come back yet.
-     *
-     * A 404 drops the card too. It says the card is not this customer's, which
-     * is either a card that was already removed or one this session was never
-     * allowed to touch; in both readings the sheet has no business still
-     * offering it. Unauthorized and a transient failure keep the card, because
-     * neither says anything about whether it is still there.
-     *
-     * @param uuid The stored card's uuid.
-     */
     fun removeSavedCard(uuid: String) {
         if (_uiState.value.isLoading) return
         if (!removalsInFlight.add(uuid)) return
@@ -257,9 +175,6 @@ internal class PaymentViewModel(
                     RemoveSavedCardResult.Removed,
                     RemoveSavedCardResult.NotFound -> _uiState.update { state ->
                         state.copy(
-                            // Only this banner is cleared. A decline the shopper
-                            // has not acted on yet is still true, and deleting a
-                            // card is not an answer to it.
                             error = state.error.takeIf { it != REMOVE_CARD_ERROR },
                             sessionData = state.sessionData?.let { data ->
                                 data.copy(
@@ -278,17 +193,6 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * Submits card details to initiate payment processing.
-     *
-     * For new cards, provide all card details. For saved cards, provide only
-     * the savedUuid and CVV. A fresh idempotency key is generated per submit;
-     * `retry_after` responses are retried with the same key.
-     *
-     * @param context Android context for collecting browser info
-     * @param card Card details from the form
-     * @param fieldValues Field-group values keyed by group then field name
-     */
     fun submitCard(
         context: Context,
         card: CardFormData,
@@ -322,10 +226,6 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * Combines device-level Google Pay readiness (isReadyToPay, resolved by the
-     * activity) with the session-level gates. Both must pass to show the button.
-     */
     fun onGooglePayReadiness(deviceReady: Boolean) {
         _uiState.update {
             it.copy(
@@ -334,36 +234,21 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * Stashes validated field-group values when the Google Pay sheet opens.
-     * Saved-state backed so a process death while the sheet is up (the sheet
-     * runs in Google's UI, our process is backgroundable) still submits with
-     * the values the shopper entered.
-     */
+    // SavedStateHandle, so a process death while the Google Pay sheet is up (it runs in Google's UI) still submits the entered values.
     fun onGooglePaySheetOpened(fieldValues: Map<String, Map<String, String>>) {
         savedStateHandle[KEY_GOOGLE_PAY_FIELDS] =
             HashMap(fieldValues.mapValues { HashMap(it.value) })
     }
 
-    /** Surfaces the generic error after a non-cancel sheet failure; the form stays armed. */
     fun onGooglePayFailed() {
         _uiState.update { it.copy(isLoading = false, error = PAYMENT_FAILED) }
     }
 
-    /**
-     * Submits a Google Pay payment from the sheet's result.
-     *
-     * @param paymentDataJson The full PaymentData.toJson() string from the sheet
-     */
     fun submitGooglePay(context: Context, paymentDataJson: String) {
         viewModelScope.launch(dispatcher) {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // Google's ECv2 signature covers the tokenizationData.token string
-            // byte for byte and the edge forwards it to the vault untouched, so
-            // paymentMethodData is parsed into a Gson tree and embedded verbatim:
-            // no model round-trip that could drop empty fields, reorder
-            // reordering-sensitive keys, or re-encode the token string.
+            // Google's ECv2 signature covers the token string byte for byte, so the payload is embedded as a Gson tree unchanged.
             val paymentMethodData = try {
                 JsonParser.parseString(paymentDataJson).asJsonObject
                     .getAsJsonObject("paymentMethodData")
@@ -393,6 +278,7 @@ internal class PaymentViewModel(
     }
 
     private suspend fun submitWithRetry(request: SubmitCardRequest) {
+        // A fresh idempotency key per submit; retry_after responses reuse the same key.
         val idempotencyKey = IdempotencyKey.generate()
 
         repeat(MAX_SUBMIT_ATTEMPTS) {
@@ -424,9 +310,6 @@ internal class PaymentViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            // The server's own sentence wins when there is
-                            // one: it is more specific than anything here, and it
-                            // is not the SDK's to translate.
                             error = response.error?.let(UiText::Raw) ?: SUBMISSION_FAILED
                         )
                     }
@@ -440,17 +323,8 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * Polls transaction status until a terminal state or the deadline.
-     *
-     * Network errors and non-2xx responses (the status item may not exist yet,
-     * or polling may be throttled) are treated as transient and polling
-     * continues until the deadline.
-     */
     private fun pollStatus(transactionId: String) {
         if (pollJob?.isActive == true) return
-        // Every route to a transaction id passes through here: a fresh submit, a
-        // resume after process death, and a session reloaded with one already open.
         lastTransactionId = transactionId
 
         pollJob = viewModelScope.launch(dispatcher) {
@@ -466,13 +340,7 @@ internal class PaymentViewModel(
                 delay(POLL_INTERVAL_MS)
             }
 
-            // The deadline says the SDK never learned the outcome, not that the
-            // payment failed. A cut network is indistinguishable from a blip, so
-            // the loop above swallows both and simply runs out - and the
-            // authorization may well have completed meanwhile. Reporting a
-            // failure here invites a retry over a payment the customer has
-            // already made. The transaction id is what the merchant resolves it
-            // with out of band.
+            // A deadline is not a failed payment: the authorization may still complete, so no failure is reported.
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -483,9 +351,6 @@ internal class PaymentViewModel(
         }
     }
 
-    /**
-     * Applies a status response to UI state. Returns true when terminal.
-     */
     private fun handleStatus(status: StatusResponse): Boolean {
         val claims = _uiState.value.claims
 
@@ -506,10 +371,6 @@ internal class PaymentViewModel(
             STATUS_FAILED -> {
                 val recovery = Recovery.fromString(status.recovery)
                 if (recovery == Recovery.VERIFY_BEFORE_RETRY) {
-                    // Checked ahead of the retry branch, not folded into the
-                    // decline branch below: this status says the outcome is
-                    // unknown, so neither re-arming the form nor reporting a
-                    // failure is a correct reading of it.
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -521,8 +382,6 @@ internal class PaymentViewModel(
                         )
                     }
                 } else if (recovery.isRetryable) {
-                    // Re-arm the form like the checkout page does; only
-                    // non-retryable declines end the payment sheet.
                     transactionId = null
                     handledThreeDsActions.clear()
                     _uiState.update {
@@ -540,11 +399,6 @@ internal class PaymentViewModel(
                             result = PayCrossResult.Failure(
                                 transactionId = status.transactionId,
                                 recovery = recovery,
-                                // Kept for every decline, not just the ones this
-                                // version cannot read: what the server actually
-                                // said is what a merchant needs in a support
-                                // thread, and for UNRECOGNIZED it is the only
-                                // place the value survives at all.
                                 recoveryRaw = status.recovery
                             )
                         )
@@ -571,26 +425,10 @@ internal class PaymentViewModel(
         return true
     }
 
-    /**
-     * Ends the sheet once the session token it holds has expired.
-     *
-     * A retryable decline re-arms the form and ends the poll job cleanly, so
-     * POLL_DEADLINE_MS stops applying and nothing bounds the sheet afterwards: it
-     * was observed offering a live Pay button 45 minutes on, against a session the
-     * server had long since expired. Whatever the session's own state, a submit
-     * made with a dead token cannot be authorized, so the sheet resolves rather
-     * than take a card it has no way to charge. RESTART is what initialize already
-     * reports for the same condition, and it is not retryable, so the sheet ends.
-     *
-     * @param expiresAtEpochSeconds the token's `exp` claim
-     */
     private fun watchSessionExpiry(expiresAtEpochSeconds: Long) {
         sessionExpiryJob = viewModelScope.launch(dispatcher) {
             delay(expiresAtEpochSeconds * 1000 - clock())
 
-            // A submit or a poll still running is an authorization the server may
-            // yet complete, and its outcome is the poll's to report. Waiting is
-            // bounded: the poll carries POLL_DEADLINE_MS of its own.
             while (isPaymentInFlight()) delay(POLL_INTERVAL_MS)
             if (_uiState.value.result != null) return@launch
 
@@ -607,10 +445,6 @@ internal class PaymentViewModel(
     private fun isPaymentInFlight(): Boolean =
         _uiState.value.isLoading || pollJob?.isActive == true
 
-    /**
-     * Clears the current 3DS step after the WebView reports completion.
-     * The action stays in the handled set, so polling won't re-show it.
-     */
     fun clearThreeDs() {
         _uiState.update { it.copy(threeDs = null) }
     }
@@ -624,8 +458,6 @@ internal class PaymentViewModel(
         private const val MAX_SUBMIT_ATTEMPTS = 5
         private const val POLL_DEADLINE_MS = 8 * 60 * 1000L
 
-        // Fixed cadence matching the checkout page (SETTLEMENT_POLL_INTERVAL /
-        // PAYMENT_CHALLENGE_POLL_INTERVAL in paymentConfig.js).
         private const val POLL_INTERVAL_MS = 2000L
 
         private val REMOVE_CARD_ERROR = UiText.Resource(R.string.paycross_remove_card_failed)

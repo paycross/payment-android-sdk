@@ -30,17 +30,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * The affordance for a group a shopper is allowed to decline.
- *
- * A merchant can open a group up so the backend takes the payment without it,
- * every field in it configured required or not. The sheet used to enforce all of
- * them anyway, and offered nowhere to say no — a shopper who did not want to give
- * a shipping address had to invent one to get through.
- *
- * The caption is the merchant's own group label in the sheet's language, so the
- * toggle names the thing being declined without the SDK translating a word of it.
- */
 @RunWith(AndroidJUnit4::class)
 class OptInGroupTest {
 
@@ -139,7 +128,6 @@ class OptInGroupTest {
 
         compose.onNodeWithTag(TestTags.groupOptIn("shipping_address")).assertIsOn()
         compose.onNodeWithTag(TestTags.field("shipping_address", "line1")).assertIsDisplayed()
-        // The merchant's own label for a field only reachable once the group is on.
         compose.onNodeWithText("Adresse ligne 1 *", useUnmergedTree = true).assertIsDisplayed()
     }
 
@@ -152,15 +140,6 @@ class OptInGroupTest {
         compose.onNodeWithTag(TestTags.field("billing_address", "city")).assertIsDisplayed()
     }
 
-    /**
-     * The whole point of the toggle, through the sheet rather than through the
-     * validator: a shopper who declines the group pays, and the payment carries
-     * no trace of it.
-     *
-     * The card details are typed rather than prefilled because reaching the
-     * submit callback at all is half the assertion — this is the case that used
-     * to stop at five required-field errors on a group nobody asked for.
-     */
     @Test
     fun aShopperWhoDeclinesTheGroupCanPayAndTheGroupIsNotSubmitted() {
         var submitted: Map<String, Map<String, String>>? = null
@@ -189,14 +168,6 @@ class OptInGroupTest {
         assertEquals(mapOf("billing_address" to mapOf("city" to "Riga")), submitted)
     }
 
-    /**
-     * Errors on a declined group are gone because they were never stored.
-     *
-     * They are derived inside a `remember` keyed on the toggle, so turning the
-     * group off recomputes them away and turning it back on brings them back
-     * without a second tap on Pay. That last step is the one worth asserting:
-     * a fix that merely cleared the errors would pass the first half and fail here.
-     */
     @Test
     fun decliningAGroupAfterAFailedSubmitTakesItsErrorsWithIt() {
         PayCross.init(environment = PayCrossEnvironment.STAGING)
@@ -219,8 +190,6 @@ class OptInGroupTest {
         toggle().performScrollTo().performClick()
 
         shippingError().assertDoesNotExist()
-        // The group beside it is untouched: the recompute is scoped to the group
-        // that moved, not a blanket clear of everything the submit turned up.
         billingError().assertExists()
 
         toggle().performScrollTo().performClick()

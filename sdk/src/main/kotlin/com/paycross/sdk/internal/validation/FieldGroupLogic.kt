@@ -19,15 +19,6 @@ internal data class FieldGroupError(
     val message: UiText
 )
 
-/**
- * Mirrors the checkout page's field-group semantics: a field's condition is
- * evaluated against sibling values in the same group, and only visible
- * required/max_length/pattern rules are enforced on submit.
- *
- * Errors name a string rather than carrying one: this is a plain object with no
- * Context, and the field's own server-supplied message - which is never ours to
- * translate - has to survive alongside the SDK's translated fallback.
- */
 internal object FieldGroupLogic {
 
     fun computeFieldState(field: FieldDefinition, groupValues: Map<String, String>): FieldState {
@@ -49,11 +40,6 @@ internal object FieldGroupLogic {
         )
     }
 
-    /**
-     * Whether the shopper has left an opt-in group switched off. A group with no
-     * opt-in flag is never declined, however [optedInGroups] is spelled, so a
-     * caller that knows nothing about the toggle keeps today's behaviour.
-     */
     fun isDeclined(group: FieldGroup, optedInGroups: Set<String>): Boolean =
         group.optIn == true && group.key !in optedInGroups
 
@@ -65,13 +51,6 @@ internal object FieldGroupLogic {
         }.filterValues { it.isNotEmpty() }
     }
 
-    /**
-     * @param language The tag the sheet resolved. It picks which of the
-     *   merchant's own messages and labels an error carries; the SDK's own
-     *   fallbacks are resources and are translated by the resolved Resources
-     *   instead. Still never a translation of the merchant's words: the backend
-     *   supplied them, and one of the set is chosen rather than made.
-     */
     fun validate(
         groups: List<FieldGroup>,
         values: Map<String, Map<String, String>>,
@@ -102,10 +81,7 @@ internal object FieldGroupLogic {
                     continue
                 }
 
-                // Blocked on submit rather than capped as it is typed. Capping
-                // silently truncates a pasted value, and the page the merchant
-                // already ships blocks — so this is the behaviour a shopper
-                // meets on both surfaces.
+                // Capping silently truncates a pasted value, so the field blocks on submit instead.
                 val maxLength = field.validation?.maxLength
                 if (value.isNotBlank() && maxLength != null && value.length > maxLength) {
                     errors += FieldGroupError(
@@ -140,16 +116,6 @@ internal object FieldGroupLogic {
         return errors
     }
 
-    /**
-     * Values to submit under `field_groups`: visible fields with non-blank
-     * values, empty groups dropped.
-     *
-     * A declined opt-in group is dropped by name rather than by being empty.
-     * The trailing filter would already drop one the shopper never typed into,
-     * but not one the session prefilled - and a group the shopper declined must
-     * not reach the wire with the merchant's own prefill standing in for a
-     * choice they did not make.
-     */
     fun submissionValues(
         groups: List<FieldGroup>,
         values: Map<String, Map<String, String>>,

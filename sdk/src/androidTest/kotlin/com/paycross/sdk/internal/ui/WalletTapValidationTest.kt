@@ -22,16 +22,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Which validation a tap reveals.
- *
- * The sheet has two validated surfaces — the card form and the server-driven
- * field groups — and they are revealed by different taps. A wallet tap never
- * submits the card form, so an empty card form is not an error the shopper has
- * made; the field groups are validated, because the wallet branch submits them.
- * Pay reveals both. That was #58: one flag drove both surfaces, so tapping
- * Google Pay painted four untouched card fields red.
- */
 @RunWith(AndroidJUnit4::class)
 class WalletTapValidationTest {
 
@@ -91,11 +81,6 @@ class WalletTapValidationTest {
             .assertExists()
     }
 
-    /**
-     * Guarded the way the other wallet tests guard the same path: Google's
-     * PayButton only draws on a device with Play services, and there is no tap
-     * to make without it.
-     */
     private fun renderSheet() {
         val gmsAvailable = GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(InstrumentationRegistry.getInstrumentation().targetContext)
@@ -111,8 +96,6 @@ class WalletTapValidationTest {
         }
     }
 
-    /** No saved cards, so the card form is the new-card form, and one required
-     *  field group the shopper has not filled in. */
     private fun sessionData() = SessionData(
         locale = null,
         returnUrl = null,

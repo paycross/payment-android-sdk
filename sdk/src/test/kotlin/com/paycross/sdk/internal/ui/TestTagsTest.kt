@@ -3,17 +3,6 @@ package com.paycross.sdk.internal.ui
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * Every identifier's literal value, written out once more.
- *
- * These strings are the contract a merchant's UI tests are written against and
- * iOS publishes the same set, so a rename is a breaking change rather than a
- * refactor — and a constant renamed in place would otherwise agree with every
- * call site at once. The rendered-sheet test covers most of them by literal too,
- * but only for elements a Compose test can stand up: the sheet root and the
- * 3-D Secure view live inside `PaymentScreen`, which needs a session and a
- * payment in flight, and they are the two the E2E driver leans on hardest.
- */
 class TestTagsTest {
 
     @Test
@@ -56,10 +45,6 @@ class TestTagsTest {
 
     @Test
     fun aDottedFieldNameCollidesWithAnErrorNode() {
-        // Not a behaviour to rely on — the documented constraint is that neither
-        // half carries a dot. Pinned so that anyone who later sanitizes the
-        // builders, on both platforms at once, finds this test rather than a
-        // merchant finding the collision.
         assertEquals(
             TestTags.fieldError("billing", "city"),
             TestTags.field("billing", "city.error")

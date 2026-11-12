@@ -3,31 +3,14 @@ package com.paycross.sdk
 import androidx.annotation.ColorInt
 
 /**
- * How the payment sheet chooses between the light and dark palettes.
- *
- * A pinned mode applies to the sheet only. The host app's own theme is never
- * touched.
+ * Chooses the light or dark palette for the sheet. The host app's own theme is never changed.
  */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /**
- * One colour palette, used twice: once for light, once for dark.
+ * One colour palette, used for light or dark mode. Null roles keep the platform default.
  *
- * Every role is nullable, and null means "keep the platform default" — the
- * Material colour the sheet already draws — so an empty palette changes
- * nothing and a merchant can set one colour without designing a theme.
- *
- * @property brand Pay button fill, selection controls, focus ring.
- * @property onBrand Text and spinner drawn on [brand]. Null derives it from
- *   [brand]'s own luminance, so a light brand gets a dark label.
- * @property surface The sheet's own background.
- * @property component Background of the input fields and of dialogs.
- * @property componentBorder Input borders.
- * @property text Primary text.
- * @property textSecondary Labels, hints and supporting text.
- * @property placeholder Empty-input placeholder text.
- * @property icon The picker's delete glyph and any other icon the sheet draws.
- * @property error Error text and invalid field borders.
+ * @property onBrand Text and spinner colour on [brand]. Null derives it from the luminance of [brand].
  */
 data class PayCrossColors(
     @ColorInt val brand: Int? = null,
@@ -43,14 +26,10 @@ data class PayCrossColors(
 )
 
 /**
- * Corner radii and border thickness, in dp. Null keeps Material's value.
+ * Corner radii and border width, in dp. Null keeps the Material value.
  *
- * @property cornerRadius Input fields and the small components Material draws
- *   around them.
- * @property buttonCornerRadius The Pay button and the wallet button. Falls back
- *   to [cornerRadius].
- * @property borderWidth Input border thickness. Material's 1dp unfocused and
- *   2dp focused become this value in both states.
+ * @property buttonCornerRadius Pay and wallet button corner radius. Falls back to [cornerRadius].
+ * @property borderWidth Input border width in both focus states.
  */
 data class PayCrossShapes(
     val cornerRadius: Float? = null,
@@ -59,14 +38,9 @@ data class PayCrossShapes(
 )
 
 /**
- * Pay button overrides. Each null falls back to the matching palette role, and
- * then to Material.
+ * Pay button overrides. Null roles fall back to the matching palette role, then to Material.
  *
- * @property background Falls back to [PayCrossColors.brand].
- * @property textColor Falls back to [PayCrossColors.onBrand].
- * @property cornerRadius Falls back to [PayCrossShapes.buttonCornerRadius].
- * @property height In dp. Defaults to 56, and is a minimum rather than a fixed
- * size — the button grows if the label needs more room at large text sizes.
+ * @property height Minimum height in dp. The button grows when the label needs more room.
  */
 data class PayCrossPrimaryButton(
     @ColorInt val background: Int? = null,
@@ -78,25 +52,18 @@ data class PayCrossPrimaryButton(
 )
 
 /**
- * @property sizeScaleFactor Multiplies every font size in the sheet. It
- *   composes with the device's own font scale rather than replacing it, and is
- *   clamped to 0.8–1.3: past those bounds the sheet either stops being legible
- *   or stops fitting on a small screen. Null leaves sizes alone.
+ * Text sizes in the sheet.
+ *
+ * @property sizeScaleFactor Multiplies every font size, on top of the device font scale. Clamped to 0.8–1.3.
  */
 data class PayCrossTypography(
     val sizeScaleFactor: Float? = null
 )
 
 /**
- * How the payment sheet looks.
- *
- * Colours resolve per role, in this order: what is set here, then the brand
- * colour the merchant set in the back office, then the platform default. Light
- * and dark are symmetric — both palettes are yours to set, and the sheet picks
- * one by [themeMode].
- *
- * Layout, the card fields' internals, the wallet buttons' own colours and
- * labels, the 3-D Secure page and the error copy are fixed by design.
+ * Visual settings for the payment sheet. Colours resolve per role: the value set here, then the
+ * brand colour from the payment session, then the platform default. Layout, the 3-D Secure page and
+ * the wallet button labels are fixed.
  *
  * ```
  * PayCross.init(
@@ -119,8 +86,7 @@ data class PayCrossAppearance(
 ) {
     companion object {
         /**
-         * One brand colour in both modes and platform defaults for everything
-         * else. The whole migration path off the deprecated `brandColor`.
+         * Sets one brand colour for both light and dark mode, with platform defaults for everything else.
          */
         @JvmStatic
         fun brand(@ColorInt color: Int): PayCrossAppearance = PayCrossAppearance(

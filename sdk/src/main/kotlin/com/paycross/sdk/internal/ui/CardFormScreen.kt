@@ -66,29 +66,15 @@ import com.paycross.sdk.internal.validation.CardValidator
 import com.paycross.sdk.internal.validation.FieldGroupLogic
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 
-/** The Pay button's resting height, and a floor rather than a fixed size. */
 private val PAY_BUTTON_MIN_HEIGHT = 56.dp
 
-/**
- * The floor under the saved-card CVV box.
- *
- * A minimum rather than a fixed width, and the minimum itself is the lesser
- * half of its job. Given no width at all the field takes
- * `OutlinedTextFieldDefaults.MinWidth`, 280dp, right across the sheet, because
- * its `defaultMinSize` applies whenever the incoming minimum is zero. Any
- * non-zero minimum defeats that and leaves the box to size to its own label and
- * padding — 132dp at the default text size, and more as the shopper turns their
- * text up, rather than the 100dp that used to squeeze it.
- */
+// A non-zero minimum defeats OutlinedTextFieldDefaults.MinWidth (280dp), which otherwise applies to a zero minimum.
 private val SAVED_CARD_CVV_MIN_WIDTH = 100.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
 private const val EXPIRY_MONTH_END = 2
 private const val YEAR_PREFIX = "20"
 
-/**
- * Card data submitted from the form.
- */
 internal data class CardFormData(
     val cardholderName: String?,
     val pan: String?,
@@ -122,10 +108,7 @@ internal fun CardFormScreen(
     var expiry by rememberSaveable {
         mutableStateOf(prefill?.let { it.expireMonth + it.expireYear.takeLast(2) }.orEmpty())
     }
-    // Deliberately not rememberSaveable: saved instance state is copied into
-    // system_server, where the SDK cannot clear it, and survives process death —
-    // the CVV would outlive authorization, which PCI DSS 3.3.1 forbids. The cost
-    // is that rotation clears the CVV field and the shopper retypes it.
+    // Not rememberSaveable: saved state outlives the process, and PCI DSS 3.3.1 forbids keeping the CVV after authorization.
     var cvv by remember { mutableStateOf(prefill?.cvv.orEmpty()) }
     var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
     var saveCard by rememberSaveable { mutableStateOf(prefill?.saveCard ?: false) }
@@ -134,9 +117,7 @@ internal fun CardFormScreen(
     var fieldValuesFlat by rememberSaveable {
         mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))
     }
-    // The groups the shopper has asked to fill in. Held as a list because saved
-    // instance state is a Bundle and a Set is not something a Bundle holds —
-    // the same reason the values above are kept flat.
+    // A list, not a Set: saved instance state is a Bundle, which cannot hold a Set.
     var optedInList by rememberSaveable { mutableStateOf(ArrayList<String>()) }
 
     val fieldValues = remember(fieldValuesFlat) { unflattenValues(fieldValuesFlat) }
@@ -144,25 +125,13 @@ internal fun CardFormScreen(
     val selectedSavedCard by remember(selectedSavedCardUuid, savedCards) {
         derivedStateOf { savedCards.find { it.uuid == selectedSavedCardUuid } }
     }
-    // Derived from the card, not from the uuid: a selection that no longer
-    // resolves to a card in the list is a removal that landed, and the form
-    // belongs back on new-card entry rather than prompting for the CVV of a card
-    // that is gone.
     val isNewCard = selectedSavedCard == null
     val cardType = CardType.detect(cardNumber)
     val cvvCardType = cvvCardType(isNewCard, cardType, selectedSavedCard)
-    // Not the language the words are in: the SDK ships two languages and the
-    // platform formats numbers for all of them, so a shopper whose language is
-    // missing still keeps their own grouping.
     val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcFormattingLocale)
 
-    // A CVV belongs to the card it was typed for. Switching cards drops it in
-    // onCardSelected above; this covers the other way a selection ends, a
-    // removal the server confirmed, which drops the card and the selection
-    // together upstream. Keyed on the card actually leaving the list rather than
-    // on the confirm tap, so a removal that failed - the card is still there and
-    // still selected - leaves what the shopper typed alone.
     var cvvOwnerUuid by remember { mutableStateOf(selectedSavedCardUuid) }
+    // A removal the server confirmed drops the selected card, so the typed CVV is dropped with it; a failed removal keeps it.
     LaunchedEffect(selectedSavedCardUuid, savedCards) {
         val previousOwner = cvvOwnerUuid
         if (previousOwner != null &&
@@ -208,12 +177,6 @@ internal fun CardFormScreen(
                     },
                     onClick = {
                         showFieldErrors = true
-                        // Field groups must validate before the sheet opens, like the
-                        // web: core validates them unconditionally before the wallet
-                        // branch, so an invalid form would open a sheet into a
-                        // guaranteed reject. The isLoading check is the double-submit
-                        // guard — the sheet closes on resolve while settlement is
-                        // still polling and the button stays on screen.
                         if (!isLoading && fieldGroupErrors.isEmpty()) {
                             onGooglePay(
                                 FieldGroupLogic.submissionValues(fieldGroups, fieldValues, optedInGroups)
@@ -298,8 +261,6 @@ internal fun CardFormScreen(
                         buildFormData(isNewCard, selectedSavedCard, cardNumber, expiry, cvv, cardholderName, saveCard),
                         FieldGroupLogic.submissionValues(fieldGroups, fieldValues, optedInGroups)
                     )
-                    // Drop the form's reference once it is handed over; the CVV
-                    // has no further use in the UI after submission.
                     cvv = ""
                 }
             }
@@ -307,11 +268,6 @@ internal fun CardFormScreen(
     }
 }
 
-/**
- * The amount is its own label — a contentDescription here could only repeat it,
- * and would replace it if it ever drifted. What it was missing is the heading
- * role, which is how a screen reader jumps to the top of the sheet.
- */
 @Composable
 private fun AmountHeader(amount: String) {
     Text(
@@ -375,24 +331,10 @@ private fun NewCardForm(
     }
 }
 
-/**
- * The sentence under a card field, or null while the field has nothing to answer
- * for.
- *
- * One message per field rather than one per way of being wrong: [FormValidation]
- * knows which of the four the shopper has to go back to, and that is what the
- * red outline was already failing to say.
- */
 @Composable
 private fun cardFieldError(showErrors: Boolean, valid: Boolean, @StringRes message: Int): String? =
     if (showErrors && !valid) pcStringResource(message) else null
 
-/**
- * The toggle is on the row, not on the box: a bare [Checkbox] carries no label
- * of its own, so a screen reader announced an unnamed checkbox beside an inert
- * sentence. Moving it up merges the two into one control the caption names, and
- * gives the whole row a fingertip's worth of height.
- */
 @Composable
 private fun SaveCardCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -436,15 +378,6 @@ private fun SavedCardCvvInput(
     )
 }
 
-/**
- * A decline has to reach a shopper who is not looking at the banner and one who
- * cannot tell the red text from the black. The live region announces it the
- * moment it appears, without stealing focus from the field being corrected, and
- * the icon carries the same meaning as the colour for anyone who cannot see it.
- *
- * The icon is decorative: the sentence beside it says everything the icon means,
- * and a description would be read out before it.
- */
 @Composable
 private fun ErrorMessage(message: UiText) {
     Row(
@@ -483,25 +416,17 @@ internal fun PayButton(
         onClick = onClick,
         enabled = !isLoading,
         shape = button?.cornerRadius?.let(::RoundedCornerShape) ?: ButtonDefaults.shape,
-        // Unspecified is Material's own "leave this one alone", so an override
-        // nobody set keeps the brand fill and the derived label colour.
         colors = ButtonDefaults.buttonColors(
             containerColor = button?.background ?: Color.Unspecified,
             contentColor = button?.textColor ?: Color.Unspecified,
             disabledContainerColor = button?.disabledBackground ?: Color.Unspecified,
             disabledContentColor = button?.disabledTextColor ?: Color.Unspecified
         ),
-        // A minimum, not a height, and a merchant's own value is read the same
-        // way: at the platform's accessibility font sizes the label needs more
-        // room than 56dp, and a fixed height cropped it instead of growing.
+        // A minimum height, not a fixed one: the label must grow with the platform's accessibility font sizes.
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = button?.height ?: PAY_BUTTON_MIN_HEIGHT)
             .testTag(TestTags.PAY_BUTTON)
-            // Only while the spinner covers the label, which is otherwise the
-            // only thing that says what the button does. Setting it always
-            // would replace the label with the same words, and would take the
-            // label out of the accessibility tree that the E2E driver reads.
             .then(
                 if (isLoading) Modifier.semantics { contentDescription = label } else Modifier
             )
@@ -527,25 +452,13 @@ internal data class FormValidation(
         get() = isCardNumberValid && isExpiryValid && isCvvValid && isNameValid
 }
 
-/**
- * The card type whose CVV length governs the field and its validation. One
- * derivation feeds both, so the box cannot accept a digit the validator rejects.
- */
 internal fun cvvCardType(
     isNewCard: Boolean,
     enteredCardType: CardType,
     savedCard: SavedCard?
 ): CardType = if (isNewCard) enteredCardType else CardType.fromBrand(savedCard?.cardBrand)
 
-/**
- * The CVV the form keeps when the shopper picks a card. A CVV belongs to the card
- * it was typed for, so any change of card drops it: one form-level `cvv` backs both
- * entry modes, and carrying a value across would submit a new card's CVV against a
- * stored card's token while the "Enter CVV for <pan>" prompt sat over a box that
- * already looked filled. Re-picking the card already selected is not a change and
- * keeps what was typed. iOS drops it in CardFormState.sourceSelected for the same
- * reason.
- */
+// A CVV belongs to the card it was typed for, so any change of card drops it; carrying it across would send a new card's CVV with a stored card's token.
 internal fun cvvAfterCardSelection(
     selectedUuid: String?,
     pickedUuid: String?,

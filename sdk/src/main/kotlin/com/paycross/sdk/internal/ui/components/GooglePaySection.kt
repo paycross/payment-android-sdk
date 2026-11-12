@@ -28,23 +28,10 @@ import com.paycross.sdk.internal.ui.TestTags
 import com.paycross.sdk.internal.ui.pcStringResource
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
-/**
- * The button variant Google pairs with a surface of the given mode: a dark
- * button on a light sheet, a light button on a dark one. The fixed DARK this
- * replaces left the button invisible against the SDK's dark surface.
- */
 internal fun googlePayButtonTheme(dark: Boolean): Int =
     if (dark) ButtonConstants.ButtonTheme.LIGHT else ButtonConstants.ButtonTheme.DARK
 
-/**
- * Google's official Pay button above an "Or pay with card" divider.
- *
- * The button is the PayButton view from play-services-wallet wrapped in an
- * AndroidView — Google's brand guidelines prohibit custom markup, the SDK owns
- * the button's rendering. The compose-pay-button wrapper artifact does the
- * same thing but drags in androidx.core 1.15.0, which demands compileSdk 35;
- * this project pins 34, so the view is wrapped directly.
- */
+// The PayButton view is wrapped directly: Google's brand guidelines prohibit custom markup, and the compose wrapper needs compileSdk 35.
 @Composable
 internal fun GooglePaySection(
     allowedPaymentMethodsJson: String,
@@ -54,9 +41,7 @@ internal fun GooglePaySection(
     val currentOnClick by rememberUpdatedState(onClick)
     val appearance = LocalPayCrossAppearance.current
     val buttonTheme = googlePayButtonTheme(dark = appearance?.dark == true)
-    // The radius is the only property of the wallet button that is ours to set;
-    // its colours and label belong to Google's brand guidelines. It is asked for
-    // in pixels, unlike everything else the sheet draws.
+    // Only the corner radius is set here; Google's guidelines own the colours and label, and the radius is in pixels.
     val density = LocalDensity.current
     val cornerRadiusPx = appearance?.shapes?.buttonCornerRadius?.let {
         with(density) { it.roundToPx() }
@@ -71,10 +56,7 @@ internal fun GooglePaySection(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // The tag hangs on this Box, not on the AndroidView inside it — see
-        // TestTags.WALLET_BUTTON for why that matters. The Box carries the
-        // button's size and propagates it, leaving the measured result exactly
-        // what the AndroidView had before.
+        // The Box holds the size and tag and propagates its constraints to the AndroidView inside it.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -84,9 +66,7 @@ internal fun GooglePaySection(
         ) {
             AndroidView(
                 factory = { context -> PayButton(context) },
-                // initialize, not just the listener: it clears the view and
-                // rebuilds from the options, so a changed theme repaints instead
-                // of keeping whatever the first composition drew.
+                // Initialize, not only the listener: it rebuilds the view from the options, so a changed theme repaints.
                 update = { button ->
                     button.initialize(buttonOptions)
                     button.setOnClickListener { currentOnClick() }
@@ -105,8 +85,7 @@ internal fun GooglePaySection(
 @Composable
 private fun OrPayWithCardDivider(modifier: Modifier = Modifier) {
     Row(
-        // Merged so the caption names the whole rule rather than leaving three
-        // nodes, two of them decorative, for a screen reader to step through.
+        // Merged so a screen reader reads the caption as one node.
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {},

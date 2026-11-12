@@ -66,26 +66,15 @@ import com.paycross.sdk.internal.wallet.GooglePayClient
 import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
 
-/**
- * Internal activity that hosts the payment flow UI.
- *
- * This activity is launched via [com.paycross.sdk.PayCrossContract] and should not
- * be instantiated directly. Use [newIntent] to create a properly configured intent.
- */
 internal class PaymentActivity : ComponentActivity() {
-
-    // The default factory can't see the (SavedStateHandle)-only constructor:
-    // Kotlin default arguments don't generate telescoping overloads.
+    // The default factory cannot reach the SavedStateHandle-only constructor, because default arguments generate no overloads.
     private val viewModel: PaymentViewModel by viewModels {
         viewModelFactory { initializer { PaymentViewModel(createSavedStateHandle()) } }
     }
 
     private val loggedContrastWarnings = mutableSetOf<String>()
 
-    // The window background is a resource-qualified theme rather than something
-    // Compose draws, so a pinned mode has to reach the resources before the
-    // window is themed - which is here, not in onCreate. The activity is a plain
-    // ComponentActivity, so there is no AppCompat night mode to ask instead.
+    // The window theme reads resources before onCreate, so a pinned mode is applied here.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(pinnedContext(newBase))
     }
@@ -93,8 +82,7 @@ internal class PaymentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Without this the platform writes a recents snapshot of the filled card
-        // form to /data/system_ce/<user>/snapshots, and screen recorders capture it.
+        // FLAG_SECURE also stops the platform saving a recents snapshot of the card form.
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -112,9 +100,6 @@ internal class PaymentActivity : ComponentActivity() {
         setContent {
             val appearance = remember { PayCross.requireConfig().effectiveAppearance() }
             val merchantLocale = remember { PayCross.getConfigOrNull()?.locale }
-            // Mapped rather than collected whole: the brand changes once, when the
-            // session lands, and the theme has no business recomposing on every
-            // form keystroke.
             val serverBrand by remember {
                 viewModel.uiState.map { it.sessionData?.branding?.brandColor }
             }.collectAsState(initial = null)
@@ -125,15 +110,11 @@ internal class PaymentActivity : ComponentActivity() {
             LaunchedEffect(resolved) { warnAboutContrast(resolved) }
 
             PayCrossTheme(appearance = resolved) {
-                // Material leaves LocalContentColor black until a Surface sets
-                // it, so this is what any text drawn without an explicit colour
-                // reads from, as well as the sheet's own ground.
+                // Material leaves LocalContentColor black until a Surface sets it.
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Mapped rather than collected whole, like the brand above:
-                    // the locale changes once, when the session lands.
                     val sessionLocale by remember {
                         viewModel.uiState.map { it.sessionData?.locale }
                     }.collectAsState(initial = null)
@@ -157,22 +138,7 @@ internal class PaymentActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * [base] with its resources reporting whatever the merchant pinned - the
-     * mode's night bits, the override locale, or both - and [base] itself when
-     * they pinned neither.
-     *
-     * Only the merchant's locale is applied here. The session's arrives with the
-     * payload, long after this, and reaches the sheet through
-     * [LocalPayCrossResources] instead. A locale set without a pinned theme has
-     * to survive: the early return used to short-circuit on the theme alone,
-     * which would have dropped it.
-     *
-     * Takes the context rather than extending it: an Activity is a Context too,
-     * and asking the half-built one for resources here would throw. The config is
-     * read through the non-throwing accessor because this runs before onCreate
-     * has anywhere to report an uninitialized SDK.
-     */
+    // Takes the base context, because the half-built Activity cannot answer for its resources yet.
     private fun pinnedContext(base: Context): Context {
         val config = PayCross.getConfigOrNull()
         val mode = config?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
@@ -186,14 +152,7 @@ internal class PaymentActivity : ComponentActivity() {
         return base.createConfigurationContext(configuration)
     }
 
-    /**
-     * Paints the window with the merchant's surface colour.
-     *
-     * Here rather than in a effect under setContent: the window is themed from a
-     * resource, so anything later leaves the sheet framed by a system-coloured
-     * band until the first frame lands. Resolved without the session's colour,
-     * which reaches the brand role only and so cannot change this one.
-     */
+    // Set before setContent, or the sheet is framed by a system-coloured band until the first frame.
     private fun applyWindowBackground() {
         val systemDark = resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
@@ -205,15 +164,6 @@ internal class PaymentActivity : ComponentActivity() {
         window.setBackgroundDrawable(resolved.colorScheme.background.toArgb().toDrawable())
     }
 
-    /**
-     * Debug builds of the host app only. A merchant shipping a release build has
-     * already made their colour choices and cannot act on a logcat line, while a
-     * developer wiring up an appearance can.
-     *
-     * Each warning is logged once per sheet. The appearance resolves twice when
-     * the merchant's back-office colour lands with the session, and a developer
-     * reading logcat should see a new problem rather than the same one again.
-     */
     private fun warnAboutContrast(resolved: ResolvedAppearance) {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
         AppearanceResolver.contrastWarnings(resolved)
@@ -252,7 +202,7 @@ private fun PaymentScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
-    // Google's sheet draws this one, so it is resolved here and handed over.
+    // Google's payment sheet draws the total label, so it is resolved here and handed over.
     val totalLabel = pcStringResource(R.string.paycross_total)
 
     BackHandler {
@@ -274,7 +224,6 @@ private fun PaymentScreen(
             CommonStatusCodes.SUCCESS ->
                 taskResult.result?.toJson()?.let { viewModel.submitGooglePay(context, it) }
                     ?: viewModel.onGooglePayFailed()
-            // The shopper closed the sheet; stay on the form silently.
             CommonStatusCodes.CANCELED -> Unit
             else -> viewModel.onGooglePayFailed()
         }
@@ -291,10 +240,6 @@ private fun PaymentScreen(
     val challenge = uiState.threeDs?.takeIf { it.isChallenge }
     val fingerprint = uiState.threeDs?.takeIf { !it.isChallenge }
 
-    // FLAG_SECURE blanks screenshots, so the E2E rig drives the sheet from
-    // UiAutomator dumps instead; without this the testTags never reach the view
-    // hierarchy as resource ids and nothing in the sheet is addressable there.
-    // This covers the sheet's own window only — each dialog sets it again.
     val publishTestTags = rememberPublishTestTags()
 
     Box(
@@ -333,9 +278,7 @@ private fun PaymentScreen(
                         if (paymentsClient == null || claims == null) {
                             viewModel.onGooglePayFailed()
                         } else {
-                            // The contract requires a completed task; launching the
-                            // resolution from the completion listener keeps it on the
-                            // same user gesture.
+                            // Google Pay's resolution must start from the same user gesture, so it is launched from the completion listener.
                             GooglePayClient.loadPaymentDataTask(
                                 client = paymentsClient,
                                 claims = claims,
@@ -352,8 +295,7 @@ private fun PaymentScreen(
             }
         }
 
-        // Fingerprint runs in a hidden WebView; the ACS method endpoint is
-        // never meant to be shown to the user.
+        // The 3-D Secure fingerprint runs in a hidden WebView; the ACS method page is never shown to the shopper.
         fingerprint?.let {
             ThreeDsWebView(
                 action = it.action,
@@ -383,18 +325,11 @@ private fun PaymentScreen(
     }
 }
 
-// Internal so the instrumented suite can stand it up on its own, like the cancel
-// dialog below: reaching it through PaymentScreen would mean a session, a
-// network and a payment in flight.
 @Composable
 internal fun LoadingOverlay() {
     val processing = pcStringResource(R.string.paycross_processing)
     Surface(
-        // One node with a name, rather than a spinner and a caption a screen
-        // reader steps through separately while the sheet is blocked anyway.
-        // Announced like the decline banner: the overlay appears under a shopper
-        // who has just tapped Pay, and without a live region they would have to
-        // go exploring to find out the sheet had gone busy.
+        // One named node, so a screen reader does not step through a spinner and a caption separately.
         modifier = Modifier
             .fillMaxSize()
             .testTag(TestTags.LOADING)
@@ -414,9 +349,7 @@ internal fun LoadingOverlay() {
     }
 }
 
-// Internal so the instrumented suite can stand it up on its own: a dialog runs
-// in a sub-composition of its own window, which is exactly where a locale
-// carried on LocalContext would have stopped.
+// A dialog runs in its own window, so a locale carried on LocalContext would not reach it.
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun CancelConfirmationDialog(
@@ -427,10 +360,7 @@ internal fun CancelConfirmationDialog(
     val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
-        // paneTitle rather than a contentDescription: a description on a dialog
-        // merges its buttons away, while a pane title is what TalkBack reads
-        // when the window opens. The resource-id flag is set again here because
-        // the dialog is its own window, and the sheet's copy does not reach it.
+        // A pane title, not a contentDescription, because a description on a dialog merges its buttons away.
         modifier = Modifier
             .testTag(TestTags.CANCEL_DIALOG)
             .semantics {

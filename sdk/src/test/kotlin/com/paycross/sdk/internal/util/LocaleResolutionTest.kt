@@ -53,9 +53,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `an unsupported override falls through to the session`() {
-        // Each candidate is matched on its own, exactly as the hosted page's
-        // resolveLanguage does, so a merchant asking for a language the SDK does
-        // not ship still leaves the session's own locale in play.
         assertEquals(
             Locale.forLanguageTag("fr"),
             LocaleResolution.resolve(override = "de", session = "fr", device = listOf(Locale.US))
@@ -137,12 +134,8 @@ class LocaleResolutionTest {
         assertEquals(Locale.forLanguageTag("en"), LocaleResolution.match("EN"))
     }
 
-    // --- The amount's locale, which is not clamped to the shipped languages ---
-
     @Test
     fun `a device the SDK cannot speak still formats the amount its own way`() {
-        // The words go English because there are no German ones; the number does
-        // not have to follow them, because every locale can format a number.
         assertEquals(
             Locale.forLanguageTag("en"),
             LocaleResolution.resolve(override = null, session = null, device = listOf(Locale.GERMANY))
@@ -159,8 +152,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `the amount keeps the region the strings drop`() {
-        // fr-CH words are France's French, because that is all the SDK ships,
-        // but Swiss grouping is not France's and the amount keeps it.
         assertEquals(
             Locale.forLanguageTag("fr"),
             LocaleResolution.resolve(override = null, session = "fr-CH", device = listOf(Locale.US))
@@ -201,11 +192,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `a misshapen override does not get to format the amount`() {
-        // A typo in init(locale = …) should cost nothing. forLanguageTag is
-        // forgiving — it keeps whatever well-formed prefix it finds and drops the
-        // rest — so without a shape check ahead of it, a typo becomes a real
-        // locale nobody meant and punctuates the amount for somewhere the shopper
-        // has never been. The device supplies the formatting instead.
         listOf("f", "français", "frrrr", "1234", "fr-", "en--US", "fr CA", "-fr").forEach { typo ->
             assertEquals(
                 "typo '$typo'",
@@ -228,11 +214,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `the words are read more forgivingly than the amount is`() {
-        // "fr-" is misshapen, so it does not format the amount, but it still
-        // draws French words: forLanguageTag reads its well-formed prefix, and
-        // the strings ladder only has to decide between the two languages the
-        // SDK ships. Being eager about the words is harmless; being eager about
-        // a number's punctuation is not.
         assertEquals(
             Locale.forLanguageTag("fr"),
             LocaleResolution.resolve("fr-", session = null, device = listOf(Locale.GERMANY))
@@ -257,9 +238,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `a merchant typo picks neither the words nor the amount`() {
-        // The lead's case: a merchant types the language's name instead of its
-        // tag. The sheet is English because there is no such tag, and the amount
-        // is the handset's because a misshapen tag never formats anything.
         assertEquals(
             Locale.forLanguageTag("en"),
             LocaleResolution.resolve("français", session = null, device = listOf(Locale.GERMANY))
@@ -272,8 +250,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `an underscore reads as a hyphen, for both the words and the amount`() {
-        // Locale.getDefault().toString() gives "fr_FR", which is the obvious
-        // thing for a merchant to hand us and which BCP 47 does not accept.
         assertEquals(
             Locale.forLanguageTag("fr"),
             LocaleResolution.resolve("fr_FR", session = null, device = listOf(Locale.US))
@@ -310,9 +286,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `the device rung keeps its region, which changes how money is written`() {
-        // 0.7.0 formatted with the platform's own locale object. Narrowing the
-        // device rung to a language-only tag would silently move a Swiss shopper
-        // onto Germany's punctuation, so the object is passed through whole.
         val swiss = Locale.forLanguageTag("de-CH")
         val resolved = LocaleResolution.formattingLocale(null, null, listOf(swiss))
 
@@ -336,9 +309,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `every language in the shipped set resolves to itself`() {
-        // Behavioural stand-in for "SUPPORTED_TAGS matches the values- folders",
-        // which a JVM test cannot see. A tag listed here but never shipped would
-        // still pass this; FrenchSheetTest is what proves the folder exists.
         LocaleResolution.SUPPORTED_TAGS.forEach { tag ->
             assertEquals(
                 "shipped tag '$tag'",
@@ -348,12 +318,8 @@ class LocaleResolutionTest {
         }
     }
 
-    // --- Every language the shopper listed, not just the first ---
-
     @Test
     fun `a second device preference is reached when the first is not shipped`() {
-        // A handset set to German first and French second has asked for French
-        // over English. Reading only locales[0] answered it with English.
         assertEquals(
             Locale.forLanguageTag("fr"),
             LocaleResolution.resolve(
@@ -394,9 +360,6 @@ class LocaleResolutionTest {
 
     @Test
     fun `the amount follows the handset's first choice, shipped or not`() {
-        // The words come from the second preference because the SDK has French;
-        // the number still follows the first, because German punctuation is
-        // exactly what that shopper asked for and the SDK can produce it.
         val device = listOf(Locale.forLanguageTag("de-DE"), Locale.forLanguageTag("fr-FR"))
         assertEquals(
             Locale.forLanguageTag("fr"),
@@ -407,8 +370,6 @@ class LocaleResolutionTest {
             LocaleResolution.formattingLocale(override = null, session = null, device = device)
         )
     }
-
-    // --- Both answers together, the way the sheet asks for them ---
 
     @Test
     fun `sheetLocales answers the words and the amount from one set of candidates`() {

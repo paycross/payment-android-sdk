@@ -8,8 +8,8 @@ class CardValidatorTest {
 
     @Test
     fun `valid card number passes Luhn check`() {
-        assertTrue(CardValidator.isValidCardNumber("4111111111111111")) // Visa test
-        assertTrue(CardValidator.isValidCardNumber("5500000000000004")) // Mastercard test
+        assertTrue(CardValidator.isValidCardNumber("4111111111111111"))
+        assertTrue(CardValidator.isValidCardNumber("5500000000000004"))
     }
 
     @Test

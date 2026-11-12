@@ -64,9 +64,6 @@ class ContractSerializationTest {
 
     @Test
     fun `field_groups carries non-string values with their JSON types intact`() {
-        // The Go side of the contract is map[string]map[string]interface{}, so
-        // booleans and numbers must arrive as JSON booleans and numbers, not as
-        // their string renderings.
         val request = SubmitCardRequest(
             session = "jwt-token",
             paymentMethod = "card",
@@ -124,7 +121,6 @@ class ContractSerializationTest {
         val json = JsonParser.parseString(gson.toJson(request)).asJsonObject
 
         assertEquals("google_pay", json.get("payment_method").asString)
-        // No card block for wallet payments: the edge routes on wallet_token.
         assertFalse(json.has("card"))
 
         val walletToken = json.getAsJsonObject("wallet_token")
@@ -139,14 +135,6 @@ class ContractSerializationTest {
 
     @Test
     fun `google pay token string survives serialization byte-identical`() {
-        // Google's ECv2 signature covers tokenizationData.token byte for byte
-        // and the edge forwards it to the vault untouched, so the decoded token
-        // string must survive the SDK's serialization round trip exactly:
-        // no key reordering of the envelope JSON inside it, no empty-field
-        // stripping, no re-encoding. The token here exercises the hazards —
-        // base64 '=' padding (Gson escapes it as \u003d on the wire, which
-        // decodes back to '='), escaped quotes, an empty string value, and
-        // deliberate non-alphabetical key order.
         val token = """{"signature":"MEQCIF4Sd+2u0G0DM4dtd8SyBnMOm0m4RfDNQTgc9SpXo0GhAiB8qk1sQ==",""" +
             """"intermediateSigningKey":{"signedKey":"{\"keyValue\":\"MFkwEwYHKoZI==\",\"keyExpiration\":\"1879788278688\"}",""" +
             """"signatures":["MEYCIQCO=="]},"protocolVersion":"ECv2","signedMessage":"{\"encryptedMessage\":\"ZW5j\",\"ephemeralPublicKey\":\"BPh=\",\"tag\":\"\"}"}"""
@@ -166,9 +154,6 @@ class ContractSerializationTest {
             })
         }.toString()
 
-        // The exact path the ViewModel takes: parse the sheet's JSON, embed
-        // paymentMethodData as a Gson tree, serialize the submit request with
-        // the same default Gson configuration Retrofit's converter uses.
         val paymentMethodData = JsonParser.parseString(paymentDataJson)
             .asJsonObject.getAsJsonObject("paymentMethodData")
         val request = SubmitCardRequest(
@@ -183,7 +168,6 @@ class ContractSerializationTest {
             .getAsJsonObject("wallet_token").getAsJsonObject("data")
 
         assertEquals(token, decoded.getAsJsonObject("tokenizationData").get("token").asString)
-        // Empty fields must not be stripped either — the whole object is opaque.
         assertEquals("", decoded.getAsJsonObject("info").get("assuranceDetails").asString)
         assertEquals(
             JsonParser.parseString(paymentDataJson).asJsonObject.get("paymentMethodData"),
@@ -286,8 +270,6 @@ class ContractSerializationTest {
 
     @Test
     fun `session response tolerates payloads without wallet fields`() {
-        // wallets, account_funding and google_pay are additive: sessions minted
-        // before the backend shipped them must still parse.
         val json = """
             {"session_id": "550e8400-e29b-41d4-a716-446655440000", "data": {"locale": "en"}}
         """.trimIndent()
@@ -301,8 +283,6 @@ class ContractSerializationTest {
 
     @Test
     fun `session locale is decoded verbatim, region and all`() {
-        // The tag is carried as the server wrote it. Narrowing fr-CA to fr is the
-        // resolver's job, and it needs the region to be there to decide.
         val json = """
             {"session_id": "550e8400-e29b-41d4-a716-446655440000", "data": {"locale": "fr-CA"}}
         """.trimIndent()
@@ -312,8 +292,6 @@ class ContractSerializationTest {
 
     @Test
     fun `a locale the SDK cannot read does not cost the session`() {
-        // A malformed or unknown tag is one field, and the sheet can still take a
-        // payment in English. Failing the whole payload over it cannot be right.
         listOf("\"de-DE\"", "\"not a tag\"", "\"\"", "null").forEach { value ->
             val json = """
                 {
@@ -364,11 +342,6 @@ class ContractSerializationTest {
 
     @Test
     fun `browser_info omits ip_address on every submit shape`() {
-        // The key has to be absent rather than "" or null. The handler fills
-        // browser_info.ip_address from CF-Connecting-IP, falling back to the
-        // API Gateway source IP, whenever the client leaves it blank; a value
-        // the client does send wins over both, so sending one would override
-        // the address the connection actually came from.
         val requests = listOf(
             SubmitCardRequest(
                 session = "jwt-token",
@@ -388,7 +361,6 @@ class ContractSerializationTest {
             val browser = JsonParser.parseString(gson.toJson(request))
                 .asJsonObject.getAsJsonObject("browser_info")
             assertFalse(browser.has("ip_address"))
-            // Guards against the whole object silently going missing instead.
             assertEquals("ua", browser.get("user_agent").asString)
         }
     }
@@ -413,8 +385,6 @@ class ContractSerializationTest {
 
     @Test
     fun `session response without branding leaves the colour null`() {
-        // Every session minted before core started publishing the key, which is
-        // most of them, and every merchant who has not set a colour.
         val json = """
             {
               "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -475,9 +445,6 @@ class ContractSerializationTest {
 
     @Test
     fun `session response without saved_cards_config leaves both flags off`() {
-        // Sessions minted before the backend shipped the config key carry saved
-        // cards and no sibling object. Removal and preselection are opt-in, so
-        // the absent config must read as both-false rather than crash a `!!`.
         val json = """
             {
               "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -506,10 +473,6 @@ class ContractSerializationTest {
 
     @Test
     fun `saved card parses a null cardholder_name`() {
-        // customer_saved_cards.cardholder_name is nullable in core and the
-        // projection passes it through, so the field has to be nullable here or
-        // Gson writes null into a non-null Kotlin property and every read of it
-        // throws somewhere far from the decode.
         val json = """
             {
               "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -623,8 +586,6 @@ class ContractSerializationTest {
         assertEquals("Adresse e-mail", emailLabels["fr"])
         assertEquals("Email address", emailLabels["en"])
         assertEquals("email@example.com", email.placeholders!!["fr"])
-        // Language outer, rule inner - and the annotation is what gets it here at
-        // all, since a default Gson would otherwise look for a `messagesI18n` key.
         val messages = email.validation!!.messagesI18n!!
         assertEquals("Ce champ est obligatoire", messages["fr"]!!["required"])
         assertEquals("This field is required", messages["en"]!!["required"])
@@ -639,9 +600,6 @@ class ContractSerializationTest {
 
     @Test
     fun `field groups minted before the translations still decode`() {
-        // Every session the backend minted before it started publishing the maps,
-        // and every field whose only string is the one the session's own locale
-        // resolved. The singular keys are still there; the maps are simply absent.
         val json = """
             {
               "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -675,7 +633,6 @@ class ContractSerializationTest {
         assertNull(email.placeholders)
         assertNull(email.options!!.single().labels)
         assertNull(email.validation!!.messagesI18n)
-        // The singular keys are untouched, which is what the fallback reads.
         assertEquals("Your details", group.label)
         assertEquals("Email address", email.label)
         assertEquals("email@example.com", email.placeholder)
@@ -696,9 +653,6 @@ class ContractSerializationTest {
 
     @Test
     fun `a field group carries opt_in, and a group without it reads as not opt-in`() {
-        // The flag arrives on the group the merchant let the shopper skip and
-        // nowhere else, so an absent member is the ordinary case rather than an
-        // old session - both readings have to be the same one: not opt-in.
         val json = """
             {
               "session_id": "550e8400-e29b-41d4-a716-446655440000",

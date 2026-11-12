@@ -49,7 +49,6 @@ private fun outcomeColor(outcome: String): Color = when {
     outcome == "pending" -> Color(0xFF1E88E5)
     outcome == "timeout" -> Color(0xFF9E9E9E)
     outcome == "cancelled" -> Color(0xFF9E9E9E)
-    // Amber, not the red below: an unknown outcome may be a completed payment.
     outcome.startsWith("unknown · ") -> Color(0xFFFFA000)
     else -> Color(0xFFF44336)
 }
@@ -146,8 +145,6 @@ internal fun RunDetailScreen(
     onBack: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
-    // Inspect state is global, so leaving must clear it — otherwise another run's
-    // JSON arrives under this screen's title.
     BackHandler { onDismissInspected(); onBack() }
 
     Scaffold(

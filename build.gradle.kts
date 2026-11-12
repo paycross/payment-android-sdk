@@ -2,11 +2,7 @@ import org.gradle.api.Action
 import org.gradle.api.artifacts.DependencyResolveDetails
 
 buildscript {
-    // Everything here is build-classpath tooling dragged in by AGP - none of it
-    // ships in the AAR - but it is what the dependency graph is scanned against,
-    // and AGP 8.13.2 still bundles versions with open advisories. Raised to the
-    // listed release when something asks for an older one, never lowered; drop
-    // entries as AGP catches up.
+    // Build-classpath pins that clear advisories in AGP 8.13.2's bundled versions; never lower them.
     fun patchedBuildDeps(): List<String> = listOf(
         "io.netty:netty-buffer:4.1.139.Final",
         "io.netty:netty-codec:4.1.139.Final",
@@ -76,13 +72,9 @@ buildscript {
 plugins {
     id("com.android.application") version "8.13.2" apply false
     id("com.android.library") version "8.13.2" apply false
-    // Kotlin 2.x is not optional. Any dependency compiled against Kotlin 2.x
-    // metadata - OkHttp 5 among them - is unreadable to a 1.9 compiler, and the
-    // Flutter plugin templates a merchant would consume this from are themselves
-    // Kotlin 2.x. Staying on 1.9.21 makes the SDK uncombinable with both.
+    // Stays on Kotlin 2.x: OkHttp 5 and the Flutter templates use it, and a 1.9 compiler cannot read them.
     id("org.jetbrains.kotlin.android") version "2.4.21" apply false
-    // From Kotlin 2.0 the Compose compiler ships with Kotlin itself and is
-    // applied as a plugin instead of pinned via composeOptions.
+    // Kotlin 2.x applies the Compose compiler as a plugin; composeOptions does not apply.
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1" apply false
     id("org.jetbrains.dokka") version "2.2.0" apply false

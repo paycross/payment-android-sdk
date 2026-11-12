@@ -8,21 +8,12 @@ plugins {
     id("kotlin-parcelize")
     id("maven-publish")
     id("signing")
-    // Pins the importable surface of the AAR: apiCheck fails the build whenever
-    // the public ABI drifts from the committed api/sdk.api, so nothing under
-    // internal/ can leak back into merchant-visible API unnoticed.
+    // Fails the build when the public ABI drifts from api/sdk.api.
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     id("org.jetbrains.dokka")
 }
 
-// com.pay-cross, not com.paycross: Maven Central verifies a namespace by reversing
-// the domain EXACTLY, hyphens included, so pay-cross.com grants com.pay-cross and
-// nothing else. paycross.com is a different company's domain, registered since
-// 2010 and transfer-locked, so matching it is not an option. Hyphens are legal in
-// a groupId and do not have to match the Kotlin package, which stays com.paycross.
-//
-// Central coordinates are permanent once published - a relocation POM is the only
-// escape and it is lossy - so this is settled here rather than at first publish.
+// Central verifies the pay-cross.com domain, so the groupId cannot be com.paycross.
 group = "com.pay-cross"
 version = providers.gradleProperty("paycrossVersion").getOrElse("0.1.0-SNAPSHOT")
 
@@ -58,9 +49,7 @@ android {
     publishing {
         singleVariant("release") {
             withSourcesJar()
-            // Central requires a -javadoc artifact to be present. It checks that
-            // the file exists, not what is in it, so this stays satisfiable even
-            // if the SDK is later shipped closed-source.
+            // Central requires a javadoc jar to exist; its content is not checked.
             withJavadocJar()
         }
     }
@@ -73,13 +62,7 @@ kotlin {
 }
 
 apiValidation {
-    // The Compose compiler emits one public ComposableSingletons holder class
-    // per file containing composable lambdas; its members are internal-mangled
-    // and unusable from outside, but the class itself is public bytecode.
-    // Listed by exact name rather than ignoring com.paycross.sdk.internal
-    // wholesale, so a genuinely public type leaking from internal/ still fails
-    // apiCheck - that leak is what this validation exists to catch. A new file
-    // with composable lambdas will surface here; add its holder to this list.
+    // Compose emits a public ComposableSingletons holder per file; list each by exact name so internal/ leaks still fail.
     ignoredClasses.addAll(
         listOf(
             "com.paycross.sdk.internal.ui.ComposableSingletons\$PaymentActivityKt",
@@ -89,22 +72,13 @@ apiValidation {
     )
 }
 
-// The published API reference. reference.yml runs dokkaGeneratePublicationHtml
-// on every v* tag and attaches the output to the GitHub release; the developer
-// portal downloads that asset at build time.
+// Published as the API reference by reference.yml on each v* tag.
 dokka {
-    // Names the module in the generated pages. Matches the Maven artifactId
-    // rather than the Gradle project name, which is the bare ":sdk".
+    // Matches the Maven artifactId, not the Gradle project name.
     moduleName.set("paycross-android")
 
     dokkaSourceSets.configureEach {
-        // Belt and braces. Every declaration under com.paycross.sdk.internal is
-        // Kotlin-`internal` today, which Dokka skips anyway - removing this
-        // changes nothing about the current output, verified by generating both
-        // ways. It stays because the package boundary is what the portal
-        // publishes against, and a type promoted to public so another package
-        // inside the SDK can reach it would otherwise land in the merchant
-        // reference. reference.yml asserts the same thing about the archive.
+        // Keeps internal packages out of the reference even if a declaration is made public.
         perPackageOption {
             matchingRegex.set("com\\.paycross\\.sdk\\.internal.*")
             suppress.set(true)
@@ -115,14 +89,11 @@ dokka {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            // Not "sdk": Central is a global namespace and a merchant reading their
-            // dependency block should be able to tell what they are depending on.
-            // Follows com.stripe:stripe-android.
+            // Not "sdk": Central is a global namespace.
             artifactId = "paycross-android"
             afterEvaluate { from(components["release"]) }
 
-            // Required by Central. Harmless on GitHub Packages, and cheaper to set
-            // now than to discover missing at the first Portal upload.
+            // Central requires these pom fields.
             pom {
                 name.set("PayCross Android SDK")
                 description.set("Card payments, 3-D Secure v2 and saved cards for Android.")
@@ -161,10 +132,8 @@ publishing {
     }
 }
 
-// Central rejects unsigned uploads. The key arrives base64-wrapped because CI
-// secret handling mangles the armored block's newlines. When either variable is
-// absent, signing stays off entirely, so local builds and forks without the
-// secrets still assemble and publish to GitHub Packages.
+// Central rejects unsigned uploads; signing is skipped when either variable is unset.
+// SIGNING_KEY is base64: CI secret handling mangles the armored block's newlines.
 signing {
     val signingKey = providers.environmentVariable("SIGNING_KEY").orNull
     val signingPassword = providers.environmentVariable("SIGNING_PASSWORD").orNull
@@ -178,46 +147,32 @@ signing {
 }
 
 dependencies {
-    // Compose
     implementation(platform("androidx.compose:compose-bom:2026.06.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
-    // api, not implementation: ActivityResultContract is the public supertype of
-    // PayCrossContract and @ColorInt appears in PayCross.init's signature, so both
-    // must be on the consumer's compile classpath.
+    // api, not implementation: their types appear in the public SDK signatures.
     api("androidx.activity:activity-compose:1.13.0")
     api("androidx.annotation:annotation:1.11.0")
     implementation("androidx.core:core-ktx:1.18.0")
 
-    // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.10.0")
 
-    // Networking
-    // Retrofit 2.11+, not 2.9: 2.9 predates OkHttp 5, and Gradle resolves to the
-    // highest version in the graph, so a merchant app that also ships
-    // flutter_stripe (which pins OkHttp 5) drags this SDK onto it. Verified by
-    // forcing okhttp 5.3.2 through the whole graph and rebuilding. Note the
-    // Kotlin version above does the heavier lifting here - OkHttp 5 carries
-    // Kotlin 2.2 metadata, which a 1.9 compiler cannot read at all.
+    // Retrofit 2.11+: 2.9 predates OkHttp 5, which flutter_stripe pins and would drag the SDK onto.
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Google Pay. The sheet, IsReadyToPay, the ActivityResult contract and the
-    // official PayButton view all come from this one artifact.
     implementation("com.google.android.gms:play-services-wallet:20.0.0")
 
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
-    // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("io.mockk:mockk:1.14.11")

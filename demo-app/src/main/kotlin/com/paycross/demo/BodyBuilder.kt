@@ -31,13 +31,6 @@ import com.google.gson.JsonParser
 
 private val PRETTY_GSON = GsonBuilder().setPrettyPrinting().create()
 
-/**
- * Structured editor for the create-session request body, mirroring the
- * create-payment-session request schema the backend publishes.
- * Optional fields toggle the key in and out of the JSON; unknown keys
- * (metadata, account_funding, hand-added extras) pass through untouched
- * because edits mutate the parsed tree.
- */
 @Composable
 internal fun BodyBuilder(
     body: String,

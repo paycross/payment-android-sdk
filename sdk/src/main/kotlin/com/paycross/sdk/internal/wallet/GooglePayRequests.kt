@@ -6,63 +6,29 @@ import com.paycross.sdk.internal.api.JwtClaims
 import com.paycross.sdk.internal.api.models.SessionData
 import com.paycross.sdk.internal.util.Amounts
 
-/**
- * Builds the Google Pay API request payloads and decides session-level
- * eligibility. Mirrors the checkout page's googlePaySupport.js /
- * walletVisibility.js exactly — the two clients must show the same wallet
- * for the same session snapshot.
- *
- * Requests are built as Gson JSON rather than through the Play Services
- * builders so this stays unit-testable on the JVM; the thin GMS layer
- * ([GooglePayClient]) converts them with `fromJson` at the boundary.
- */
 internal object GooglePayRequests {
-
     private const val API_VERSION = 2
     private const val API_VERSION_MINOR = 0
 
-    // PAN_ONLY is an FPAN with no liability shift; PAN_ONLY tokens can still
-    // trigger a real 3DS challenge downstream, which the existing polling
-    // machinery already handles.
+    // PAN_ONLY is an FPAN with no liability shift, yet its tokens can still trigger a 3DS challenge.
     private val AUTH_METHODS = listOf("PAN_ONLY", "CRYPTOGRAM_3DS")
     private val CARD_NETWORKS = listOf("VISA", "MASTERCARD", "AMEX", "DISCOVER", "JCB")
 
-    /**
-     * Session-level gate for showing Google Pay. Strict-false semantics on the
-     * wallets block: sessions snapshotted before the backend shipped `wallets`
-     * have no block at all and must keep showing the wallet, so only an
-     * explicit `google_pay: false` hides it. `account_funding` is not a gate:
-     * it marks the session as an account-funding transfer, and core accepts
-     * wallet payments on those and forwards the AFT block to the acquirer.
-     */
+    // The account_funding block is not a gate: wallet payments are accepted on account-funding transfers.
     fun isSessionEligible(sessionData: SessionData?): Boolean =
         sessionData?.wallets?.googlePay != false
 
-    /**
-     * The IsReadyToPay probe carries only the base CARD method — no
-     * tokenizationSpecification, no billing-address parameters. It asks "can
-     * this device pay with these networks at all", not "with our gateway".
-     */
+    // IsReadyToPay carries no tokenization or billing parameters: it asks about the device, not the gateway.
     fun buildIsReadyToPayRequest(): JsonObject = JsonObject().apply {
         addProperty("apiVersion", API_VERSION)
         addProperty("apiVersionMinor", API_VERSION_MINOR)
         add("allowedPaymentMethods", JsonArray().apply { add(baseCardMethod()) })
     }
 
-    /**
-     * The allowed payment methods on their own, for the Google Pay button, which
-     * needs them to decide what it may draw. Built without the rest of the
-     * request because the button has no total to name and no merchant to
-     * identify, and asking for those would mean resolving a string it never uses.
-     */
     fun buildAllowedPaymentMethods(claims: JwtClaims, sessionData: SessionData?): JsonArray =
         JsonArray().apply { add(cardMethodWithTokenization(claims, sessionData)) }
 
-    /**
-     * @param totalPriceLabel What Google's own sheet names the total line. Drawn
-     *   to the shopper, so it arrives already translated: this object has no
-     *   Context and Google localizes its chrome but not a merchant's strings.
-     */
+    // Google translates its own chrome but not a merchant's label, so totalPriceLabel arrives translated.
     fun buildPaymentDataRequest(
         claims: JwtClaims,
         sessionData: SessionData?,
@@ -87,10 +53,7 @@ internal object GooglePayRequests {
     private fun cardMethodWithTokenization(claims: JwtClaims, sessionData: SessionData?): JsonObject {
         val method = baseCardMethod()
 
-        // Asking for the address costs the shopper an extra consent, so it is
-        // opt-in per merchant; Google returns it at
-        // paymentMethodData.info.billingAddress inside the payload we already
-        // forward untouched — only the request has to ask.
+        // Requesting the billing address adds a consent step for the shopper, so it is opt-in per merchant.
         if (sessionData?.googlePay?.billingAddressRequired == true) {
             method.getAsJsonObject("parameters").apply {
                 addProperty("billingAddressRequired", true)
@@ -98,10 +61,7 @@ internal object GooglePayRequests {
             }
         }
 
-        // PAYMENT_GATEWAY, not DIRECT: the ECv2 envelope is decrypted
-        // server-side by the vault, never on the device. We are the gateway,
-        // so gatewayMerchantId is our own merchant UUID from the session JWT;
-        // core verifies the decrypted echo of it against the transaction.
+        // PAYMENT_GATEWAY, not DIRECT: the ECv2 envelope is decrypted server-side, never on the device.
         method.add("tokenizationSpecification", JsonObject().apply {
             addProperty("type", "PAYMENT_GATEWAY")
             add("parameters", JsonObject().apply {
@@ -128,9 +88,7 @@ internal object GooglePayRequests {
 
     private fun merchantInfo(sessionData: SessionData?, googlePayMerchantId: String?): JsonObject? {
         val merchantName = sessionData?.googlePay?.merchantName?.takeIf { it.isNotBlank() }
-        // The Business Console id is required by Google only in PRODUCTION;
-        // without one the TEST environment still works, so it stays optional
-        // and the field is simply omitted.
+        // Google requires the Business Console id only in production; TEST works without one.
         val merchantId = googlePayMerchantId?.takeIf { it.isNotBlank() }
         if (merchantName == null && merchantId == null) return null
 

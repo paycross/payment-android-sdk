@@ -10,11 +10,7 @@ plugins {
     id("com.gradleup.nmcp.settings") version "1.6.1"
 }
 
-// Uploads the existing maven-publish publications through the Central Portal
-// publisher API - the Portal has no plain Maven endpoint maven-publish could
-// push to. AUTOMATIC: a tag that passes validation publishes without a Portal
-// click. Central artifacts are permanent, so a bad release is fixed by the
-// next version, never by unpublishing.
+// Central Portal publishing: AUTOMATIC releases a validated tag at once, and Central artifacts cannot be unpublished.
 nmcpSettings {
     centralPortal {
         username = System.getenv("CENTRAL_TOKEN_USERNAME")

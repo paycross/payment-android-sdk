@@ -26,21 +26,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeUnit
 
-/**
- * Does the hidden fingerprint WebView actually run?
- *
- * The fingerprint step is rendered at `size(1.dp).alpha(0f)`. The iOS SDK
- * deliberately does the opposite — full size, full opacity, sent to the back —
- * with a source comment stating that WebKit throttles content it believes is
- * invisible and that a throttled fingerprint silently fails to post its device
- * data. Both cannot be right, and if Android's is throttled then every Android
- * 3DS v2 transaction has been silently degraded in production.
- *
- * The question is not whether `postUrl` fires — that is a direct API call. It is
- * whether the JavaScript in the page the ACS returns still executes, because the
- * real 3DS method form auto-submits from script. So the server here returns a
- * page that submits from JS, and the test asserts the submission arrives.
- */
 @RunWith(AndroidJUnit4::class)
 class ThreeDsFingerprintRenderingTest {
 
@@ -48,17 +33,12 @@ class ThreeDsFingerprintRenderingTest {
     val compose = createComposeRule()
 
     private lateinit var server: MockWebServer
-    /// Built by hand rather than via `server.url()`: that calls
-    /// getCanonicalHostName, which is a reverse DNS lookup, and reading it from
-    /// inside composition throws NetworkOnMainThreadException.
     private lateinit var acsUrl: String
 
     @Before
     fun setUp() {
         server = MockWebServer()
         server.start()
-        // MockWebServer runs inside the test process on the device, so loopback
-        // here is the emulator itself and not the host machine.
         acsUrl = "http://127.0.0.1:${server.port}/acs"
     }
 
@@ -67,7 +47,6 @@ class ThreeDsFingerprintRenderingTest {
         server.shutdown()
     }
 
-    /// The ACS 3DS-method page: a form the browser is expected to submit itself.
     private fun enqueueSelfSubmittingPage() {
         server.enqueue(
             MockResponse()
@@ -83,7 +62,6 @@ class ThreeDsFingerprintRenderingTest {
                     """.trimIndent()
                 )
         )
-        // The submission itself.
         server.enqueue(MockResponse().setResponseCode(200).setBody("ok"))
     }
 
@@ -96,7 +74,6 @@ class ThreeDsFingerprintRenderingTest {
     private fun takeRequest(): RecordedRequest? = server.takeRequest(20, TimeUnit.SECONDS)
 
     private companion object {
-        /** Test-only: the fingerprint carries no identifier in production. */
         const val FINGERPRINT = "paycross.test.fingerprint"
     }
 
@@ -109,7 +86,6 @@ class ThreeDsFingerprintRenderingTest {
                 action = action(),
                 onComplete = {},
                 onError = {},
-                // Exactly what PaymentActivity uses for the fingerprint step.
                 modifier = Modifier
                     .size(1.dp)
                     .alpha(0f)
@@ -134,16 +110,6 @@ class ThreeDsFingerprintRenderingTest {
         )
     }
 
-    /**
-     * The fingerprint's `size(1.dp).alpha(0f)` now lands on the wrapper instead
-     * of on the `AndroidView`, so the WebView takes its size by propagation.
-     *
-     * Asserts the size, which is what keeps the step out of sight; the alpha is
-     * a draw-layer property with no semantics to read, and the layer still
-     * encloses the interop view's draw either way. A WebView that measured
-     * itself here would put the issuer's page over the sheet, and nothing else
-     * in the suite would notice.
-     */
     @Test
     fun theHiddenFingerprintWebViewIsStillOneDipAcross() {
         server.enqueue(MockResponse().setResponseCode(200).setBody("ok"))
@@ -167,11 +133,6 @@ class ThreeDsFingerprintRenderingTest {
             .assertHeightIsEqualTo(1.dp)
     }
 
-    /**
-     * The same page in a full-size, fully-opaque WebView — the shape iOS uses.
-     * If this passes while the hidden one fails, the geometry is the cause and
-     * the fix is to render the fingerprint the way iOS does.
-     */
     @Test
     fun fullSizeWebViewExecutesScriptAndPosts() {
         enqueueSelfSubmittingPage()

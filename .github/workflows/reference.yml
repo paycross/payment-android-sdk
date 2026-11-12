@@ -1,9 +1,5 @@
 name: Reference
 
-# The generated API reference the developer portal serves at
-# /reference/android/. It is built here rather than in the portal because the
-# Android toolchain lives in this repo, and attached to the release so the
-# portal can download one versioned asset instead of building the SDK.
 on:
   push:
     tags: ['v*']
@@ -32,10 +28,7 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      # The tag's own tree, except when `ref` overrides it. A tag cut before this
-      # workflow existed has no Dokka in its build files, so building it fails on
-      # a missing task; `ref: main` is how that tag gets a reference anyway, and
-      # it is only honest when main's public API still matches the tag's.
+      # A tag without a Dokka task needs `ref: main`, which only matches the tag if main's public API still does.
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || inputs.tag || github.ref_name }}
@@ -53,8 +46,7 @@ jobs:
       - name: Package
         run: |
           set -euo pipefail
-          # From inside the output directory, so index.html sits at the archive
-          # root and the portal can unzip straight into static/reference/android/.
+          # index.html must sit at the archive root for the portal to unzip it.
           (cd sdk/build/dokka/html && zip -qr "$GITHUB_WORKSPACE/paycross-android-reference.zip" .)
           ls -l paycross-android-reference.zip
 
@@ -72,10 +64,7 @@ jobs:
           # Listed to a file: grep -q exits early and the SIGPIPE fails pipefail.
           unzip -Z1 paycross-android-reference.zip > "$RUNNER_TEMP/listing.txt"
           grep -qx 'index.html' "$RUNNER_TEMP/listing.txt"
-          # Two things keep com.paycross.sdk.internal out of the reference:
-          # Kotlin `internal` visibility on the declarations, and the
-          # perPackageOption in sdk/build.gradle.kts. Nothing fails loudly when
-          # either stops holding, so the archive is checked rather than trusted.
+          # Kotlin `internal` visibility and perPackageOption in sdk/build.gradle.kts keep the internal package out.
           if grep -q 'com\.paycross\.sdk\.internal' "$RUNNER_TEMP/listing.txt"; then
             echo "::error::internal packages leaked into the published reference"
             exit 1

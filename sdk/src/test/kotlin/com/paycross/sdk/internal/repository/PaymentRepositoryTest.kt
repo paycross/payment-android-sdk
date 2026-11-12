@@ -12,12 +12,6 @@ import org.junit.Test
 import retrofit2.Response
 import java.io.IOException
 
-/**
- * The status-code mapping for a card removal, which is the only place in the SDK
- * that reads a raw HTTP code. Every branch decides whether the shopper's card
- * leaves the sheet, so each one is pinned here rather than left to the one
- * ViewModel test that happens to exercise it.
- */
 class PaymentRepositoryTest {
 
     @Test
@@ -27,15 +21,11 @@ class PaymentRepositoryTest {
 
     @Test
     fun `any 2xx removes the card`() = runTest {
-        // The route returns 204 today. Nothing about the sheet's reaction depends
-        // on that, so a 200 must not be read as a failure.
         assertEquals(RemoveSavedCardResult.Removed, remove(Response.success(Unit)))
     }
 
     @Test
     fun `400 is a plain failure`() = runTest {
-        // A malformed uuid. The sheet cannot fix it and must not pretend the card
-        // is gone, so it reads the same as any other refusal.
         assertEquals(RemoveSavedCardResult.Failed, remove(error(400)))
     }
 
@@ -56,9 +46,6 @@ class PaymentRepositoryTest {
 
     @Test
     fun `a dropped connection is a plain failure`() = runTest {
-        // IOException is the one thing Retrofit throws rather than returns for a
-        // Response-typed call, so it needs catching or the removal crashes the
-        // coroutine instead of showing the banner.
         val api = FakeApi { throw IOException("socket closed") }
 
         assertEquals(

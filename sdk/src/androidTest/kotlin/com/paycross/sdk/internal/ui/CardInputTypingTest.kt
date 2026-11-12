@@ -14,12 +14,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Types the card fields one key at a time, the way a shopper does. Nothing else
- * in the suite types at all - the demo app prefills and the E2E scripts paste
- * the whole PAN in one burst - so a formatter that moves the caret can corrupt
- * every hand-entered card number without any existing test noticing.
- */
 @RunWith(AndroidJUnit4::class)
 class CardInputTypingTest {
 
@@ -85,8 +79,6 @@ class CardInputTypingTest {
         }
     }
 
-    // What TalkBack announces and what a uiautomator dump reports as the node's
-    // text, so the grouping has to survive here even though the state is digits.
     private fun displayedText(tag: String): String =
         compose.onNodeWithTag(tag)
             .fetchSemanticsNode()

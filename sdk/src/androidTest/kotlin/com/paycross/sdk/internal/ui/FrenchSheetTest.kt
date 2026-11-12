@@ -31,16 +31,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Locale
 
-/**
- * Proves values-fr actually reaches the screen, and that it reaches the two
- * dialogs as well.
- *
- * The dialogs are the whole reason the language travels on a composition local
- * of its own: a Compose Dialog runs in a sub-composition against its own window
- * and re-provides LocalContext from it, so a locale carried there would stop at
- * the dialog's edge and leave the shopper reading French under an English
- * "Remove this card?".
- */
 @RunWith(AndroidJUnit4::class)
 class FrenchSheetTest {
 
@@ -50,8 +40,6 @@ class FrenchSheetTest {
     private val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
     private val french = targetContext.localizedResources(Locale.FRENCH)
 
-    // Provided explicitly rather than left to the fallback, so the English cases
-    // assert English rather than whatever language the emulator happens to be in.
     private val english = targetContext.localizedResources(Locale.ENGLISH)
 
     private val claims = JwtClaims(
@@ -121,8 +109,6 @@ class FrenchSheetTest {
         }
 
         compose.onNodeWithContentDescription("Saisie du numéro de carte").assertIsDisplayed()
-        // Unmerged: the field sets a contentDescription of its own and merges its
-        // descendants, so the label is only its own node before merging.
         compose.onNodeWithText("Numéro de carte", useUnmergedTree = true).assertIsDisplayed()
     }
 
@@ -139,8 +125,6 @@ class FrenchSheetTest {
 
     @Test
     fun aLanguageTheSdkCannotSpeakStillFormatsTheAmountItsOwnWay() {
-        // The point of keeping the amount's locale separate from the strings':
-        // German words do not exist here, German number formatting does.
         compose.setContent {
             CompositionLocalProvider(
                 LocalPayCrossResources provides english,
@@ -150,20 +134,11 @@ class FrenchSheetTest {
             }
         }
 
-        // Substring, and stopping before the currency symbol: CLDR separates the
-        // number from the euro sign with a no-break space whose width has moved
-        // between ICU releases, and which one it is today is not what this test
-        // is about. "Pay" is the English word; "12,34" is the German comma.
         compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
     }
 
-    // --- Through the real wiring, with nothing provided by hand ---
-
     @Test
     fun aFrenchSessionDrawsFrenchWithoutAHandProvidedLocal() {
-        // Everything above provides the resources itself, which proves the
-        // mechanism but skips the ladder. This one hands PayCrossLocalization the
-        // session locale exactly as the activity does and reads the words back.
         compose.setContent {
             PayCrossLocalization(sessionLocale = "fr", merchantLocale = null) {
                 PayButton(amount = "12,34 €", isLoading = false, onClick = {})
@@ -186,9 +161,6 @@ class FrenchSheetTest {
 
     @Test
     fun aSessionLanguageTheSdkCannotSpeakDrawsEnglishThroughTheRealWiring() {
-        // The device rung is pinned to Japanese rather than inherited from the
-        // emulator, so the English here is the ladder's last resort and not the
-        // language the machine happened to be in.
         compose.setContent {
             WithDeviceLanguages(Locale.JAPAN) {
                 PayCrossLocalization(sessionLocale = "de", merchantLocale = null) {
@@ -197,16 +169,11 @@ class FrenchSheetTest {
             }
         }
 
-        // English words, and the amount punctuated the German way the session
-        // asked for, which is the split the two locals exist to make.
         compose.onNodeWithText("Pay 12,34", substring = true).assertIsDisplayed()
     }
 
     @Test
     fun aSecondDevicePreferenceIsReachedThroughTheRealWiring() {
-        // A handset set to German first and French second has asked for French
-        // over English, and reading only the first entry answered it with
-        // English. This is that fix, end to end on a device.
         compose.setContent {
             WithDeviceLanguages(Locale.GERMANY, Locale.FRANCE) {
                 PayCrossLocalization(sessionLocale = null, merchantLocale = null) {
@@ -220,9 +187,6 @@ class FrenchSheetTest {
 
     @Test
     fun aRequiredMerchantFieldSaysSoInFrenchThroughTheRealWiring() {
-        // Two sources meeting on one node: the name is the merchant's own French
-        // label, the state is values-fr. The marker the label is drawn with stays
-        // out of the name, which is why the state has to carry the word at all.
         compose.setContent {
             PayCrossLocalization(sessionLocale = "fr", merchantLocale = null) {
                 FieldGroupsSection(
@@ -246,10 +210,6 @@ class FrenchSheetTest {
         )
     }
 
-    /**
-     * Runs [content] as though the shopper had listed [languages], in that order,
-     * so a test does not inherit whichever language the emulator is in.
-     */
     @Composable
     private fun WithDeviceLanguages(vararg languages: Locale, content: @Composable () -> Unit) {
         val configuration = Configuration(LocalConfiguration.current).apply {

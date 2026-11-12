@@ -207,8 +207,6 @@ internal fun MerchantEditScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            // Switching environment also swaps the URL fields between the
-            // known defaults — but never overwrites a hand-edited URL.
             fun switchEnvironment(env: String) {
                 environment = env
                 val staging = env == Merchant.ENV_STAGING

@@ -14,17 +14,7 @@ import com.paycross.sdk.internal.api.models.SessionData
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-/**
- * Thin boundary around Play Services Wallet. Everything decidable without
- * Google Play services lives in [GooglePayRequests]; this class only converts
- * the JSON requests at the GMS edge and awaits the resulting tasks.
- */
 internal object GooglePayClient {
-
-    // The web checkout decouples the Google Pay environment from the API host
-    // via an env var; here it derives from the SDK environment instead — one
-    // fewer knob, and a staging build can never accidentally open a
-    // PRODUCTION sheet against real instruments.
     fun walletEnvironment(environment: PayCrossEnvironment): Int = when (environment) {
         PayCrossEnvironment.STAGING -> WalletConstants.ENVIRONMENT_TEST
         PayCrossEnvironment.PRODUCTION -> WalletConstants.ENVIRONMENT_PRODUCTION
@@ -39,15 +29,10 @@ internal object GooglePayClient {
                     .build()
             )
         } catch (e: RuntimeException) {
-            // No Google Play services on the device (or a broken installation)
-            // simply means no Google Pay button; the card form is unaffected.
+            // Without working Google Play services the Google Pay button is not shown.
             null
         }
 
-    /**
-     * Resolves device-level readiness. Any failure — GMS missing, API error,
-     * task exception — means the button silently stays hidden.
-     */
     suspend fun isReadyToPay(client: PaymentsClient): Boolean {
         val request = try {
             IsReadyToPayRequest.fromJson(GooglePayRequests.buildIsReadyToPayRequest().toString())

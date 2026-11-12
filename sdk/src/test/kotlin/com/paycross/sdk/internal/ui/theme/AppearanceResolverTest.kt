@@ -261,9 +261,6 @@ class AppearanceResolverTest {
 
     @Test
     fun `a size scale that is not a number is ignored`() {
-        // Ignored rather than clamped: an infinite scale is a mistake, not a
-        // request for the largest supported one. A finite value out of range is
-        // a request, so it still clamps.
         assertEquals(1f, scaleOf(Float.NaN), 0f)
         assertEquals(1f, scaleOf(Float.POSITIVE_INFINITY), 0f)
         assertEquals(1f, scaleOf(Float.NEGATIVE_INFINITY), 0f)
@@ -272,9 +269,6 @@ class AppearanceResolverTest {
 
     @Test
     fun `a radius or thickness that is not a dimension is ignored`() {
-        // NaN survives both coerceIn and the Dp constructor, and Dp.roundToPx
-        // throws on it rather than rounding, which the Google Pay button's
-        // radius reaches.
         listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -1f).forEach { bad ->
             val shapes = AppearanceResolver.resolve(
                 PayCrossAppearance(
@@ -333,8 +327,6 @@ class AppearanceResolverTest {
 
     @Test
     fun `a button background derives its own label colour`() {
-        // Otherwise the label keeps the colour the brand derived, which on a
-        // white button is white on white.
         val appearance = PayCrossAppearance(
             primaryButton = PayCrossPrimaryButton(background = Color.White.toArgb())
         )
@@ -379,8 +371,6 @@ class AppearanceResolverTest {
 
     @Test
     fun `a merchant surface with the platform text colour is checked too`() {
-        // Setting only the surface is the common case, and it is exactly the one
-        // that can drop the platform's text colour onto an unreadable ground.
         val appearance = PayCrossAppearance(light = PayCrossColors(surface = Color(0xFF1C1B1F).toArgb()))
         assertEquals(
             1,
@@ -413,8 +403,6 @@ class AppearanceResolverTest {
 
     @Test
     fun `eight digits are refused`() {
-        // Core normalises the field to #RRGGBB, and alpha has no meaning on a
-        // colour the sheet fills a button with.
         assertNull(AppearanceResolver.parseHexColor("#1E88E5FF"))
         assertNull(AppearanceResolver.parseHexColor("#FF1E88E5"))
     }
@@ -427,8 +415,6 @@ class AppearanceResolverTest {
         assertNull(AppearanceResolver.parseHexColor("#12345"))
         assertNull(AppearanceResolver.parseHexColor("#GGGGGG"))
         assertNull(AppearanceResolver.parseHexColor("rebeccapurple"))
-        // isDigit is Unicode-wide and Long.parseLong reads these as 3, so this
-        // used to resolve to a colour nobody asked for.
         assertNull(AppearanceResolver.parseHexColor("#٣٣٣"))
     }
 
@@ -448,7 +434,6 @@ class AppearanceResolverTest {
         )
         assertEquals(1, warnings.size)
         assertTrue(warnings.single(), warnings.single().contains("brand"))
-        // The content colour, then the one behind it, in the order they are read.
         assertTrue(warnings.single(), warnings.single().contains("#8A8A8A on #767676"))
     }
 

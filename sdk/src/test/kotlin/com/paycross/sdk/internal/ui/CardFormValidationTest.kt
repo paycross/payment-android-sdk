@@ -7,11 +7,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * A stored card's CVV length comes from the brand it was saved with. Getting it
- * from anywhere else makes a saved Amex unusable: its 4-digit CID cannot be
- * typed and never validates, so the Pay button stays disabled forever.
- */
 class CardFormValidationTest {
 
     @Test
@@ -57,8 +52,6 @@ class CardFormValidationTest {
         assertTrue(validation.isValid)
     }
 
-    // The entered type is UNKNOWN on this path: the PAN field is not on screen
-    // when a stored card is selected, so only the stored brand can supply it.
     private fun cvvCardTypeFor(card: SavedCard): CardType =
         cvvCardType(isNewCard = false, enteredCardType = CardType.UNKNOWN, savedCard = card)
 

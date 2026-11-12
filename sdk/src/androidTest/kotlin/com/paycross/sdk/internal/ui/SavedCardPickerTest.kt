@@ -84,8 +84,6 @@ class SavedCardPickerTest {
             )
         }
 
-        // Shown, so the rows do not reflow under the shopper mid-authorization,
-        // but dead to a tap.
         compose.onNodeWithTag(TestTags.savedCardDelete("card-1")).assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithTag(TestTags.savedCardDelete("card-2")).assertIsNotEnabled()
     }
@@ -105,8 +103,6 @@ class SavedCardPickerTest {
         }
 
         compose.onNodeWithTag(TestTags.savedCardDelete("card-2")).performClick()
-        // The removal is destructive and irreversible, so the tap alone must not
-        // fire it: the dialog stands between the icon and the callback.
         assertNull(removed)
 
         compose.onNodeWithTag(TestTags.REMOVE_CONFIRM).performClick()

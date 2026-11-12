@@ -41,22 +41,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Locale
 
-/**
- * The accessibility floor, asserted where it is set rather than described.
- *
- * Each test here stands for one promise the README makes to a merchant: every
- * control is named, a decline is announced and carries a shape as well as a
- * colour, and nothing is pinned to a size that crops it.
- */
 @RunWith(AndroidJUnit4::class)
 class SheetAccessibilityTest {
 
     @get:Rule
     val compose = createComposeRule()
 
-    // Provided rather than inherited, and read back through the same keys the
-    // sheet draws from: the assertions then survive both a change of emulator
-    // language and a rewording of the copy.
     private val english = InstrumentationRegistry.getInstrumentation()
         .targetContext
         .localizedResources(Locale.ENGLISH)
@@ -121,8 +111,6 @@ class SheetAccessibilityTest {
 
     @Test
     fun theDeleteButtonIsAtLeastAFingertipTall() {
-        // Its own screen: the delete icon needs a session that permits removal,
-        // and the picker stands up without the rest of the form.
         setContent {
             SavedCardSelector(
                 savedCards = listOf(visa),
@@ -149,9 +137,6 @@ class SheetAccessibilityTest {
 
         val config = compose.onNodeWithTag(TestTags.CARD_NUMBER).fetchSemanticsNode().config
 
-        // The description is the field's own; the label and the error come from
-        // the decoration box underneath it. All three on one node is what the
-        // merge buys: without it the description would be read instead of them.
         assertEquals(
             listOf(string(R.string.paycross_card_number_field)),
             config.getOrNull(SemanticsProperties.ContentDescription)
@@ -191,8 +176,6 @@ class SheetAccessibilityTest {
 
         val config = compose.onNodeWithTag(TestTags.ERROR_BANNER).fetchSemanticsNode().config
 
-        // Polite, not Assertive: the shopper is usually mid-correction in a
-        // field, and Assertive interrupts what they are already being told.
         assertEquals(
             LiveRegionMode.Polite,
             config.getOrNull(SemanticsProperties.LiveRegion)
@@ -204,8 +187,6 @@ class SheetAccessibilityTest {
                 .any { it.text == string(R.string.paycross_error_payment_failed) }
         )
 
-        // Colour alone fails anyone who cannot see it, so the banner draws a
-        // glyph too. Decorative, hence found by tag rather than by name.
         compose.onNodeWithTag(TestTags.ERROR_BANNER_ICON, useUnmergedTree = true)
             .assertIsDisplayed()
     }
@@ -241,7 +222,6 @@ class SheetAccessibilityTest {
                 .any { it.text == string(R.string.paycross_save_this_card) }
         )
 
-        // Tapping the caption, not the box: the whole row is the control now.
         toggle.performScrollTo().performClick()
         compose.onNodeWithTag(TestTags.SAVE_CARD).assertIsOn()
     }
@@ -261,8 +241,6 @@ class SheetAccessibilityTest {
 
     @Test
     fun thePayButtonKeepsItsNameWhileTheSpinnerIsUp() {
-        // The label is the only thing on the button that says what it does, and
-        // loading swaps it for a spinner.
         compose.setContent { PayButton(amount = AMOUNT, isLoading = true, onClick = {}) }
 
         val config = compose.onNodeWithTag(TestTags.PAY_BUTTON).fetchSemanticsNode().config
@@ -274,8 +252,6 @@ class SheetAccessibilityTest {
 
     @Test
     fun theRestingPayButtonIsNamedByItsLabelAlone() {
-        // No description over the label: the same words twice would only take
-        // the label out of the tree that a UiAutomator dump reads.
         compose.setContent { PayButton(amount = AMOUNT, isLoading = false, onClick = {}) }
 
         val config = compose.onNodeWithTag(TestTags.PAY_BUTTON).fetchSemanticsNode().config
@@ -317,8 +293,6 @@ class SheetAccessibilityTest {
         val config = compose.onNodeWithTag(TestTags.field("customer_info", "email"))
             .fetchSemanticsNode().config
 
-        // The label without the marker the sheet draws beside it: an asterisk in
-        // the name is read out as "star", which names nothing.
         assertEquals(
             listOf("Email address"),
             config.getOrNull(SemanticsProperties.ContentDescription)
@@ -350,9 +324,6 @@ class SheetAccessibilityTest {
         val config = compose.onNodeWithTag(TestTags.field("customer_info", "email"))
             .fetchSemanticsNode().config
 
-        // The merchant's own sentence, not Material's generic "Invalid input":
-        // the field sets the property before the text field underneath it does,
-        // and the first one on a node is the one that survives the merge.
         assertEquals("Email address is required", config.getOrNull(SemanticsProperties.Error))
         compose.onNodeWithTag(
             TestTags.fieldError("customer_info", "email"),
@@ -409,10 +380,8 @@ class SheetAccessibilityTest {
     }
 
     private companion object {
-        /** Material's minimum touch target, and the README's promise. */
         val MIN_TOUCH_TARGET = 48.dp
 
-        /** Passed in already formatted, the way the card form hands it over. */
         const val AMOUNT = "€12.34"
     }
 }

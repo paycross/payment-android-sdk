@@ -47,8 +47,7 @@ class PaymentViewModelTest {
     // Payload: {"sub":"session-123","merchant":"merchant-456","amount":9999,"currency":"EUR","exp":4102444800}
     private val token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzZXNzaW9uLTEyMyIsIm1lcmNoYW50IjoibWVyY2hhbnQtNDU2IiwiYW1vdW50Ijo5OTk5LCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6NDEwMjQ0NDgwMH0.sig" // gitleaks:allow
 
-    // Same claims, but the session dies 1800 virtual seconds in, so a test can sit
-    // on the form until it does. Payload: {..., "exp": 1800}
+    // Payload: {..., "exp": 1800}
     private val shortLivedToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzZXNzaW9uLTEyMyIsIm1lcmNoYW50IjoibWVyY2hhbnQtNDU2IiwiYW1vdW50Ijo5OTk5LCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6MTgwMH0.sig" // gitleaks:allow
 
     private val dispatcher = StandardTestDispatcher()
@@ -63,10 +62,6 @@ class PaymentViewModelTest {
         clock = clock
     )
 
-    // The poll deadline and the session expiry are both measured against the clock
-    // while delay() runs on the test scheduler, so a test that wants to reach
-    // either has to hand the view model the scheduler's virtual time. On the real
-    // clock those loops never finish.
     private fun TestScope.virtualClock(): () -> Long = { testScheduler.currentTime }
 
     @Before
@@ -152,10 +147,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a server-sent verify_before_retry is pending, not a decline`() = runTest(dispatcher.scheduler) {
-        // The SDK raises verify_before_retry itself on a poll deadline, but the
-        // value parses from the wire too, and a host that round-trips recoveries
-        // as their wire token can feed one back. Whatever the source, it means
-        // the outcome is unknown, so it must not arrive looking like a decline.
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
         coEvery { repository.submitCard(any(), any()) } returns
@@ -211,10 +202,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a poll that runs out of time never claims the payment can be retried`() = runTest(dispatcher.scheduler) {
-        // The network is gone for good, so every poll throws and the loop simply
-        // runs to POLL_DEADLINE_MS. Server-side the authorization may well have
-        // completed: measured twice, both times over a succeeded, liability-shifted
-        // payment. Reporting a retry there re-collects money already taken.
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
         coEvery { repository.submitCard(any(), any()) } returns
@@ -229,7 +216,6 @@ class PaymentViewModelTest {
 
         val result = vm.uiState.value.result as PayCrossResult.Pending
         assertEquals(PendingReason.POLL_TIMEOUT, result.reason)
-        // The merchant resolves the outcome out of band, so the id has to be there.
         assertEquals("tx-8", result.transactionId)
         assertFalse(vm.uiState.value.isLoading)
     }
@@ -310,9 +296,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a form re-armed by a decline does not outlive the session`() = runTest(dispatcher.scheduler) {
-        // The retryable-decline branch ends the poll job cleanly, so nothing bounds
-        // the sheet afterwards: observed sitting on a live Pay button for 45 minutes
-        // against a session the server had already expired.
         coEvery { repository.getSession(any(), any()) } returns
             sessionResponse(status = "open", latestTransactionId = null)
         coEvery { repository.submitCard(any(), any()) } returns
@@ -326,7 +309,6 @@ class PaymentViewModelTest {
         vm.submitCard(context, newCard(), emptyMap())
         advanceTimeBy(FORM_SETTLE_MS)
 
-        // The form is armed and still inside the session.
         assertNull(vm.uiState.value.result)
         assertNotNull(vm.uiState.value.error)
 
@@ -370,7 +352,6 @@ class PaymentViewModelTest {
         vm.submitCard(context, newCard(), emptyMap())
         advanceUntilIdle()
 
-        // Long past the session's expiry by now; the success must stand.
         val result = vm.uiState.value.result as PayCrossResult.Success
         assertEquals("tx-10", result.transactionId)
     }
@@ -392,7 +373,6 @@ class PaymentViewModelTest {
         advanceTimeBy(FIRST_POLL_MS)
         dispatcher.scheduler.runCurrent()
 
-        // Cancelling mid-challenge has to name the attempt the merchant can see.
         assertNotNull(vm.uiState.value.threeDs)
         assertEquals("tx-20", vm.lastTransactionId)
 
@@ -414,8 +394,6 @@ class PaymentViewModelTest {
         vm.submitCard(context, newCard(), emptyMap())
         advanceTimeBy(FORM_SETTLE_MS)
 
-        // The re-arm clears the resume pointer so a fresh poll does not chase a
-        // dead transaction, but decline-then-cancel still has to name the attempt.
         assertNull(vm.uiState.value.result)
         assertEquals("tx-21", vm.lastTransactionId)
     }
@@ -590,8 +568,6 @@ class PaymentViewModelTest {
         assertNull(vm.uiState.value.result)
     }
 
-    // --- Saved cards: preselection, removal, and the token on success ---
-
     @Test
     fun `preselect selects the first saved card`() = runTest(dispatcher.scheduler) {
         coEvery { repository.getSession(any(), any()) } returns sessionResponse(
@@ -605,8 +581,6 @@ class PaymentViewModelTest {
         vm.initialize(token)
         advanceUntilIdle()
 
-        // The list arrives most-recently-used first, so the first entry is the
-        // one a returning shopper is most likely to want.
         assertEquals("card-1", vm.uiState.value.selectedSavedCardUuid)
     }
 
@@ -684,9 +658,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a failed removal keeps the card and shows the banner`() = runTest(dispatcher.scheduler) {
-        // Neither outcome says anything about whether the card is still there,
-        // so dropping it from the UI would be a lie the next session reload
-        // would contradict.
         val outcomes = listOf(
             RemoveSavedCardResult.Unauthorized,
             RemoveSavedCardResult.Failed
@@ -716,10 +687,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a not-found removal drops the card without a banner`() = runTest(dispatcher.scheduler) {
-        // 404 means the card is not this customer's: either already gone, or one
-        // this session was never allowed to touch. Under both readings the sheet
-        // should stop offering it, and neither is something to shout at the
-        // shopper about.
         coEvery { repository.getSession(any(), any()) } returns sessionResponse(
             sessionData(
                 savedCards = listOf(savedCard("card-1"), savedCard("card-2")),
@@ -743,9 +710,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `a removal is refused while a payment is in flight`() = runTest(dispatcher.scheduler) {
-        // The sheet is behind the processing overlay and an authorization is the
-        // only thing that should be happening. A card leaving the list under a
-        // submit that is still quoting it is not worth the race.
         coEvery { repository.getSession(any(), any()) } returns sessionResponse(
             sessionData(
                 savedCards = listOf(savedCard("card-1")),
@@ -781,8 +745,6 @@ class PaymentViewModelTest {
                     savedCardsConfig = SavedCardsConfig(allowRemoval = true, preselect = false)
                 )
             )
-            // Failed rather than Removed so the card survives and a genuine retry
-            // is still a sensible thing for the shopper to ask for.
             coEvery { repository.removeSavedCard("card-1", any()) } returns
                 RemoveSavedCardResult.Failed
 
@@ -796,8 +758,6 @@ class PaymentViewModelTest {
 
             coVerify(exactly = 1) { repository.removeSavedCard("card-1", any()) }
 
-            // The guard releases once the call comes back, so the shopper can
-            // retry a removal that failed.
             vm.removeSavedCard("card-1")
             advanceUntilIdle()
 
@@ -849,8 +809,6 @@ class PaymentViewModelTest {
         assertNull((vm.uiState.value.result as PayCrossResult.Success).savedCardToken)
     }
 
-    // --- Errors name a string rather than carrying one ---
-
     @Test
     fun `an unparseable token names the invalid-token string`() = runTest(dispatcher.scheduler) {
         val vm = viewModel()
@@ -864,8 +822,6 @@ class PaymentViewModelTest {
     @Test
     fun `a token already past its exp names the session-expired string`() =
         runTest(dispatcher.scheduler) {
-            // exp is 1800 virtual seconds in, and the virtual clock starts there
-            // once time has been advanced past it.
             val vm = viewModel(clock = { 4_000_000L })
             vm.initialize(shortLivedToken)
             advanceUntilIdle()
@@ -910,9 +866,6 @@ class PaymentViewModelTest {
     @Test
     fun `a rejected submit shows the server's own sentence untranslated`() =
         runTest(dispatcher.scheduler) {
-            // The server writes this one, in whatever language the server chose.
-            // Passing it through the string table would either lose it or claim a
-            // translation the SDK does not have.
             coEvery { repository.getSession(any(), any()) } returns
                 sessionResponse(status = "open", latestTransactionId = null)
             coEvery { repository.submitCard(any(), any()) } returns
@@ -981,9 +934,6 @@ class PaymentViewModelTest {
         cardholderName = "JOHN DOE"
     )
 
-    // A challenge status never terminates, so a poll over one has to be advanced by
-    // a bounded amount: POLL_DEADLINE_MS is measured against the real clock while
-    // delay() runs on the scheduler, and advanceUntilIdle would spin forever.
     private fun challengeAction() =
         ThreeDsAction("https://acs.bank.com/3ds/challenge", "POST", mapOf("creq" to "abc"))
 
@@ -1009,7 +959,6 @@ class PaymentViewModelTest {
         javascriptEnabled = true
     )
 
-    // Trimmed but structurally real PaymentData.toJson() output.
     private val paymentDataJson = """
         {
           "apiVersionMinor": 0,
@@ -1026,12 +975,6 @@ class PaymentViewModelTest {
         }
     """.trimIndent()
 
-    // FORM_SETTLE_MS is long enough for a submit and its first poll to settle and
-    // short enough that the session is still alive: those tests are about the armed
-    // form, not expiry. FIRST_POLL_MS stops at the first status call, while a
-    // challenge is still on screen and before the 2s cadence fetches the terminal
-    // one. Every polled challenge is given a terminal follow-up, because runTest
-    // drains the scheduler when the body returns and a poll left running hangs it.
     private companion object {
         const val FORM_SETTLE_MS = 60_000L
         const val FIRST_POLL_MS = 1_500L
@@ -1040,8 +983,5 @@ class PaymentViewModelTest {
     private fun httpException(code: Int) =
         HttpException(Response.error<Any>(code, "".toResponseBody()))
 
-    // The view model has no Context, so it names its copy rather than building
-    // it: asserting the id keeps these tests off the resource table and lets the
-    // sheet draw the sentence in whichever language it resolved.
     private fun resource(id: Int, vararg args: String) = UiText.Resource(id, args.toList())
 }

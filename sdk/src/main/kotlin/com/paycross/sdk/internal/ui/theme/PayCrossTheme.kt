@@ -14,20 +14,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 
-/**
- * The resolved appearance, for the parts of it Material has no slot for: the
- * fields' container and placeholder colours, the shapes, the Pay button's
- * overrides and the mode the Google Pay button has to match.
- *
- * Null outside [PayCrossTheme], where every reader falls back to Material.
- */
 internal val LocalPayCrossAppearance = staticCompositionLocalOf<ResolvedAppearance?> { null }
 
-/**
- * The `icon` role. Separate from [LocalPayCrossAppearance] because icons ask for
- * one colour and nothing else, and because `textSecondary` — which it defaults
- * to — stays a text colour.
- */
 internal val LocalIconTint = staticCompositionLocalOf { Color.Unspecified }
 
 @Composable
@@ -52,22 +40,12 @@ internal fun PayCrossTheme(appearance: ResolvedAppearance, content: @Composable 
     }
 }
 
-/**
- * `cornerRadius` covers the small components the sheet draws — the input fields
- * and the menu the picker's dropdown opens. Dialogs keep Material's own radius:
- * they are chrome around the sheet rather than part of it, and a field radius
- * reads wrong at that size.
- */
 private fun payCrossShapes(cornerRadius: Dp?): Shapes {
     if (cornerRadius == null) return Shapes()
     val shape = RoundedCornerShape(cornerRadius)
     return Shapes(extraSmall = shape, small = shape)
 }
 
-/**
- * Multiplies every type size by the resolved factor. Sizes stay in sp, so this
- * composes with the device's own font scale rather than replacing it.
- */
 private fun payCrossTypography(sizeScaleFactor: Float): Typography {
     val base = Typography()
     if (sizeScaleFactor == 1f) return base

@@ -28,7 +28,6 @@ sealed interface Screen {
     data class RunDetail(val runId: String) : Screen
 }
 
-/** A checkout handed off to a browser or another device; outcome comes from polling. */
 data class ExternalRun(
     val scenarioName: String,
     val sessionId: String,
@@ -39,7 +38,6 @@ data class ExternalRun(
     enum class Phase { WAITING, SUCCESS, FAILED, TIMEOUT }
 }
 
-/** A run held back by the production gate until the tester confirms it. */
 data class PendingRun(
     val scenarioName: String,
     val merchantName: String,
@@ -83,7 +81,6 @@ class DemoViewModel(
         } else {
             data.merchants + merchant
         }
-        // New merchants start with their preset's scenario set.
         val scenarios = if (exists) {
             data.scenarios
         } else {
@@ -96,8 +93,6 @@ class DemoViewModel(
         )
     }
 
-    /** Replaces a merchant's scenarios with fresh preset seeds — the upgrade path
-     * for installs seeded before the current seed data. */
     fun reseedScenarios(merchantId: String, preset: ScenarioPreset) = updateData { data ->
         val merchant = data.merchants.find { it.id == merchantId } ?: return@updateData data
         data.copy(
@@ -144,8 +139,6 @@ class DemoViewModel(
 
     fun onPaymentResult(result: PayCrossResult) {
         _uiState.update { it.copy(lastResult = result) }
-        // A result can arrive on a fresh ViewModel (process death mid-payment),
-        // so fall back to the newest still-open SDK record.
         val runId = activeSdkRunId
             ?: _uiState.value.data.runHistory
                 .firstOrNull { it.surface == "SDK" && it.outcome == "pending" }
@@ -164,9 +157,6 @@ class DemoViewModel(
                     outcome = "failed · ${result.recovery}",
                     transactionId = result.transactionId
                 )
-                // "unknown", not "pending": a record's outcome is "pending"
-                // exactly while its run is still in flight, and three lookups
-                // in this file match on that string exactly.
                 is PayCrossResult.Pending -> run.copy(
                     outcome = "unknown · ${result.reason.wireName}",
                     transactionId = result.transactionId
@@ -181,11 +171,6 @@ class DemoViewModel(
 
     fun clearResult() = _uiState.update { it.copy(lastResult = null, runError = null) }
 
-    /**
-     * Production merchants create real payment sessions, so every entry point —
-     * UI actions and the exported `paycross-demo://run` deep link alike — routes
-     * through here rather than through a screen-local check.
-     */
     private fun gateProduction(merchant: Merchant, scenario: Scenario, start: () -> Unit) {
         if (merchant.environment != Merchant.ENV_PRODUCTION) {
             start()
@@ -239,12 +224,6 @@ class DemoViewModel(
         }
     }
 
-    /**
-     * Mints a session for a checkout surface outside the SDK sheet (browser tab,
-     * copied link, QR on another device) and polls the session for the outcome.
-     * [deepLinkReturn] rewrites return/success URLs so an on-device browser
-     * bounces back into the harness when the hosted page finishes.
-     */
     fun runScenarioExternally(
         scenario: Scenario,
         deepLinkReturn: Boolean,
@@ -310,11 +289,6 @@ class DemoViewModel(
         _uiState.update { it.copy(externalRun = null) }
     }
 
-    /**
-     * Cancels the poll job and closes its record — the poll is the only writer of
-     * an external run's outcome, so without this the record stays "pending"
-     * forever and no run_result line is ever logged for that session.
-     */
     private fun stopPolling(reason: String) {
         externalPollJob?.cancel()
         externalPollJob = null
@@ -370,7 +344,6 @@ class DemoViewModel(
         return phase to "$status · $amount $currency"
     }
 
-    /** Picks the transaction a session's status is read from, as the E2E suite does. */
     private fun primaryPaymentTransaction(session: JSONObject): JSONObject? {
         val transactions = session.optJSONArray("transactions") ?: return null
         var latest: JSONObject? = null
@@ -383,8 +356,6 @@ class DemoViewModel(
         return latest
     }
 
-    // optString returns the literal "null" for a JSON null, which would sort above
-    // every ISO timestamp, so read the fields through isNull first.
     private fun sortKey(txn: JSONObject): String {
         val updated = if (txn.isNull("updated_at")) "" else txn.optString("updated_at")
         return updated.ifEmpty { if (txn.isNull("created_at")) "" else txn.optString("created_at") }
@@ -420,7 +391,6 @@ class DemoViewModel(
         }
     }
 
-    /** Starts a scenario from a `paycross-demo://run` deep link (adb runner entry). */
     fun runFromDeepLink(
         merchantName: String?,
         scenarioName: String?,
@@ -456,7 +426,6 @@ class DemoViewModel(
         _uiState.update { it.copy(runError = "Deep link: $reason") }
     }
 
-    /** Mint failures must still produce a terminal line for log-scraping runners. */
     private fun logMintFailure(scenario: Scenario, surface: String, error: Throwable) {
         Log.i(
             TAG,
@@ -526,7 +495,6 @@ class DemoViewModel(
     fun dismissInspectedSession() =
         _uiState.update { it.copy(inspectedJson = null, inspectLoading = false) }
 
-    /** Shareable repro of the mint request; credentials stay as shell placeholders. */
     fun curlFor(run: RunRecord): String {
         val merchant = _uiState.value.data.merchants.find { it.id == run.merchantId }
         val tokenUrl = merchant?.tokenUrl ?: "<token-url>"

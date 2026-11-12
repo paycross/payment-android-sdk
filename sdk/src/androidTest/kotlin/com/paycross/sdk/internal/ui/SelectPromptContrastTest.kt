@@ -19,21 +19,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * A select showing its prompt must not read as a select that has been answered.
- *
- * Moving the prompt into the value slot is what makes this a risk: Material
- * floats the label off an occupied box, so an untouched country select renders
- * in the same shape a completed one does, and only the colour is left to tell
- * the shopper which of the two they are looking at. A form scanned for what is
- * still outstanding gives the wrong answer otherwise.
- *
- * The two selects here are configured identically and are made to draw the same
- * word — the prompt of one is the chosen option's label of the other — so the
- * only thing that can separate them on screen is the colour the prompt is drawn
- * in. The device screenshot is FLAG_SECURE-proof here because the pixels are
- * read back off the composition rather than off the screen.
- */
 @RunWith(AndroidJUnit4::class)
 class SelectPromptContrastTest {
 
@@ -83,7 +68,6 @@ class SelectPromptContrastTest {
     fun aPromptIsDrawnMoreFaintlyThanAnAnswer() {
         renderGroups()
 
-        // Both boxes say the same word, so nothing but colour is under test.
         compose.onNodeWithTag(field("unanswered")).assertTextContains("France")
         compose.onNodeWithTag(field("answered")).assertTextContains("France")
 
@@ -106,9 +90,6 @@ class SelectPromptContrastTest {
             differing.toDouble() / (prompt.width * prompt.height) > 0.001
         )
 
-        // And faint in the right direction. The label and the border are the same
-        // in both, so the darkest pixel of each box is its own value text: the
-        // prompt's is the placeholder colour, the answer's is body text.
         assertTrue(
             "the prompt is not lighter than the answer beside it",
             darkest(prompt) > darkest(answer)

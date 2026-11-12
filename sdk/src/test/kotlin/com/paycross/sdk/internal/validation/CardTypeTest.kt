@@ -57,7 +57,6 @@ class CardTypeTest {
 
     @Test
     fun `brands without a type of their own fall back to unknown`() {
-        // Their CVV is 3 digits, which is what UNKNOWN carries.
         assertEquals(CardType.UNKNOWN, CardType.fromBrand("JCB"))
         assertEquals(CardType.UNKNOWN, CardType.fromBrand("UNIONPAY"))
         assertEquals(CardType.UNKNOWN, CardType.fromBrand("MAESTRO"))
@@ -65,7 +64,6 @@ class CardTypeTest {
 
     @Test
     fun `an absent or unresolved brand is unknown`() {
-        // The backend writes the literal "unknown" when the BIN lookup found nothing.
         assertEquals(CardType.UNKNOWN, CardType.fromBrand("unknown"))
         assertEquals(CardType.UNKNOWN, CardType.fromBrand(null))
         assertEquals(CardType.UNKNOWN, CardType.fromBrand(""))
