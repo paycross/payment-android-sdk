@@ -19,14 +19,9 @@ data class MintedSession(
     val sentBody: String
 )
 
-/**
- * Mints a checkout session with a merchant's M2M credentials. This is the
- * merchant-backend step of the flow, performed in-app for testing only —
- * a real integration does this server-side, never in the app.
- */
+/** Mints sessions in-app for testing. Use your own merchant server instead. */
 object SessionMinter {
 
-    /** Deep link back into the harness after a browser checkout finishes. */
     const val RETURN_DEEP_LINK = "paycross-demo://result"
 
     private val client = OkHttpClient.Builder()
@@ -34,7 +29,6 @@ object SessionMinter {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    /** Thrown when the API refuses the request; only these are safe to retry. */
     class ApiRejection(message: String) : Exception(message)
 
     fun create(merchant: Merchant, requestBody: String, deepLinkReturn: Boolean = false): MintedSession {
@@ -43,8 +37,6 @@ object SessionMinter {
         val body = substitutePlaceholders(requestBody)
 
         if (deepLinkReturn) {
-            // The API may reject a custom-scheme URL; retry with the body as written.
-            // Only on rejection — retrying a timeout would mint a second session.
             try {
                 return postSession(merchant, token, withDeepLinkReturn(body))
             } catch (rejection: ApiRejection) {
@@ -57,7 +49,6 @@ object SessionMinter {
     fun fetchSession(minted: MintedSession, paycrossVersion: String): JSONObject =
         JSONObject(fetchSessionText(minted.sessionUrl, minted.accessToken, paycrossVersion))
 
-    /** Fetches a session with a fresh token — for inspecting past runs. */
     fun fetchSessionAsMerchant(merchant: Merchant, sessionUrl: String): String =
         fetchSessionText(sessionUrl, fetchAccessToken(merchant), merchant.paycrossVersion)
 
@@ -76,7 +67,6 @@ object SessionMinter {
         }
     }
 
-    /** The merchant API routes the hyphenated path only, so normalize before posting. */
     private fun sessionsUrl(merchant: Merchant) =
         merchant.paymentApiUrl.replace("payment_sessions", "payment-sessions")
 
