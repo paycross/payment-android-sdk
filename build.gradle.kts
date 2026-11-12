@@ -4,17 +4,17 @@ import org.gradle.api.artifacts.DependencyResolveDetails
 buildscript {
     // Build-classpath pins that clear advisories in AGP 8.13.2's bundled versions; never lower them.
     fun patchedBuildDeps(): List<String> = listOf(
-        "io.netty:netty-buffer:4.1.139.Final",
-        "io.netty:netty-codec:4.1.139.Final",
-        "io.netty:netty-codec-http:4.1.139.Final",
-        "io.netty:netty-codec-http2:4.1.139.Final",
-        "io.netty:netty-codec-socks:4.1.139.Final",
-        "io.netty:netty-common:4.1.139.Final",
-        "io.netty:netty-handler:4.1.139.Final",
-        "io.netty:netty-handler-proxy:4.1.139.Final",
-        "io.netty:netty-resolver:4.1.139.Final",
-        "io.netty:netty-transport:4.1.139.Final",
-        "io.netty:netty-transport-native-unix-common:4.1.139.Final",
+        "io.netty:netty-buffer:4.1.140.Final",
+        "io.netty:netty-codec:4.1.140.Final",
+        "io.netty:netty-codec-http:4.1.140.Final",
+        "io.netty:netty-codec-http2:4.1.140.Final",
+        "io.netty:netty-codec-socks:4.1.140.Final",
+        "io.netty:netty-common:4.1.140.Final",
+        "io.netty:netty-handler:4.1.140.Final",
+        "io.netty:netty-handler-proxy:4.1.140.Final",
+        "io.netty:netty-resolver:4.1.140.Final",
+        "io.netty:netty-transport:4.1.140.Final",
+        "io.netty:netty-transport-native-unix-common:4.1.140.Final",
         "org.bouncycastle:bcprov-jdk18on:1.86",
         "org.bouncycastle:bcpkix-jdk18on:1.86",
         "org.bouncycastle:bcutil-jdk18on:1.86",
@@ -76,8 +76,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.4.21" apply false
     // Kotlin 2.x applies the Compose compiler as a plugin; composeOptions does not apply.
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
-    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.1" apply false
-    id("org.jetbrains.dokka") version "2.2.0" apply false
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.2" apply false
+    id("org.jetbrains.dokka") version "2.3.0" apply false
 }
 
 val patchedVersionRule = rootProject.extra["patchedVersionRule"] as Action<DependencyResolveDetails>
