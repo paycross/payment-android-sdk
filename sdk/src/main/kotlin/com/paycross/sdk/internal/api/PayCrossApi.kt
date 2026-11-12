@@ -28,7 +28,7 @@ internal interface PayCrossApi {
     @GET("status/{transactionId}")
     suspend fun getStatus(@Path("transactionId") transactionId: String): StatusResponse
 
-    // WHY: returns the raw Response, not Unit, so the repository can read the status code.
+    // Returns the raw Response, not Unit, so the repository can read the status code.
     @DELETE("saved-cards/{uuid}")
     suspend fun deleteSavedCard(
         @Header("Authorization") authorization: String,

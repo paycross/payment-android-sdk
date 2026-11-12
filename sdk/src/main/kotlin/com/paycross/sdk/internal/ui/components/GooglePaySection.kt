@@ -31,7 +31,7 @@ import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 internal fun googlePayButtonTheme(dark: Boolean): Int =
     if (dark) ButtonConstants.ButtonTheme.LIGHT else ButtonConstants.ButtonTheme.DARK
 
-// WHY: The PayButton view is wrapped directly: Google's brand guidelines prohibit custom markup, and the compose wrapper needs compileSdk 35.
+// The PayButton view is wrapped directly: Google's brand guidelines prohibit custom markup, and the compose wrapper needs compileSdk 35.
 @Composable
 internal fun GooglePaySection(
     allowedPaymentMethodsJson: String,
@@ -41,7 +41,7 @@ internal fun GooglePaySection(
     val currentOnClick by rememberUpdatedState(onClick)
     val appearance = LocalPayCrossAppearance.current
     val buttonTheme = googlePayButtonTheme(dark = appearance?.dark == true)
-    // WHY: Only the corner radius is set here; Google's guidelines own the colours and label, and the radius is in pixels.
+    // Only the corner radius is set here; Google's guidelines own the colours and label, and the radius is in pixels.
     val density = LocalDensity.current
     val cornerRadiusPx = appearance?.shapes?.buttonCornerRadius?.let {
         with(density) { it.roundToPx() }
@@ -56,7 +56,7 @@ internal fun GooglePaySection(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // WHY: The Box holds the size and tag and propagates its constraints to the AndroidView inside it.
+        // The Box holds the size and tag and propagates its constraints to the AndroidView inside it.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -66,7 +66,7 @@ internal fun GooglePaySection(
         ) {
             AndroidView(
                 factory = { context -> PayButton(context) },
-                // WHY: initialize, not only the listener: it rebuilds the view from the options, so a changed theme repaints.
+                // Initialize, not only the listener: it rebuilds the view from the options, so a changed theme repaints.
                 update = { button ->
                     button.initialize(buttonOptions)
                     button.setOnClickListener { currentOnClick() }
@@ -85,7 +85,7 @@ internal fun GooglePaySection(
 @Composable
 private fun OrPayWithCardDivider(modifier: Modifier = Modifier) {
     Row(
-        // WHY: Merged so a screen reader reads the caption as one node.
+        // Merged so a screen reader reads the caption as one node.
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {},

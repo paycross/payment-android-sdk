@@ -62,7 +62,7 @@ object PayCross {
         appearance: PayCrossAppearance? = null,
         locale: String? = null
     ) {
-        // WHY: ApiClient caches its base URL, so a changed environment must reset it.
+        // ApiClient caches its base URL, so a changed environment must reset it.
         val environmentChanged = config?.environment != null && config?.environment != environment
         config = PayCrossConfig(
             environment,

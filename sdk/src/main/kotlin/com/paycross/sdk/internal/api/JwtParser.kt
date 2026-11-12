@@ -18,7 +18,7 @@ internal data class JwtClaims(
         expiresAt != null && nowEpochSeconds >= expiresAt
 }
 
-// WHY: the signature is not verified here; the server verifies it.
+// The signature is not verified here; the server verifies it.
 internal object JwtParser {
     fun parse(token: String): JwtClaims {
         require(token.isNotEmpty()) { "Token cannot be empty" }
@@ -41,7 +41,7 @@ internal object JwtParser {
         )
     }
 
-    // WHY: kotlin.io.encoding.Base64 is used, since java.util.Base64 needs API 26 and minSdk is 24.
+    // Kotlin.io.encoding.Base64 is used, since java.util.Base64 needs API 26 and minSdk is 24.
     @OptIn(ExperimentalEncodingApi::class)
     private fun decodePayload(encodedPayload: String): String {
         return try {

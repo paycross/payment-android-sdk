@@ -8,7 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 internal object TestTags {
     const val SHEET = "paycross.sheet"
     const val AMOUNT = "paycross.amount"
-    // WHY: Tag the Compose box around the AndroidView, not the view: an AndroidView replaces its node in the parent's child list and has no resource id.
+    // Tag the Compose box around the AndroidView, not the view: an AndroidView replaces its node in the parent's child list and has no resource id.
     const val WALLET_BUTTON = "paycross.walletButton"
     const val WALLET_DIVIDER = "paycross.walletDivider"
     const val SAVED_CARDS = "paycross.savedCards"

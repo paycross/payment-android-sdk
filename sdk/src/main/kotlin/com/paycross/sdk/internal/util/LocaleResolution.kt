@@ -37,7 +37,7 @@ internal object LocaleResolution {
             amount = formattingLocale(override, session, device)
         )
 
-    // WHY: Locale.forLanguageTag keeps only the well-formed prefix of a tag and drops the rest silently, so the shape is checked first.
+    // Locale.forLanguageTag keeps only the well-formed prefix of a tag and drops the rest silently, so the shape is checked first.
     private val WELL_SHAPED = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$")
 
     private fun wellShaped(tag: String?): Locale? {
@@ -51,7 +51,7 @@ internal object LocaleResolution {
         return Locale.forLanguageTag(candidate).takeIf { it.language.isNotEmpty() }
     }
 
-    // WHY: Locale.toString() returns fr_FR, which BCP 47 does not accept and forLanguageTag reads as no language.
+    // Locale.toString() returns fr_FR, which BCP 47 does not accept and forLanguageTag reads as no language.
     private fun normalised(tag: String?): String? =
         tag?.trim()?.replace('_', '-')?.ifEmpty { null }
 }

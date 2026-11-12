@@ -97,12 +97,12 @@ internal object AppearanceResolver {
         ThemeMode.DARK -> true
     }
 
-    // WHY: Not named contentColorFor, which Material 3 already exports.
-    // WHY: 0.179 is the WCAG crossover where black and white content contrast equally.
+    // Not named contentColorFor, which Material 3 already exports.
+    // 0.179 is the WCAG crossover where black and white content contrast equally.
     fun onBrandColor(background: Color): Color =
         if (background.luminance() > 0.179f) Color.Black else Color.White
 
-    // WHY: iOS parses the same two shapes, so eight-digit hex is refused.
+    // IOS parses the same two shapes, so eight-digit hex is refused.
     fun parseHexColor(hex: String?): Color? {
         val trimmed = hex?.trim() ?: return null
         if (!trimmed.startsWith("#")) return null
@@ -181,7 +181,7 @@ internal object AppearanceResolver {
         )
     }
 
-    // WHY: NaN passes coerceIn and the Dp constructor, and Dp.roundToPx throws on it.
+    // NaN passes coerceIn and the Dp constructor, and Dp.roundToPx throws on it.
     private fun Float?.asDimension(): Dp? = this?.takeIf { it.isFinite() && it >= 0f }?.dp
 
     private fun Float?.asScale(): Float =

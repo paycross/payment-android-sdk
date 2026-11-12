@@ -28,13 +28,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
 import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 
-// WHY: The label room is a text unit rather than a dp, so it scales with the font scale.
+// The label room is a text unit rather than a dp, so it scales with the font scale.
 private val LABEL_TOP_PADDING = 8.sp
 
-// WHY: locked paints the field as disabled but keeps the value at full contrast; readOnly is only input plumbing.
-// WHY: valueIsPrompt keeps a select's prompt in the placeholder colour, so an unanswered select does not read as answered.
-// WHY: The decoration box is driven directly because Material's OutlinedTextField takes no border thickness.
-// WHY: default_error_message is borrowed because Compose ships it translated and the SDK ships no translations.
+// Locked paints the field as disabled but keeps the value at full contrast; readOnly is only input plumbing.
+// ValueIsPrompt keeps a select's prompt in the placeholder colour, so an unanswered select does not read as answered.
+// The decoration box is driven directly because Material's OutlinedTextField takes no border thickness.
+// Default_error_message is borrowed because Compose ships it translated and the SDK ships no translations.
 @SuppressLint("PrivateResource")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +57,7 @@ internal fun PayCrossOutlinedTextField(
     val appearance = LocalPayCrossAppearance.current
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    // WHY: Unspecified keeps Material's default for an unset role; the focused border stays the brand colour, the only focus cue once widths are equal.
+    // Unspecified keeps Material's default for an unset role; the focused border stays the brand colour, the only focus cue once widths are equal.
     val container = appearance?.component ?: Color.Unspecified
     val placeholderColor = appearance?.placeholder ?: Color.Unspecified
     val colors = OutlinedTextFieldDefaults.colors(

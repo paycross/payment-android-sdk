@@ -81,7 +81,7 @@ internal object FieldGroupLogic {
                     continue
                 }
 
-                // WHY: Capping silently truncates a pasted value, so the field blocks on submit instead.
+                // Capping silently truncates a pasted value, so the field blocks on submit instead.
                 val maxLength = field.validation?.maxLength
                 if (value.isNotBlank() && maxLength != null && value.length > maxLength) {
                     errors += FieldGroupError(

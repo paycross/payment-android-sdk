@@ -19,7 +19,7 @@ import com.paycross.sdk.internal.validation.CardType
 private const val MAX_CARD_NUMBER_LENGTH = 19
 private const val EXPIRY_LENGTH = 4
 
-// WHY: Merged so the label and error speak as one node; the error is set here, not left to Material's generic one.
+// Merged so the label and error speak as one node; the error is set here, not left to Material's generic one.
 private fun Modifier.fieldSemantics(description: String, tag: String, message: String?): Modifier =
     this.testTag(tag).semantics(mergeDescendants = true) {
         contentDescription = description
@@ -40,7 +40,7 @@ internal fun CardNumberField(
 ) {
     val description = pcStringResource(R.string.paycross_card_number_field)
     PayCrossOutlinedTextField(
-        // WHY: Raw digits in, grouping drawn on top: formatting the value itself leaves the caret behind the separator.
+        // Raw digits in, grouping drawn on top: formatting the value itself leaves the caret behind the separator.
         value = value,
         onValueChange = { newValue ->
             val digitsOnly = newValue.filter { it.isDigit() }
@@ -52,7 +52,7 @@ internal fun CardNumberField(
         isError = error != null,
         supportingText = error?.let { { CardErrorText(TestTags.CARD_NUMBER, it) } },
         visualTransformation = CardNumberVisualTransformation,
-        // WHY: NumberPassword, so EditorInfo does not pass the card number to the IME as surrounding text.
+        // NumberPassword, so EditorInfo does not pass the card number to the IME as surrounding text.
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         singleLine = true,
         modifier = modifier
@@ -123,7 +123,7 @@ internal fun CardholderNameField(
 ) {
     val description = pcStringResource(R.string.paycross_cardholder_name_field)
     PayCrossOutlinedTextField(
-        // WHY: The state is already uppercased on the way in, so it is not uppercased again on the way out.
+        // The state is already uppercased on the way in, so it is not uppercased again on the way out.
         value = value,
         onValueChange = { onValueChange(it.uppercase()) },
         label = { Text(pcStringResource(R.string.paycross_cardholder_name)) },

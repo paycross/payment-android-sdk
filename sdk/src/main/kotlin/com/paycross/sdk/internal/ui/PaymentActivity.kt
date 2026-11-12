@@ -67,14 +67,14 @@ import com.paycross.sdk.internal.wallet.GooglePayRequests
 import kotlinx.coroutines.flow.map
 
 internal class PaymentActivity : ComponentActivity() {
-    // WHY: the default factory cannot reach the SavedStateHandle-only constructor, because default arguments generate no overloads.
+    // The default factory cannot reach the SavedStateHandle-only constructor, because default arguments generate no overloads.
     private val viewModel: PaymentViewModel by viewModels {
         viewModelFactory { initializer { PaymentViewModel(createSavedStateHandle()) } }
     }
 
     private val loggedContrastWarnings = mutableSetOf<String>()
 
-    // WHY: the window theme reads resources before onCreate, so a pinned mode is applied here.
+    // The window theme reads resources before onCreate, so a pinned mode is applied here.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(pinnedContext(newBase))
     }
@@ -82,7 +82,7 @@ internal class PaymentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // WHY: FLAG_SECURE also stops the platform saving a recents snapshot of the card form.
+        // FLAG_SECURE also stops the platform saving a recents snapshot of the card form.
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -110,7 +110,7 @@ internal class PaymentActivity : ComponentActivity() {
             LaunchedEffect(resolved) { warnAboutContrast(resolved) }
 
             PayCrossTheme(appearance = resolved) {
-                // WHY: Material leaves LocalContentColor black until a Surface sets it.
+                // Material leaves LocalContentColor black until a Surface sets it.
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -138,7 +138,7 @@ internal class PaymentActivity : ComponentActivity() {
         }
     }
 
-    // WHY: takes the base context, because the half-built Activity cannot answer for its resources yet.
+    // Takes the base context, because the half-built Activity cannot answer for its resources yet.
     private fun pinnedContext(base: Context): Context {
         val config = PayCross.getConfigOrNull()
         val mode = config?.effectiveAppearance()?.themeMode ?: ThemeMode.SYSTEM
@@ -152,7 +152,7 @@ internal class PaymentActivity : ComponentActivity() {
         return base.createConfigurationContext(configuration)
     }
 
-    // WHY: set before setContent, or the sheet is framed by a system-coloured band until the first frame.
+    // Set before setContent, or the sheet is framed by a system-coloured band until the first frame.
     private fun applyWindowBackground() {
         val systemDark = resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
@@ -202,7 +202,7 @@ private fun PaymentScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
-    // WHY: Google's payment sheet draws the total label, so it is resolved here and handed over.
+    // Google's payment sheet draws the total label, so it is resolved here and handed over.
     val totalLabel = pcStringResource(R.string.paycross_total)
 
     BackHandler {
@@ -278,7 +278,7 @@ private fun PaymentScreen(
                         if (paymentsClient == null || claims == null) {
                             viewModel.onGooglePayFailed()
                         } else {
-                            // WHY: Google Pay's resolution must start from the same user gesture, so it is launched from the completion listener.
+                            // Google Pay's resolution must start from the same user gesture, so it is launched from the completion listener.
                             GooglePayClient.loadPaymentDataTask(
                                 client = paymentsClient,
                                 claims = claims,
@@ -295,7 +295,7 @@ private fun PaymentScreen(
             }
         }
 
-        // WHY: the 3-D Secure fingerprint runs in a hidden WebView; the ACS method page is never shown to the shopper.
+        // The 3-D Secure fingerprint runs in a hidden WebView; the ACS method page is never shown to the shopper.
         fingerprint?.let {
             ThreeDsWebView(
                 action = it.action,
@@ -329,7 +329,7 @@ private fun PaymentScreen(
 internal fun LoadingOverlay() {
     val processing = pcStringResource(R.string.paycross_processing)
     Surface(
-        // WHY: one named node, so a screen reader does not step through a spinner and a caption separately.
+        // One named node, so a screen reader does not step through a spinner and a caption separately.
         modifier = Modifier
             .fillMaxSize()
             .testTag(TestTags.LOADING)
@@ -349,7 +349,7 @@ internal fun LoadingOverlay() {
     }
 }
 
-// WHY: a dialog runs in its own window, so a locale carried on LocalContext would not reach it.
+// A dialog runs in its own window, so a locale carried on LocalContext would not reach it.
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun CancelConfirmationDialog(
@@ -360,7 +360,7 @@ internal fun CancelConfirmationDialog(
     val publishTestTags = rememberPublishTestTags()
     AlertDialog(
         onDismissRequest = onDismiss,
-        // WHY: a pane title, not a contentDescription, because a description on a dialog merges its buttons away.
+        // A pane title, not a contentDescription, because a description on a dialog merges its buttons away.
         modifier = Modifier
             .testTag(TestTags.CANCEL_DIALOG)
             .semantics {

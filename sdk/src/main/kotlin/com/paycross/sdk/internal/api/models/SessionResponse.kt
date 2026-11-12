@@ -23,7 +23,7 @@ internal data class SessionData(
     @SerializedName("google_pay") val googlePay: GooglePayConfig?,
     val branding: Branding? = null
 ) {
-    // WHY: an absent saved_cards_config reads as off, since not every session carries it.
+    // An absent saved_cards_config reads as off, since not every session carries it.
     val allowsSavedCardRemoval: Boolean
         get() = savedCardsConfig?.allowRemoval == true
 
@@ -51,7 +51,7 @@ internal data class GooglePayConfig(
     @SerializedName("billing_address_required") val billingAddressRequired: Boolean?
 )
 
-// WHY: the backend accepts a submission without an opt-in group even when its fields are required.
+// The backend accepts a submission without an opt-in group even when its fields are required.
 internal data class FieldGroup(
     val key: String,
     val label: String?,
@@ -92,7 +92,7 @@ internal data class FieldValidation(
     val pattern: String?,
     @SerializedName("max_length") val maxLength: Int?,
     val messages: Map<String, String>?,
-    // WHY: the language is the outer key here, the opposite nesting from messages.
+    // The language is the outer key here, the opposite nesting from messages.
     @SerializedName("messages_i18n") val messagesI18n: Map<String, Map<String, String>>? = null
 )
 
@@ -106,7 +106,7 @@ internal data class SavedCard(
     @SerializedName("card_brand") val cardBrand: String?,
     @SerializedName("expire_month") val expireMonth: String,
     @SerializedName("expire_year") val expireYear: String,
-    // WHY: nullable, because Gson would otherwise write a null into a non-null property.
+    // Nullable, because Gson would otherwise write a null into a non-null property.
     @SerializedName("cardholder_name") val cardholderName: String?
 )
 

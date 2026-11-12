@@ -248,7 +248,7 @@ internal class PaymentViewModel(
         viewModelScope.launch(dispatcher) {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // WHY: Google's ECv2 signature covers the token string byte for byte, so the payload is embedded as a Gson tree unchanged.
+            // Google's ECv2 signature covers the token string byte for byte, so the payload is embedded as a Gson tree unchanged.
             val paymentMethodData = try {
                 JsonParser.parseString(paymentDataJson).asJsonObject
                     .getAsJsonObject("paymentMethodData")
@@ -340,7 +340,7 @@ internal class PaymentViewModel(
                 delay(POLL_INTERVAL_MS)
             }
 
-            // WHY: A deadline is not a failed payment: the authorization may still complete, so no failure is reported.
+            // A deadline is not a failed payment: the authorization may still complete, so no failure is reported.
             _uiState.update {
                 it.copy(
                     isLoading = false,

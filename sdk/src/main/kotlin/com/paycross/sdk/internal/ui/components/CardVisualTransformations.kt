@@ -38,7 +38,7 @@ internal fun formatExpiry(digits: String): String =
             digits.substring(EXPIRY_MONTH_LENGTH)
     }
 
-// WHY: Compose throws on an offset outside the mapped text, and a stale mapping is queried as the digit count changes.
+// Compose throws on an offset outside the mapped text, and a stale mapping is queried as the digit count changes.
 internal class CardNumberOffsetMapping(private val digitCount: Int) : OffsetMapping {
 
     private val transformedLength = digitCount + separatorsBefore(digitCount)

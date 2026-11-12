@@ -68,7 +68,7 @@ import com.paycross.sdk.internal.wallet.GooglePayRequests
 
 private val PAY_BUTTON_MIN_HEIGHT = 56.dp
 
-// WHY: A non-zero minimum defeats OutlinedTextFieldDefaults.MinWidth (280dp), which otherwise applies to a zero minimum.
+// A non-zero minimum defeats OutlinedTextFieldDefaults.MinWidth (280dp), which otherwise applies to a zero minimum.
 private val SAVED_CARD_CVV_MIN_WIDTH = 100.dp
 
 private const val EXPIRY_MIN_LENGTH = 4
@@ -108,7 +108,7 @@ internal fun CardFormScreen(
     var expiry by rememberSaveable {
         mutableStateOf(prefill?.let { it.expireMonth + it.expireYear.takeLast(2) }.orEmpty())
     }
-    // WHY: Not rememberSaveable: saved state outlives the process, and PCI DSS 3.3.1 forbids keeping the CVV after authorization.
+    // Not rememberSaveable: saved state outlives the process, and PCI DSS 3.3.1 forbids keeping the CVV after authorization.
     var cvv by remember { mutableStateOf(prefill?.cvv.orEmpty()) }
     var cardholderName by rememberSaveable { mutableStateOf(prefill?.cardholderName.orEmpty()) }
     var saveCard by rememberSaveable { mutableStateOf(prefill?.saveCard ?: false) }
@@ -117,7 +117,7 @@ internal fun CardFormScreen(
     var fieldValuesFlat by rememberSaveable {
         mutableStateOf(flattenValues(FieldGroupLogic.initialValues(fieldGroups)))
     }
-    // WHY: A list, not a Set: saved instance state is a Bundle, which cannot hold a Set.
+    // A list, not a Set: saved instance state is a Bundle, which cannot hold a Set.
     var optedInList by rememberSaveable { mutableStateOf(ArrayList<String>()) }
 
     val fieldValues = remember(fieldValuesFlat) { unflattenValues(fieldValuesFlat) }
@@ -422,7 +422,7 @@ internal fun PayButton(
             disabledContainerColor = button?.disabledBackground ?: Color.Unspecified,
             disabledContentColor = button?.disabledTextColor ?: Color.Unspecified
         ),
-        // WHY: A minimum height, not a fixed one: the label must grow with the platform's accessibility font sizes.
+        // A minimum height, not a fixed one: the label must grow with the platform's accessibility font sizes.
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = button?.height ?: PAY_BUTTON_MIN_HEIGHT)

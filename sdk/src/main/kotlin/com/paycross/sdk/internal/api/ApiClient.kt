@@ -10,7 +10,7 @@ private const val CONNECT_TIMEOUT_SECONDS = 30L
 private const val READ_TIMEOUT_SECONDS = 30L
 private const val WRITE_TIMEOUT_SECONDS = 30L
 
-// WHY: request bodies carry PAN/CVV, so no logging interceptor is installed.
+// Request bodies carry PAN/CVV, so no logging interceptor is installed.
 internal object ApiClient {
     @Volatile
     private var api: PayCrossApi? = null
@@ -37,7 +37,7 @@ internal object ApiClient {
         return retrofit.create(PayCrossApi::class.java)
     }
 
-    // WHY: PayCross.init calls this on an environment change, so it is not test-only.
+    // PayCross.init calls this on an environment change, so it is not test-only.
     internal fun reset() {
         api = null
     }

@@ -16,10 +16,10 @@ import com.paycross.sdk.internal.util.LocaleResolution
 import com.paycross.sdk.internal.util.UiText
 import java.util.Locale
 
-// WHY: a Compose Dialog re-provides LocalContext from its own window, so the language cannot ride on it.
+// A Compose Dialog re-provides LocalContext from its own window, so the language cannot ride on it.
 internal val LocalPayCrossResources = compositionLocalOf<Resources?> { null }
 
-// WHY: Compose's stringResource reads the activity's locale, so SDK strings must not use it.
+// Compose's stringResource reads the activity's locale, so SDK strings must not use it.
 @Composable
 @ReadOnlyComposable
 internal fun pcStringResource(@StringRes id: Int): String =
@@ -34,14 +34,14 @@ internal fun pcStringResource(@StringRes id: Int, vararg formatArgs: Any): Strin
 @ReadOnlyComposable
 internal fun pcStringResource(text: UiText): String = when (text) {
     is UiText.Raw -> text.text
-    // WHY: a key with no arguments skips String.format, which throws on a stray percent sign.
+    // A key with no arguments skips String.format, which throws on a stray percent sign.
     is UiText.Resource -> when {
         text.args.isEmpty() -> pcStringResource(text.id)
         else -> pcStringResource(text.id, *text.args.toTypedArray())
     }
 }
 
-// WHY: amounts keep the device's grouping, while strings are limited to the languages the SDK ships.
+// Amounts keep the device's grouping, while strings are limited to the languages the SDK ships.
 internal val LocalPayCrossFormattingLocale = compositionLocalOf<Locale?> { null }
 
 internal val pcFormattingLocale: Locale
@@ -81,7 +81,7 @@ internal fun PayCrossLocalization(
 
 private fun LocaleList.toList(): List<Locale> = (0 until size()).map { get(it) }
 
-// WHY: built from the context, so density, font scale and night mode carry over.
+// Built from the context, so density, font scale and night mode carry over.
 internal fun Context.localizedResources(locale: Locale): Resources {
     val configuration = Configuration(resources.configuration).apply {
         setLocales(LocaleList(locale))
@@ -89,7 +89,7 @@ internal fun Context.localizedResources(locale: Locale): Resources {
     return createConfigurationContext(configuration).resources
 }
 
-// WHY: reads LocalConfiguration, so a configuration change recomposes the caller.
+// Reads LocalConfiguration, so a configuration change recomposes the caller.
 @Composable
 @ReadOnlyComposable
 private fun activityResources(): Resources {

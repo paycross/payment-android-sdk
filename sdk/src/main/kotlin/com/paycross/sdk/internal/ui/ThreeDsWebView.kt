@@ -22,7 +22,7 @@ import java.net.URLEncoder
 private val RETURN_HOSTS_SUFFIXES = listOf("pay-cross.com", "test-pay-cross.com")
 private const val URL_ENCODING = "UTF-8"
 
-// WHY: EMV 3DS requires exact form field names, and some providers send variants such as cReq.
+// EMV 3DS requires exact form field names, and some providers send variants such as cReq.
 private val FORM_FIELD_NORMALIZATION = mapOf(
     "cReq" to "creq",
     "CReq" to "creq",
@@ -60,7 +60,7 @@ internal fun ThreeDsWebView(
             }
         }
 
-        // WHY: The modifier sits on a wrapping Box, not the AndroidView, so the WebView measures to the Box's constraints.
+        // The modifier sits on a wrapping Box, not the AndroidView, so the WebView measures to the Box's constraints.
         Box(modifier = modifier, propagateMinConstraints = true) {
             AndroidView(factory = { webView })
         }
@@ -124,7 +124,7 @@ private fun createWebViewClient(
     }
 }
 
-// WHY: The action URL can itself be on a PayCross host (the sandbox's simulated ACS) and must not complete the step.
+// The action URL can itself be on a PayCross host (the sandbox's simulated ACS) and must not complete the step.
 internal fun isCompletionUrl(url: String, actionUrl: String): Boolean =
     url.trimEnd('/') != actionUrl.trimEnd('/') && isReturnUrl(url)
 

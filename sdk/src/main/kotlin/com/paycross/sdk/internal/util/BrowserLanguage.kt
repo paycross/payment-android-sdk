@@ -1,7 +1,7 @@
 package com.paycross.sdk.internal.util
 
 internal object BrowserLanguage {
-    // WHY: the backend allows 10 characters and EMVCo 3DS caps browserLanguage at 8, so whole subtags are kept.
+    // The backend allows 10 characters and EMVCo 3DS caps browserLanguage at 8, so whole subtags are kept.
     private const val MAX_LENGTH = 10
 
     fun clamp(tag: String): String {

@@ -227,7 +227,7 @@ private fun SelectField(
         onExpandedChange = { if (!state.readonly) expanded = it }
     ) {
         PayCrossOutlinedTextField(
-            // WHY: Material shows a placeholder only when focused and empty; a select is never both.
+            // Material shows a placeholder only when focused and empty; a select is never both.
             value = if (showsPrompt) prompt.orEmpty() else chosenLabel,
             valueIsPrompt = showsPrompt,
             onValueChange = {},

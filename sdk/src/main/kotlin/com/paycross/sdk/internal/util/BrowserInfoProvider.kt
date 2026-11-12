@@ -21,7 +21,7 @@ internal object BrowserInfoProvider {
             screenWidth = displayMetrics.widthPixels,
             screenHeight = displayMetrics.heightPixels,
             colorDepth = COLOR_DEPTH_ANDROID_STANDARD,
-            // WHY: 3DS expects minutes west of UTC, as JS Date.getTimezoneOffset() reports, so the sign is flipped.
+            // 3DS expects minutes west of UTC, as JS Date.getTimezoneOffset() reports, so the sign is flipped.
             timezoneOffset = -TimeZone.getDefault()
                 .getOffset(System.currentTimeMillis()) / MILLIS_PER_MINUTE,
             language = BrowserLanguage.clamp(Locale.getDefault().toLanguageTag()),
