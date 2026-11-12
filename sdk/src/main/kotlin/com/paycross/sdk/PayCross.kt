@@ -44,7 +44,7 @@ object PayCross {
     private var config: PayCrossConfig? = null
 
     /**
-     * Configures the SDK for all later payments. Call it once, for example in your Application class.
+     * Configures the SDK for all later payments. Call it before the first payment, for example in your Application class.
      *
      * @param brandColor **Deprecated.** Use [appearance] with `PayCrossAppearance.brand(color)`.
      *   Ignored when [appearance] is set.

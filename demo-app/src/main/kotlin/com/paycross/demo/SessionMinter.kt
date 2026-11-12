@@ -19,7 +19,7 @@ data class MintedSession(
     val sentBody: String
 )
 
-/** Mints sessions in-app for testing. Use your own merchant server instead. */
+/** Mints sessions in-app for testing only. A real integration mints server-side: M2M credentials never ship in the app. */
 object SessionMinter {
 
     const val RETURN_DEEP_LINK = "paycross-demo://result"
@@ -37,6 +37,7 @@ object SessionMinter {
         val body = substitutePlaceholders(requestBody)
 
         if (deepLinkReturn) {
+            // The API may reject a custom-scheme URL; retry with the body as written. Only on rejection: retrying a timeout would mint a second session.
             try {
                 return postSession(merchant, token, withDeepLinkReturn(body))
             } catch (rejection: ApiRejection) {
@@ -67,6 +68,7 @@ object SessionMinter {
         }
     }
 
+    // The merchant API routes the hyphenated path only, so normalize before posting.
     private fun sessionsUrl(merchant: Merchant) =
         merchant.paymentApiUrl.replace("payment_sessions", "payment-sessions")
 

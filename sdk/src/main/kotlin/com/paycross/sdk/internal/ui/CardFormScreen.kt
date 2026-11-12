@@ -131,6 +131,7 @@ internal fun CardFormScreen(
     val formattedAmount = Amounts.formatMinor(claims.amount, claims.currency, pcFormattingLocale)
 
     var cvvOwnerUuid by remember { mutableStateOf(selectedSavedCardUuid) }
+    // A removal the server confirmed drops the selected card, so the typed CVV is dropped with it; a failed removal keeps it.
     LaunchedEffect(selectedSavedCardUuid, savedCards) {
         val previousOwner = cvvOwnerUuid
         if (previousOwner != null &&
@@ -457,6 +458,7 @@ internal fun cvvCardType(
     savedCard: SavedCard?
 ): CardType = if (isNewCard) enteredCardType else CardType.fromBrand(savedCard?.cardBrand)
 
+// A CVV belongs to the card it was typed for, so any change of card drops it; carrying it across would send a new card's CVV with a stored card's token.
 internal fun cvvAfterCardSelection(
     selectedUuid: String?,
     pickedUuid: String?,

@@ -62,7 +62,7 @@ data class PayCrossTypography(
 
 /**
  * Visual settings for the payment sheet. Colours resolve per role: the value set here, then the
- * merchant's back-office brand colour, then the platform default. Layout, the 3-D Secure page and
+ * brand colour from the payment session, then the platform default. Layout, the 3-D Secure page and
  * the wallet button labels are fixed.
  *
  * ```

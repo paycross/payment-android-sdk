@@ -70,6 +70,7 @@ internal class PaymentViewModel(
     private var sessionExpiryJob: Job? = null
     private val handledThreeDsActions = mutableSetOf<String>()
 
+    // Added on the UI thread and removed on a background dispatcher, so the set must be concurrent. add() returning false is the guard against a second confirm.
     private val removalsInFlight: MutableSet<String> =
         Collections.newSetFromMap(ConcurrentHashMap())
 
@@ -233,6 +234,7 @@ internal class PaymentViewModel(
         }
     }
 
+    // SavedStateHandle, so a process death while the Google Pay sheet is up (it runs in Google's UI) still submits the entered values.
     fun onGooglePaySheetOpened(fieldValues: Map<String, Map<String, String>>) {
         savedStateHandle[KEY_GOOGLE_PAY_FIELDS] =
             HashMap(fieldValues.mapValues { HashMap(it.value) })
@@ -276,6 +278,7 @@ internal class PaymentViewModel(
     }
 
     private suspend fun submitWithRetry(request: SubmitCardRequest) {
+        // A fresh idempotency key per submit; retry_after responses reuse the same key.
         val idempotencyKey = IdempotencyKey.generate()
 
         repeat(MAX_SUBMIT_ATTEMPTS) {
