@@ -18,7 +18,7 @@ internal enum class CardType(
                 ?: UNKNOWN
         }
 
-        // Card_brand arrives in any case and sometimes spaced, such as "AMERICAN EXPRESS".
+        // card_brand arrives in any case and sometimes spaced, such as "AMERICAN EXPRESS".
         fun fromBrand(brand: String?): CardType =
             when (brand?.trim()?.lowercase()?.replace(" ", "")) {
                 "visa" -> VISA

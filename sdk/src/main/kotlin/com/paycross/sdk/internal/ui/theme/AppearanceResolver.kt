@@ -102,7 +102,7 @@ internal object AppearanceResolver {
     fun onBrandColor(background: Color): Color =
         if (background.luminance() > 0.179f) Color.Black else Color.White
 
-    // IOS parses the same two shapes, so eight-digit hex is refused.
+    // iOS parses the same two shapes, so eight-digit hex is refused.
     fun parseHexColor(hex: String?): Color? {
         val trimmed = hex?.trim() ?: return null
         if (!trimmed.startsWith("#")) return null

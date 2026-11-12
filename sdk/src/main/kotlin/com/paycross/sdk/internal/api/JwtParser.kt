@@ -41,7 +41,7 @@ internal object JwtParser {
         )
     }
 
-    // Kotlin.io.encoding.Base64 is used, since java.util.Base64 needs API 26 and minSdk is 24.
+    // kotlin.io.encoding.Base64 is used, since java.util.Base64 needs API 26 and minSdk is 24.
     @OptIn(ExperimentalEncodingApi::class)
     private fun decodePayload(encodedPayload: String): String {
         return try {

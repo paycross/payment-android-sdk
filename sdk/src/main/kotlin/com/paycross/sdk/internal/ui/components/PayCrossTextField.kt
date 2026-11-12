@@ -32,9 +32,9 @@ import com.paycross.sdk.internal.ui.theme.LocalPayCrossAppearance
 private val LABEL_TOP_PADDING = 8.sp
 
 // Locked paints the field as disabled but keeps the value at full contrast; readOnly is only input plumbing.
-// ValueIsPrompt keeps a select's prompt in the placeholder colour, so an unanswered select does not read as answered.
+// valueIsPrompt keeps a select's prompt in the placeholder colour, so an unanswered select does not read as answered.
 // The decoration box is driven directly because Material's OutlinedTextField takes no border thickness.
-// Default_error_message is borrowed because Compose ships it translated and the SDK ships no translations.
+// default_error_message is borrowed because Compose ships it translated and the SDK ships no translations.
 @SuppressLint("PrivateResource")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

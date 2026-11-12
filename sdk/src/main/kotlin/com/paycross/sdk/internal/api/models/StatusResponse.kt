@@ -9,7 +9,7 @@ internal data class StatusResponse(
     val currency: String?,
     val action: ThreeDsAction?,
     val recovery: String?,
-    // Used_token is not decoded, since the sheet already knows the card it submitted.
+    // used_token is not decoded, since the sheet already knows the card it submitted.
     @SerializedName("saved_token") val savedToken: String? = null
 )
 
