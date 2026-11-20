@@ -11,6 +11,7 @@ permissions:
 jobs:
   publish:
     name: Publish to GitHub Packages
+    environment: maven-central
     runs-on: ubuntu-latest
     # Job-level because the secrets context is not allowed in a step-level if.
     env:
