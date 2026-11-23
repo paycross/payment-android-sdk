@@ -7,7 +7,7 @@ pluginManagement {
 }
 
 plugins {
-    id("com.gradleup.nmcp.settings") version "1.6.1"
+    id("com.gradleup.nmcp.settings") version "1.6.2"
 }
 
 // Central Portal publishing: AUTOMATIC releases a validated tag at once, and Central artifacts cannot be unpublished.
