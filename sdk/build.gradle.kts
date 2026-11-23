@@ -164,10 +164,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.10.0")
 
     // Retrofit 2.11+: 2.9 predates OkHttp 5, which flutter_stripe pins and would drag the SDK onto.
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.12.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.12.0")
+    implementation("com.google.code.gson:gson:2.15.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.1")
 
     implementation("com.google.android.gms:play-services-wallet:20.0.0")
 
@@ -175,11 +175,11 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("io.mockk:mockk:1.14.12")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.06.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
